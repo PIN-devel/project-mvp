@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS temp;
+CREATE TABLE temp (
+    message VARCHAR(255)
+);
