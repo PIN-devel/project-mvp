@@ -2,8 +2,13 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="cop.kbds.agilemvp.sample.SampleMapper">
+    <resultMap id="SampleVOResultMap" type="cop.kbds.agilemvp.sample.SampleVO">
+        <constructor>
+            <arg column="message" javaType="string"/>
+        </constructor>
+    </resultMap>
 
-    <select id="getHelloMessages" resultType="map">
+    <select id="getHelloMessages" resultMap="SampleVOResultMap">
         SELECT message FROM temp
     </select>
 

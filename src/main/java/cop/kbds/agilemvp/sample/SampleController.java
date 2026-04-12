@@ -1,7 +1,7 @@
 package cop.kbds.agilemvp.sample;
 
 import java.util.List;
-import java.util.Map;
+
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,7 +17,7 @@ public class SampleController {
     private final SampleService sampleService;
 
     @GetMapping("/hello")
-    public List<Map<String, Object>> getHelloMessages() {
-        return sampleService.getHelloMessages();
+    public List<SampleResponseDTO> getHelloMessages(SampleRequestDTO requestDTO) {
+        return sampleService.getHelloMessages(requestDTO);
     }
 }
