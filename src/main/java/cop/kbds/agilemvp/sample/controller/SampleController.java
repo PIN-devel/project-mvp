@@ -6,11 +6,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import lombok.RequiredArgsConstructor;
-
-import cop.kbds.agilemvp.sample.service.SampleService;
 import cop.kbds.agilemvp.common.exception.BusinessException;
-import cop.kbds.agilemvp.common.exception.CommonErrorCode;
+import cop.kbds.agilemvp.sample.exception.SampleErrorCode;
+import cop.kbds.agilemvp.sample.service.SampleService;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/sample")
@@ -26,6 +25,6 @@ public class SampleController {
 
     @GetMapping("/error")
     public void throwErrorExample() {
-        throw new BusinessException(CommonErrorCode.ENTITY_NOT_FOUND, "강제로 발생시킨 비즈니스 예외 테스트입니다.");
+        throw new BusinessException(SampleErrorCode.SAMPLE_LIMIT_EXCEEDED, "강제로 발생시킨 비즈니스 예외 테스트입니다.");
     }
 }
