@@ -21,14 +21,61 @@
 - **Spring Boot DevTools** (`spring-boot-devtools`): 개발 편의성(자동 재시작 등) 제공 기능
 - **Test 라이브러리**: Validation, WebMVC, MyBatis 전용 테스트 모듈 및 JUnit Platform 지원
 
+## 🏷️ 공통 API 응답 규격 및 표준 에러 처리 (API Response & Error Code)
+
+클라이언트가 예측 가능하고 일관된 포맷으로 데이터를 받을 수 있도록 `ApiResponse` 구조를 설계하여 제공합니다. 더불어, 단순 HTTP 상태 코드만으로는 알 수 없는 다양한 비즈니스 예외 상황을 세분화하여 다루기 위해 표준 에러 코드(Error Code) 시스템을 도입했습니다.
+
+### 1. 표준 에러 코드 규격 (`ErrorCode`)
+도메인별로 확장 가능한 에러 처리를 위해 `ErrorCode` 인터페이스를 제공하고 구현체(Enum)를 통해 일관된 에러 정보를 강제합니다.
+- **위치**: `cop.kbds.agilemvp.common.exception.ErrorCode`
+- **강제 스펙**:
+  - `getHttpStatus()`: 통신 규격을 위한 `HttpStatus` 객체
+  - `getCode()`: 클라이언트에게 노출될 비즈니스 에러 식별 코드 (예: `"COM001"`, `"USR001"`)
+  - `getMessage()`: 에러에 대한 상세 메시지 (로깅 및 클라이언트 노출용)
+
+### 2. API 응답 규격 (`ApiResponse`)
+- **위치**: `cop.kbds.agilemvp.common.api.ApiResponse`
+- **응답 구조**:
+  - `success` (`boolean`): API 호출 성공 여부 (`true`/`false`)
+  - `errorCode` (`String`): 비즈니스 에러 식별 코드 (성공 시 `null`, 실패 시 에러 코드 문자열)
+  - `message` (`String`): 클라이언트에게 전달할 메시지 (성공 기본 메시지, 에러 상세 원인 등)
+  - `data` (`T`): 실제 비즈니스 응답 데이터 (제네릭 타입 지원, 에러 시 `null`)
+- **주요 특징**: 상태나 정보의 무분별한 조작을 막기 위해 완전한 불변 객체(Java `record`)로 구현되었습니다.
+- **아키텍처 규칙**: 의존성 역전 원칙(DIP)을 준수하기 위해 데이터베이스 로직(Mapper)이나 도메인 영역에 종속시키지 않고, 오직 웹 계층(Controller)의 최종 응답 반환 단계에서만 데이터를 감싸는(Wrapping) 용도로 제한하여 사용합니다.
+
+#### 📝 JSON 응답 예시 (클라이언트 전달 포맷)
+프론트엔드/모바일 클라이언트는 항상 아래와 같이 예측 가능한 형태의 JSON을 전달받게 됩니다.
+```json
+// 정상 호출 (성공)
+{
+  "success": true,
+  "errorCode": null,
+  "message": "요청이 성공적으로 처리되었습니다.",
+  "data": [ { "message": "사용자님, DB메세지" } ]
+}
+
+// 비즈니스 예외 발생 (에러)
+{
+  "success": false,
+  "errorCode": "COM003",
+  "message": "요청한 데이터를 찾을 수 없습니다.",
+  "data": null
+}
+```
+
+### 3. 👩‍💻 개발자 가이드 (단위 업무 개발 시)
+AOP 기반 전역 처리가 적용되어 있으므로, 개발 시 핵심 비즈니스 로직에만 집중하시면 됩니다!
+- **정상 응답 시**: 컨트롤러(`Controller`)에서 별도의 포장 객체(`ApiResponse`) 생성 없이 **순수한 데이터 타입(DTO, List 등)만 반환**하세요. (알아서 공통 포맷으로 변환됩니다)
+- **예외 발생 시**: 로직 처리 중 통제 가능한 에러 상황에 직면하면 예외만 던지세요. (`throw new BusinessException(CommonErrorCode.COM001);`) 나머지는 전역 예외 처리기가 담당합니다.
+
 ## 📂 Sample 패키지 구조 및 데이터 처리 흐름
 
 `cop.kbds.agilemvp.sample` 패키지는 스프링 프로젝트에서 가장 관습적이고 널리 쓰이는 3계층(웹, 애플리케이션, 인프라) 구조로 구성된 레퍼런스 코드입니다. 유지보수성과 관심사의 분리를 위해 각 계층은 다음과 같이 `controller`, `service`, `repository` 패키지로 명확히 분리 되어있습니다.
 
 ### 1. 웹 계층 (`controller` 패키지)
 #### `controller/SampleController.java`
-- **역할**: 클라이언트의 HTTP 요청을 매핑하고 응답을 반환합니다. (`GET /api/sample/hello`)
-- **흐름**: 클라이언트로 부터 `name` 파라미터가 포함된 `SampleRequest`를 받아 애플리케이션 계층인 `SampleService`로 전달하고, 가공된 결과인 `List<SampleResponse>`를 반환합니다.
+- **역할**: 클라이언트의 HTTP 요청을 매핑하고 표준화된 규격으로 응답을 반환합니다. (`GET /api/sample/hello`)
+- **흐름**: 클라이언트로 부터 `name` 파라미터가 포함된 `SampleRequest`를 받아 애플리케이션 계층인 `SampleService`로 전달하고, 가공된 결과인 `List<SampleResponse>`를 순수하게 반환합니다. 이때 전역 설정된 `GlobalResponseAdvice`가 자동으로 개입하여 `ApiResponse.success()` 포맷으로 감싸주기 때문에(Wrapping), 컨트롤러는 응답 규격을 신경 쓰지 규칙된 비즈니스 데이터 반환에만 집중할 수 있습니다.
 
 #### `controller/SampleRequest.java` & `controller/SampleResponse.java`
 - **역할**: 외부 환경(클라이언트)의 요청 파라미터를 받거나(Request), 응답을 반환(Response)하기 위한 전용 객체들입니다.
@@ -83,4 +130,30 @@
      ```text
      http://localhost:8080/api/sample/hello?name=사용자
      ```
-3. 정상적으로 동작할 경우 `temp` 테이블에 저장된 `message` 데이터에 요청 파라미터 정보가 결합되어 JSON 형태로 응답됩니다. (예: `[{"message":"사용자님, DB메세지"}]`)
+   - **전역 예외 처리 테스트 (BusinessException)**:
+     ```text
+     http://localhost:8080/api/sample/error
+     ```
+3. 정상적으로 동작할 경우 `temp` 테이블에 저장된 `message` 데이터에 요청 파라미터 정보가 결합되며, **공통 API 규격(`ApiResponse`)으로 자동 포장되어 JSON 형태**로 응답됩니다.
+   - **정상 응답 예시 (`/hello`)**:
+     ```json
+     {
+       "success": true,
+       "errorCode": null,
+       "message": "요청이 성공적으로 처리되었습니다.",
+       "data": [
+         {
+           "message": "사용자님, DB메세지"
+         }
+       ]
+     }
+     ```
+   - **에러 응답 예시 (`/error`)**:
+     ```json
+     {
+       "success": false,
+       "errorCode": "COM003",
+       "message": "강제로 발생시킨 비즈니스 예외 테스트입니다.",
+       "data": null
+     }
+     ```
