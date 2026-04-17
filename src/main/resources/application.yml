@@ -20,6 +20,20 @@ mybatis:
     map-underscore-to-camel-case: true
 
 logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %5level [%X{traceId}] --- [%-15.15thread] %-40.40logger{39} : %msg%n"
   level:
     root: INFO
     cop.kbds.agilemvp: DEBUG
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    groups-order: ASC
+    operations-sorter: alpha
+    disable-swagger-default-url: true
+    display-request-duration: true
+  api-docs:
+    path: /api-docs
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json

@@ -20,6 +20,14 @@
 - **Lombok** (`org.projectlombok:lombok`): 어노테이션 기반 보일러플레이트 코드 자동 생성
 - **Spring Boot DevTools** (`spring-boot-devtools`): 개발 편의성(자동 재시작 등) 제공 기능
 - **Test 라이브러리**: Validation, WebMVC, MyBatis 전용 테스트 모듈 및 JUnit Platform 지원
+- **SpringDoc OpenAPI** (`springdoc-openapi-starter-webmvc-ui:3.0.3`): Swagger UI를 통한 API 문서화 및 테스트 도구 제공
+
+## 📘 API 문서 (Swagger UI)
+본 프로젝트는 Swagger(SpringDoc)를 사용하여 API를 문서화하고 있습니다. 애플리케이션 실행 후 아래 URL을 통해 API 명세를 확인하고 직접 테스트해 볼 수 있습니다.
+
+- **Swagger UI**: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
+- **OpenAPI Spec (JSON)**: [http://localhost:8080/api-docs](http://localhost:8080/api-docs)
+
 
 ## 🏷️ 공통 API 응답 규격 및 표준 에러 처리 (API Response & Error Code)
 
@@ -70,6 +78,85 @@
 AOP 기반 전역 처리가 적용되어 있으므로, 개발 시 핵심 비즈니스 로직에만 집중하시면 됩니다!
 - **정상 응답 시**: 컨트롤러(`Controller`)에서 별도의 포장 객체(`ApiResponse`) 생성 없이 **순수한 데이터 타입(DTO, List 등)만 반환**하세요. (알아서 공통 포맷으로 변환됩니다)
 - **예외 발생 시**: 로직 처리 중 통제 가능한 에러 상황에 직면하면 예외만 던지세요. (`throw new BusinessException(CommonErrorCode.COM001);`) 나머지는 전역 예외 처리기가 담당합니다.
+
+## 🛠️ 공통 유틸리티 사용 가이드
+
+모든 유틸리티는 순수 Java 25 API를 기반으로 작성되었습니다.
+
+### 1. DateTimeUtil
+다양한 날짜/시간 입력을 `LocalDateTime`으로 변환하거나 포맷팅합니다.
+```java
+// String to LocalDateTime
+LocalDateTime ldt = DateTimeUtil.toLocalDateTime("2026-04-17 22:00:00");
+
+// Date Range 체크 (Record 활용)
+DateTimeUtil.DateRange range = new DateTimeUtil.DateRange(start, end);
+boolean isInside = range.contains(target);
+```
+
+### 2. StringUtil
+문자열 조작 및 마스킹 처리를 제공합니다.
+```java
+// 문자열 마스킹
+String masked = StringUtil.mask("010-1234-5678", 4, 8); // "010-****-5678"
+
+// 안전한 자르기
+String truncated = StringUtil.truncate("Too long text here", 10); // "Too lon..."
+```
+
+### 3. NumberUtil
+안전한 BigDecimal 연산 및 포맷팅을 제공합니다.
+```java
+// 안전한 나눗셈 (기본 소수점 2자리, 반올림)
+BigDecimal result = NumberUtil.divide(new BigDecimal("10"), new BigDecimal("3"));
+
+// 통화 포맷팅
+String krw = NumberUtil.formatCurrency(1500); // "₩1,500"
+```
+
+### 4. CollectionUtil
+컬렉션 조작 및 null-safe한 처리를 제공합니다.
+```java
+// SequencedCollection (첫 번째/마지막 요소)
+String first = CollectionUtil.getFirst(list);
+String last = CollectionUtil.getLast(list);
+
+// null-safe 리스트
+List<String> safeList = CollectionUtil.emptyIfNull(maybeNullList);
+```
+
+### 5. BusinessValidator
+서비스 계층에서 비즈니스 로직을 가독성 있게 검증합니다.
+```java
+// Fluent API 스타일 검증
+BusinessValidator.validate(user.isActive())
+    .throwIfFalse(CommonErrorCode.INVALID_INPUT_VALUE, "활성화된 사용자만 접근 가능합니다.");
+
+// 원샷 검증
+BusinessValidator.validateNonNull(order, CommonErrorCode.ENTITY_NOT_FOUND);
+```
+
+## 🔍 로깅 및 트레이싱 (Logging & Tracing)
+
+애플리케이션의 가시성을 높이고 문제 생성을 추적하기 위해 모든 요청에 고유한 **Trace ID**를 부여하고 요청/응답 시점을 자동 로깅합니다.
+
+### 1. Trace ID 활용 전략
+- **생성 방식**: 요청당 1개의 고유한 UUID를 생성합니다.
+- **MDC (Mapped Diagnostic Context)**: 생성된 ID는 SLF4J MDC에 `traceId`라는 키로 저장되어, 해당 요청 내에서 발생하는 모든 로그에 자동으로 포함됩니다.
+- **응답 헤더**: 클라이언트가 로그를 조회하거나 문의할 때 활용할 수 있도록 응답 헤더(`X-Trace-Id`)에 해당 ID를 포함시켜 반환합니다.
+
+### 2. 요청/응답 자동 로깅
+`LoggingFilter`를 통해 다음과 같이 표준화된 로깅을 수행합니다.
+- **[REQUEST]**: HTTP 메서드, 요청 URI, 클라이언트 IP
+- **[RESPONSE]**: HTTP 메서드, 요청 URI, 상태 코드, 실행 시간(ms)
+
+#### 📝 로그 출력 예시
+실제 콘솔에는 다음과 같은 형식으로 출력됩니다.
+```text
+2026-04-17 12:00:00.001  INFO [22c3da25-...] --- [nio-8080-exec-1] c.k.a.common.filter.LoggingFilter : [REQUEST] GET /api/sample/hello from 127.0.0.1
+2026-04-17 12:00:00.015  DEBUG [22c3da25-...] --- [nio-8080-exec-1] c.k.a.sample.service.SampleService : Hello messages retrieved.
+2026-04-17 12:00:00.020  INFO [22c3da25-...] --- [nio-8080-exec-1] c.k.a.common.filter.LoggingFilter : [RESPONSE] GET /api/sample/hello status:200 (19ms)
+```
 
 ## 📂 Sample 패키지 구조 및 데이터 처리 흐름
 
