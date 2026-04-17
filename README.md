@@ -47,7 +47,9 @@
   - `success` (`boolean`): API 호출 성공 여부 (`true`/`false`)
   - `errorCode` (`String`): 비즈니스 에러 식별 코드 (성공 시 `null`, 실패 시 에러 코드 문자열)
   - `message` (`String`): 클라이언트에게 전달할 메시지 (성공 기본 메시지, 에러 상세 원인 등)
-  - `data` (`T`): 실제 비즈니스 응답 데이터 (제네릭 타입 지원, 에러 시 `null`)
+  - `data` (`T`): 실제 비즈니스 응답 데이터 (제네릭 타입 지원)
+    - **성공 시**: 요청한 결과 데이터가 포함됩니다.
+    - **실패 시**: `traceId`를 포함한 객체가 기본으로 반환되며, 유효성 검사 실패 시 상세 에러 내역(`details`)이 포함될 수 있습니다.
 - **주요 특징**: 상태나 정보의 무분별한 조작을 막기 위해 완전한 불변 객체(Java `record`)로 구현되었습니다.
 - **아키텍처 규칙**: 의존성 역전 원칙(DIP)을 준수하기 위해 데이터베이스 로직(Mapper)이나 도메인 영역에 종속시키지 않고, 오직 웹 계층(Controller)의 최종 응답 반환 단계에서만 데이터를 감싸는(Wrapping) 용도로 제한하여 사용합니다.
 
@@ -70,7 +72,23 @@
   "success": false,
   "errorCode": "COM003",
   "message": "요청한 데이터를 찾을 수 없습니다.",
-  "data": null
+  "data": {
+    "traceId": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+
+// 유효성 검사 실패 (에러 상세 포함)
+{
+  "success": false,
+  "errorCode": "COM001",
+  "message": "입력 값이 올바르지 않습니다.",
+  "data": {
+    "traceId": "550e8400-e29b-41d4-a716-446655440000",
+    "details": {
+      "email": "올바른 이메일 형식이 아닙니다.",
+      "name": "이름은 필수입니다."
+    }
+  }
 }
 ```
 
@@ -265,6 +283,8 @@ BusinessValidator.validateNonNull(order, CommonErrorCode.ENTITY_NOT_FOUND);
        "success": false,
        "errorCode": "SAM003",
        "message": "강제로 발생시킨 비즈니스 예외 테스트입니다.",
-       "data": null
+       "data": {
+         "traceId": "550e8400-..."
+       }
      }
      ```

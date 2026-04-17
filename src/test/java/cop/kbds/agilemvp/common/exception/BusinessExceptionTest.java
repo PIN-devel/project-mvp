@@ -27,4 +27,15 @@ class BusinessExceptionTest {
         assertThat(exception.getErrorCode()).isEqualTo(errorCode);
         assertThat(exception.getMessage()).isEqualTo(customMessage);
     }
+
+    @Test
+    @DisplayName("비즈니스 예외 생성 확인 - 데이터 포함")
+    void constructorWithData() {
+        ErrorCode errorCode = CommonErrorCode.INVALID_INPUT_VALUE;
+        String data = "extra info";
+        BusinessException exception = new BusinessException(errorCode, (Object) data);
+
+        assertThat(exception.getErrorCode()).isEqualTo(errorCode);
+        assertThat(exception.getData()).isEqualTo(data);
+    }
 }

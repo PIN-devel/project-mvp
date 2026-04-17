@@ -25,7 +25,8 @@ class GlobalExceptionHandlerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("COM003"))
-                .andExpect(jsonPath("$.message").value("요청한 데이터를 찾을 수 없습니다."));
+                .andExpect(jsonPath("$.message").value("요청한 데이터를 찾을 수 없습니다."))
+                .andExpect(jsonPath("$.data.traceId").exists());
     }
 
     @Test
@@ -34,7 +35,8 @@ class GlobalExceptionHandlerTest {
         mockMvc.perform(get("/test/missing-param"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.errorCode").value("COM001"));
+                .andExpect(jsonPath("$.errorCode").value("COM001"))
+                .andExpect(jsonPath("$.data.traceId").exists());
     }
 
     @Test
@@ -43,7 +45,8 @@ class GlobalExceptionHandlerTest {
         mockMvc.perform(get("/test/type-mismatch").param("id", "abc"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.errorCode").value("COM005"));
+                .andExpect(jsonPath("$.errorCode").value("COM005"))
+                .andExpect(jsonPath("$.data.traceId").exists());
     }
 
     @Test
@@ -52,6 +55,7 @@ class GlobalExceptionHandlerTest {
         mockMvc.perform(get("/test/runtime-exception"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.errorCode").value("COM004"));
+                .andExpect(jsonPath("$.errorCode").value("COM004"))
+                .andExpect(jsonPath("$.data.traceId").exists());
     }
 }
