@@ -2,13 +2,30 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="cop.kbds.agilemvp.sample.repository.SampleMapper">
-    <resultMap id="SampleVOResultMap" type="cop.kbds.agilemvp.sample.service.SampleVO">
+    <resultMap id="SampleResultMap" type="cop.kbds.agilemvp.sample.service.Sample">
         <constructor>
+            <arg column="id" javaType="long"/>
             <arg column="message" javaType="string"/>
         </constructor>
     </resultMap>
 
-    <select id="getHelloMessages" resultMap="SampleVOResultMap">
-        SELECT message FROM temp
+    <select id="getHelloMessages" resultMap="SampleResultMap">
+        SELECT id, message FROM temp
     </select>
+
+    <select id="findById" resultMap="SampleResultMap">
+        SELECT id, message FROM temp WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO temp (message) VALUES (#{message})
+    </insert>
+
+    <update id="update">
+        UPDATE temp SET message = #{message} WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM temp WHERE id = #{id}
+    </delete>
 </mapper>
