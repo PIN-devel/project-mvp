@@ -145,7 +145,7 @@ public class GlobalExceptionHandler {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
                 HttpStatusCode.valueOf(errorCode.getHttpStatus().value()), detail);
         problemDetail.setType(URI.create(URN_PREFIX + errorCode.getCode()));
-        problemDetail.setTitle(errorCode.getMessage());
+        problemDetail.setTitle(errorCode.getName());
         problemDetail.setInstance(URI.create(request.getRequestURI()));
         problemDetail.setProperty("traceId", MDC.get("traceId"));
         return problemDetail;

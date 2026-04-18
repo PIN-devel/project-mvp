@@ -24,7 +24,7 @@ class GlobalExceptionHandlerTest {
         mockMvc.perform(get("/test/business-exception"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.type").value("urn:cop:kbds:agilemvp:error:COM003"))
-                .andExpect(jsonPath("$.title").value("요청한 데이터를 찾을 수 없습니다."))
+                .andExpect(jsonPath("$.title").value("ENTITY_NOT_FOUND"))
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.detail").value("요청한 데이터를 찾을 수 없습니다."))
                 .andExpect(jsonPath("$.instance").value("/test/business-exception"));
@@ -36,7 +36,7 @@ class GlobalExceptionHandlerTest {
         mockMvc.perform(get("/test/missing-param"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.type").value("urn:cop:kbds:agilemvp:error:COM001"))
-                .andExpect(jsonPath("$.title").value("잘못된 입력값입니다."))
+                .andExpect(jsonPath("$.title").value("INVALID_INPUT_VALUE"))
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.instance").value("/test/missing-param"));
     }
@@ -47,7 +47,7 @@ class GlobalExceptionHandlerTest {
         mockMvc.perform(get("/test/type-mismatch").param("id", "abc"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.type").value("urn:cop:kbds:agilemvp:error:COM005"))
-                .andExpect(jsonPath("$.title").value("잘못된 타입의 값이 입력되었습니다."))
+                .andExpect(jsonPath("$.title").value("INVALID_TYPE_VALUE"))
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.instance").value("/test/type-mismatch"));
     }
@@ -58,7 +58,7 @@ class GlobalExceptionHandlerTest {
         mockMvc.perform(get("/test/runtime-exception"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.type").value("urn:cop:kbds:agilemvp:error:COM004"))
-                .andExpect(jsonPath("$.title").value("서버 내부 오류가 발생했습니다."))
+                .andExpect(jsonPath("$.title").value("INTERNAL_SERVER_ERROR"))
                 .andExpect(jsonPath("$.status").value(500))
                 .andExpect(jsonPath("$.instance").value("/test/runtime-exception"));
     }
