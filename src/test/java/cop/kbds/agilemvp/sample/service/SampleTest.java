@@ -102,4 +102,29 @@ class SampleTest {
         // then
         assertThat(formatted).isEqualTo("Normal message");
     }
+    @Test
+    @DisplayName("부분 업데이트 성공 — null 필드는 기존 값 유지")
+    void applyPatch_Success() {
+        // given
+        Sample original = new Sample(1L, "Hello World", "ACTIVE", null);
+
+        // when
+        Sample patched = original.applyPatch(null, "INACTIVE");
+
+        // then
+        assertThat(patched.getMessage()).isEqualTo("Hello World");
+        assertThat(patched.getStatus()).isEqualTo("INACTIVE");
+    }
+
+    @Test
+    @DisplayName("허용되지 않는 status 전달 시 예외 발생")
+    void applyPatch_Fail_InvalidStatus() {
+        // given
+        Sample original = new Sample(1L, "Hello", "ACTIVE", null);
+
+        // when & then
+        assertThatThrownBy(() -> original.applyPatch(null, "DELETED"))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", SampleErrorCode.INVALID_SAMPLE_STATUS);
+    }
 }

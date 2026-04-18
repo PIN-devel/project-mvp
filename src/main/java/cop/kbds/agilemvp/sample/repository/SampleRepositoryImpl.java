@@ -15,8 +15,8 @@ public class SampleRepositoryImpl implements SampleRepository {
     private final SampleMapper sampleMapper;
 
     @Override
-    public List<Sample> getHelloMessages() {
-        return sampleMapper.getHelloMessages();
+    public List<Sample> findAll() {
+        return sampleMapper.findAll();
     }
 
     @Override
@@ -32,6 +32,11 @@ public class SampleRepositoryImpl implements SampleRepository {
     @Override
     public void update(Sample sample) {
         sampleMapper.update(sample);
+    }
+
+    @Override
+    public void patch(Sample sample) {
+        sampleMapper.patch(sample);
     }
 
     @Override

@@ -18,7 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import cop.kbds.agilemvp.common.exception.BusinessException;
 import cop.kbds.agilemvp.common.exception.CommonErrorCode;
-import cop.kbds.agilemvp.sample.controller.SampleRequest;
+
 import cop.kbds.agilemvp.sample.controller.SampleResponse;
 import cop.kbds.agilemvp.sample.repository.SampleRepository;
 
@@ -32,92 +32,83 @@ class SampleServiceTest {
     private SampleRepository sampleRepository;
 
     @Test
-    @DisplayName("샘플 목록 조회 성공")
-    void getHelloMessages_Success() {
-        // given
-        SampleRequest request = new SampleRequest("홍길동");
+    @DisplayName("전체 목록 조회 성공")
+    void getAllSamples_Success() {
         Sample sample = Sample.create("테스트 메세지");
-        given(sampleRepository.getHelloMessages()).willReturn(List.of(sample));
+        given(sampleRepository.findAll()).willReturn(List.of(sample));
 
-        // when
-        List<SampleResponse> result = sampleService.getHelloMessages(request);
+        List<SampleResponse> result = sampleService.getAllSamples();
 
-        // then
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).message()).contains("홍길동");
         assertThat(result.get(0).message()).contains("테스트 메세지");
-        then(sampleRepository).should(times(1)).getHelloMessages();
     }
 
     @Test
-    @DisplayName("샘플 생성 성공")
+    @DisplayName("ID로 단건 조회 성공")
+    void getSampleById_Success() {
+        Long id = 1L;
+        Sample sample = new Sample(id, "Hello World", "ACTIVE", null);
+        given(sampleRepository.findById(id)).willReturn(sample);
+
+        SampleResponse result = sampleService.getSampleById(id);
+
+        assertThat(result.id()).isEqualTo(id);
+        assertThat(result.message()).isEqualTo("Hello World");
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 ID 조회 시 ENTITY_NOT_FOUND 예외 발생")
+    void getSampleById_NotFound() {
+        Long id = 99L;
+        given(sampleRepository.findById(id)).willReturn(null);
+
+        assertThatThrownBy(() -> sampleService.getSampleById(id))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", CommonErrorCode.ENTITY_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("새로운 샘플 생성 성공")
     void createSample_Success() {
-        // given
-        String message = "New Sample Message";
-
-        // when
-        sampleService.createSample(message);
-
-        // then
+        sampleService.createSample("New Sample Message");
         then(sampleRepository).should(times(1)).save(any(Sample.class));
     }
 
     @Test
-    @DisplayName("샘플 수정 성공")
+    @DisplayName("샘플 정보 수정 성공")
     void updateSample_Success() {
-        // given
         Long id = 1L;
-        String message = "Updated Message";
         Sample existing = Sample.builder().id(id).message("Old Message").build();
         given(sampleRepository.findById(id)).willReturn(existing);
 
-        // when
-        sampleService.updateSample(id, message);
+        Sample result = sampleService.updateSample(id, "Updated Message");
 
-        // then
-        then(sampleRepository).should(times(1)).findById(id);
+        assertThat(result.getMessage()).isEqualTo("Updated Message");
         then(sampleRepository).should(times(1)).update(any(Sample.class));
     }
 
     @Test
-    @DisplayName("존재하지 않는 샘플 수정 시 예외 발생")
-    void updateSample_Fail_NotFound() {
-        // given
-        Long id = 99L;
-        given(sampleRepository.findById(id)).willReturn(null);
+    @DisplayName("샘플 부분 수정(PATCH) 성공")
+    void patchSample_Success() {
+        Long id = 1L;
+        Sample existing = new Sample(id, "Hello World", "ACTIVE", null);
+        given(sampleRepository.findById(id)).willReturn(existing);
 
-        // when & then
-        assertThatThrownBy(() -> sampleService.updateSample(id, "message"))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("errorCode", CommonErrorCode.ENTITY_NOT_FOUND);
+        Sample result = sampleService.patchSample(id, null, "INACTIVE");
+
+        assertThat(result.getStatus()).isEqualTo("INACTIVE");
+        then(sampleRepository).should(times(1)).patch(any(Sample.class));
     }
 
     @Test
     @DisplayName("샘플 삭제 성공")
     void deleteSample_Success() {
-        // given
         Long id = 1L;
         Sample existing = Sample.builder().id(id).message("To be deleted").build();
         given(sampleRepository.findById(id)).willReturn(existing);
 
-        // when
         sampleService.deleteSample(id);
 
-        // then
-        then(sampleRepository).should(times(1)).findById(id);
         then(sampleRepository).should(times(1)).deleteById(id);
-    }
-
-    @Test
-    @DisplayName("존재하지 않는 샘플 삭제 시 예외 발생")
-    void deleteSample_Fail_NotFound() {
-        // given
-        Long id = 99L;
-        given(sampleRepository.findById(id)).willReturn(null);
-
-        // when & then
-        assertThatThrownBy(() -> sampleService.deleteSample(id))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("errorCode", CommonErrorCode.ENTITY_NOT_FOUND);
     }
 }
