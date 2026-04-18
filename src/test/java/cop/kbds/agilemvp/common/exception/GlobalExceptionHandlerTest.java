@@ -19,43 +19,47 @@ class GlobalExceptionHandlerTest {
     private MockMvc mockMvc;
 
     @Test
-    @DisplayName("BusinessException 발생 시 커스텀 응답 반환 확인")
+    @DisplayName("BusinessException 발생 시 ProblemDetail 형식으로 반환 확인")
     void handleBusinessException() throws Exception {
         mockMvc.perform(get("/test/business-exception"))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.errorCode").value("COM003"))
-                .andExpect(jsonPath("$.message").value("요청한 데이터를 찾을 수 없습니다."))
-                .andExpect(jsonPath("$.data.traceId").exists());
+                .andExpect(jsonPath("$.type").value("urn:cop:kbds:agilemvp:error:COM003"))
+                .andExpect(jsonPath("$.title").value("요청한 데이터를 찾을 수 없습니다."))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.detail").value("요청한 데이터를 찾을 수 없습니다."))
+                .andExpect(jsonPath("$.instance").value("/test/business-exception"));
     }
 
     @Test
-    @DisplayName("MissingServletRequestParameterException 발생 시 400 응답 확인")
+    @DisplayName("MissingServletRequestParameterException 발생 시 ProblemDetail 400 응답 확인")
     void handleMissingParameter() throws Exception {
         mockMvc.perform(get("/test/missing-param"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.errorCode").value("COM001"))
-                .andExpect(jsonPath("$.data.traceId").exists());
+                .andExpect(jsonPath("$.type").value("urn:cop:kbds:agilemvp:error:COM001"))
+                .andExpect(jsonPath("$.title").value("잘못된 입력값입니다."))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.instance").value("/test/missing-param"));
     }
 
     @Test
-    @DisplayName("MethodArgumentTypeMismatchException 발생 시 400 응답 확인")
+    @DisplayName("MethodArgumentTypeMismatchException 발생 시 ProblemDetail 400 응답 확인")
     void handleTypeMismatch() throws Exception {
         mockMvc.perform(get("/test/type-mismatch").param("id", "abc"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.errorCode").value("COM005"))
-                .andExpect(jsonPath("$.data.traceId").exists());
+                .andExpect(jsonPath("$.type").value("urn:cop:kbds:agilemvp:error:COM005"))
+                .andExpect(jsonPath("$.title").value("잘못된 타입의 값이 입력되었습니다."))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.instance").value("/test/type-mismatch"));
     }
 
     @Test
-    @DisplayName("기타 예외 발생 시 500 응답 확인")
+    @DisplayName("기타 예외 발생 시 ProblemDetail 500 응답 확인")
     void handleGeneralException() throws Exception {
         mockMvc.perform(get("/test/runtime-exception"))
                 .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.errorCode").value("COM004"))
-                .andExpect(jsonPath("$.data.traceId").exists());
+                .andExpect(jsonPath("$.type").value("urn:cop:kbds:agilemvp:error:COM004"))
+                .andExpect(jsonPath("$.title").value("서버 내부 오류가 발생했습니다."))
+                .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.instance").value("/test/runtime-exception"));
     }
 }
