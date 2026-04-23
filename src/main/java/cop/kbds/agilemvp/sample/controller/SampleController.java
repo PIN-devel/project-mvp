@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import cop.kbds.agilemvp.common.annotation.FeatureToggle;
 import cop.kbds.agilemvp.common.exception.BusinessException;
 import cop.kbds.agilemvp.sample.exception.SampleErrorCode;
 import cop.kbds.agilemvp.sample.service.Sample;
@@ -65,5 +66,10 @@ public class SampleController {
     @GetMapping("/error")
     public void throwErrorExample() {
         throw new BusinessException(SampleErrorCode.SAMPLE_LIMIT_EXCEEDED, "강제로 발생시킨 비즈니스 예외 테스트입니다.");
+    }
+
+    @FeatureToggle("sample.hidden-endpoint")
+    @GetMapping("/hidden-endpoint")
+    public void featureTestEndpoint() {
     }
 }

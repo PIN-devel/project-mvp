@@ -231,6 +231,45 @@ WHERE id = #{id}
 ```
 
 
+## 🚩 Feature Flag 기반 애자일 개발 가이드
+
+애자일 환경에서는 미완성된 기능이더라도 **짧은 주기로 자주 통합(Commit & Merge)**하는 것을 권장합니다. 이를 통해 긴 브랜치 작업으로 인한 거대한 **merge conflict(병합 충돌)를 방지**할 수 있습니다. 
+본 프로젝트에서는 이를 지원하기 위해 경량화된 어노테이션 기반의 Feature Flag를 제공합니다.
+
+### 1. 🎯 목표 및 핵심 개념
+- **빠른 코드 통합**: 기능이 완성되지 않았더라도 Feature Flag로 숨겨둔 채 Main 브랜치에 코드를 병합합니다. 이를 통해 코드 충돌 문제를 원천 차단합니다.
+- **런타임 제어**: 코드를 다시 배포할 필요 없이 설정(`application.yml`) 수정만으로 기능의 활성/비활성 여부를 제어합니다.
+- **깔끔한 제거**: 기능이 정식 릴리즈되어 Flag가 필요 없어지면, 엔드포인트에 달린 어노테이션 한 줄만 제거하여 손쉽게 반영할 수 있습니다.
+
+### 2. 💡 어노테이션 사용법 (`@FeatureToggle`)
+새로운 엔드포인트를 개발 중이거나 아직 외부에 공개하지 않아야 할 때, 컨트롤러의 메서드 레벨에 `@FeatureToggle` 어노테이션을 부착합니다.
+
+```java
+import cop.kbds.agilemvp.common.annotation.FeatureToggle;
+
+@RestController
+public class SampleController {
+    
+    // 이 엔드포인트는 feature.toggle.sample.hidden-endpoint 값이 'true'일 때만 활성화됩니다.
+    // 비활성화 상태인 경우 전역 404 예외 (ENTITY_NOT_FOUND) 처리됩니다.
+    @FeatureToggle("sample.hidden-endpoint")
+    @GetMapping("/hidden-endpoint")
+    public void featureTestEndpoint() {
+        // 내부 처리 로직 (배포되지만 코드는 노출되지 않음)
+    }
+}
+```
+
+### 3. ⚙️ 환경 설정 (`application.yml`) 활성화
+어노테이션에 지정한 키에 자동으로 `feature.toggle.` 접두사가 붙어 환경 설정 파일에 등록하여 활성화 여부를 결정합니다. 값이 `true`일 때만 접근을 허용합니다.
+
+```yaml
+feature:
+  toggle:
+    sample:
+      hidden-endpoint: false # true인 경우에만 오픈, false이거나 생략되면 404
+```
+
 ## 🛠️ 공통 유틸리티 사용 가이드
 
 모든 유틸리티는 순수 Java 25 API를 기반으로 작성되었습니다.
