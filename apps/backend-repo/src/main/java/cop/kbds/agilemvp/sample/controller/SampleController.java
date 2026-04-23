@@ -1,0 +1,75 @@
+package cop.kbds.agilemvp.sample.controller;
+
+import java.util.List;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+import cop.kbds.agilemvp.common.annotation.FeatureToggle;
+import cop.kbds.agilemvp.common.exception.BusinessException;
+import cop.kbds.agilemvp.sample.exception.SampleErrorCode;
+import cop.kbds.agilemvp.sample.service.Sample;
+import cop.kbds.agilemvp.sample.service.SampleService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+
+@RestController
+@RequestMapping("/api/sample")
+@RequiredArgsConstructor
+public class SampleController {
+
+    private final SampleService sampleService;
+
+    @GetMapping
+    public List<SampleResponse> getAll() {
+        return sampleService.getAllSamples();
+    }
+
+    @GetMapping("/{id}")
+    public SampleResponse getById(@PathVariable("id") Long id) {
+        return sampleService.getSampleById(id);
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public void create(@RequestBody @Valid SampleCreateRequest request) {
+        sampleService.createSample(request.message());
+    }
+
+    @PutMapping("/{id}")
+    public SampleResponse update(@PathVariable("id") Long id, @RequestBody @Valid SampleUpdateRequest request) {
+        Sample updated = sampleService.updateSample(id, request.message());
+        return SampleResponse.from(updated);
+    }
+
+    @PatchMapping("/{id}")
+    public SampleResponse patch(@PathVariable("id") Long id, @RequestBody SamplePatchRequest request) {
+        Sample patched = sampleService.patchSample(id, request.message(), request.status());
+        return SampleResponse.from(patched);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable("id") Long id) {
+        sampleService.deleteSample(id);
+    }
+
+    @GetMapping("/error")
+    public void throwErrorExample() {
+        throw new BusinessException(SampleErrorCode.SAMPLE_LIMIT_EXCEEDED, "강제로 발생시킨 비즈니스 예외 테스트입니다.");
+    }
+
+    @FeatureToggle("sample.hidden-endpoint")
+    @GetMapping("/hidden-endpoint")
+    public void featureTestEndpoint() {
+    }
+}
