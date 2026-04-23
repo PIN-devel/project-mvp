@@ -23,11 +23,12 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import cop.kbds.agilemvp.common.exception.GlobalExceptionHandler;
+import cop.kbds.agilemvp.common.config.FeatureToggleConfig;
 import cop.kbds.agilemvp.sample.service.Sample;
 import cop.kbds.agilemvp.sample.service.SampleService;
 
 @WebMvcTest(controllers = SampleController.class)
-@Import(GlobalExceptionHandler.class)
+@Import({GlobalExceptionHandler.class, FeatureToggleConfig.class})
 class SampleControllerTest {
 
     @Autowired
@@ -106,5 +107,13 @@ class SampleControllerTest {
     void delete_Success() throws Exception {
         mockMvc.perform(delete("/api/sample/1"))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("비활성화된 기능 호출 시 404 Not Found 확인")
+    void experimentalEndpoint_NotFound() throws Exception {
+        mockMvc.perform(get("/api/sample/hidden-endpoint"))
+                .andDo(org.springframework.test.web.servlet.result.MockMvcResultHandlers.print())
+                .andExpect(status().isNotFound());
     }
 }
