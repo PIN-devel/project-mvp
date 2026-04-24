@@ -120,6 +120,78 @@ agile-mvp-frontend/
 - **Query Factory 패턴 (ADR 4)**: 각 도메인에서 통신에 쓰이는 React Query의 캐시 Key와 Options 팩토리들을 `api/queries.ts`에 한데 모아 구조를 중앙 통제합니다.
 - **수정(Update) 메소드 일원화 (ADR 5)**: React 생태계의 불변 객체 특성상 모든 필드를 지닌 상태 객체를 다루는 속성이 강합니다. 이에따라 복잡도를 낮추고 생산성을 높이기 위해 PATCH(부분 교체) 사용을 지양하고 **PUT(전체 변경)** 위주로 수정 API 통일을 규칙화하였습니다. (성능상 임계치 이상일 경우에만 PATCH 예외 허용)
 - **비즈니스 에러의 Single Source Of Valid Truth (ADR 6)**: 빈번한 요구사항 변경 속도에 대응하기 위해, 프론트엔드의 Zod는 '스펙의 방어막(Parsing)' 역할만 하며 복잡한 도메인 정규식이나 비즈니스 검증은 모두 백엔드의 Validation API 오류 코드를 수신하여 화면에 뿌려주는 것으로 합의하였습니다.
+- **클라이언트 상태 최소화 원칙 (ADR 7)**: "가능한 한 Zustand 스토어를 비우세요." 상태 관리는 다음 우선순위에 따라 분산하며, Zustand는 최후의 수단으로만 활용합니다.
+
+---
+
+## 🛠️ Zustand 사용 가이드 및 상태 관리 원칙
+
+본 프로젝트에서 Zustand는 **원격 서버와 실시간 동기화가 필요 없는, 순수하게 프론트엔드 UI/UX만을 위한 데이터**를 관리하는 데 사용합니다.
+
+### 🚫 Zustand를 사용하지 말아야 할 때 (우선순위)
+
+1.  **API 응답 데이터**: 100% **TanStack Query**에 위임합니다. 데이터를 가져올 때 습관적으로 Zustand 스토어에 저장(dispatch)하지 마세요.
+2.  **컴포넌트 로컬 상태**: 특정 컴포넌트 내부에서만 쓰이는 상태는 **useState**나 **useReducer**로 한정합니다.
+3.  **URL 상태**: 페이지네이션 번호, 검색어, 필터 조건 등 URL의 Query Parameter로 관리할 수 있는 상태는 **React Router** 상태로 관리합니다. (URL 공유 및 뒤로 가기 UX 최적화)
+
+위 세 가지 케이스에 모두 해당하지 않는 경우에만 Zustand를 도입합니다.
+- 예: 사이드바 개폐 여부, 전역 모달/토스트 시스템, 서버에 저장할 필요가 없는 일시적인 사용자 설정 등
+
+### 💡 전역 설정을 Zustand로 통합하는 이유 (Discussion)
+
+모든 전역 상태(테마, 다국어, UI 설정 등)를 Zustand 하나로 통합하여 **단일 상태 관리 체계(Single Source of Truth)**를 유지합니다.
+
+- **이점**:
+    - **인지 부하 감소**: "Context인가, Zustand인가?" 고민 없이 오직 `useAppStore` 하나로 모든 전역 상태에 접근합니다.
+    - **디버깅 일원화**: Redux DevTools를 통해 모든 전역 상태의 변경 이력을 하나의 타임라인에서 추적할 수 있습니다.
+- **Context API가 필요한 특수 상황**:
+    - 전역 싱글톤이 아닌 **'컴포넌트 트리 단위의 독립적인 스코프(Scope)'**가 필요할 때 사용합니다. (예: 한 화면에 독립적으로 동작하는 동일한 위젯이 여러 개 존재할 때)
+    - 그 외의 일반적인 전역 설정은 Zustand에 일임하여 유지보수성을 높이는 방향을 권장합니다.
+
+### 📝 예시 코드 (`src/app/store/useAppStore.ts`)
+
+```typescript
+import { create } from 'zustand';
+
+interface AppState {
+  isSidebarOpen: boolean;
+  toggleSidebar: () => void;
+  toast: { message: string; type: 'success' | 'error' | 'info' } | null;
+  showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  hideToast: () => void;
+}
+
+export const useAppStore = create<AppState>((set) => ({
+  isSidebarOpen: false,
+  toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
+  toast: null,
+  showToast: (message, type = 'info') => set({ toast: { message, type } }),
+  hideToast: () => set({ toast: null }),
+}));
+```
+
+### 💡 사용 예시
+
+컴포넌트에서 다음과 같이 스토어를 활용합니다.
+
+```tsx
+import { useAppStore } from '@/app/store/useAppStore';
+
+function MyComponent() {
+  const { isSidebarOpen, toggleSidebar, showToast } = useAppStore();
+
+  return (
+    <div>
+      <button onClick={toggleSidebar}>
+        사이드바 {isSidebarOpen ? '닫기' : '열기'}
+      </button>
+      <button onClick={() => showToast('반갑습니다!', 'success')}>
+        토스트 알림 띄우기
+      </button>
+    </div>
+  );
+}
+```
 
 ---
 
