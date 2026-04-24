@@ -222,3 +222,9 @@ export const useAppStore = create<AppState>((set) => ({
 - **ADR 5 (PUT 통일)**: 리소스 수정 시 생산성과 불변성 유지를 위해 **PUT(전체 교체)**을 기본으로 함.
 - **ADR 6 (Validation SSOT)**: FE는 파싱에 집중하고, 복잡한 비즈니스 검증은 BE 에러 응답에 위임.
 - **ADR 7 (점진적 FSD)**: 단순 기능은 `shared/ui` 등을 활용하여 엄격한 4단계 파일 분할 오버헤드 방지.
+
+---
+
+## 🔗 관련 문서 바로가기
+- **[전체 프로젝트 루트 (Root)](../../README.md)**
+- **[백엔드 레파지토리 (Spring Boot)](../backend-repo/README.md)**
