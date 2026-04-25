@@ -38,9 +38,7 @@ public class SampleService {
     }
 
     public void createSample(String message) {
-        Sample sample = Sample.builder()
-                .message(message)
-                .build();
+        Sample sample = Sample.create(message);
         sampleRepository.save(sample);
     }
 

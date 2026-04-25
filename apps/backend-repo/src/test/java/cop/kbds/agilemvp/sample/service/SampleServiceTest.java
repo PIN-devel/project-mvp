@@ -78,7 +78,7 @@ class SampleServiceTest {
     @DisplayName("샘플 정보 수정 성공")
     void updateSample_Success() {
         Long id = 1L;
-        Sample existing = Sample.builder().id(id).message("Old Message").build();
+        Sample existing = new Sample(id, "Old Message");
         given(sampleRepository.findById(id)).willReturn(existing);
 
         Sample result = sampleService.updateSample(id, "Updated Message");
@@ -104,7 +104,7 @@ class SampleServiceTest {
     @DisplayName("샘플 삭제 성공")
     void deleteSample_Success() {
         Long id = 1L;
-        Sample existing = Sample.builder().id(id).message("To be deleted").build();
+        Sample existing = new Sample(id, "To be deleted");
         given(sampleRepository.findById(id)).willReturn(existing);
 
         sampleService.deleteSample(id);
