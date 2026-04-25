@@ -225,6 +225,30 @@ export const useAppStore = create<AppState>((set) => ({
 
 ---
 
+## 🛡️ 아키텍처 가드레일 (Architectural Guardrails)
+
+본 프로젝트는 **"폴더가 곧 성벽이다"**라는 원칙 아래, ESLint(`eslint-plugin-boundaries`)를 통해 물리적으로 의존성 방향을 강제합니다. 이는 대규모 프로젝트에서도 코드의 스파게티화를 방지하고 팀 간 병렬 개발을 가능하게 합니다.
+
+### 1. 핵심 의존성 규칙 (Dependency Rules)
+
+| 대상 (Zone) | 제한 사항 (Restricted From) | 이유 및 해결책 |
+| :--- | :--- | :--- |
+| `features/A` | `features/B` | **피처 간 독립성**: 피처는 서로의 존재를 몰라야 합니다. 공유 필요 시 `shared`로 승격하세요. |
+| `shared` | `features`, `app` | **공유 계층 순수성**: 하위 계층이 상위 도메인 지식을 가지면 순환 참조가 발생합니다. |
+| `*/model` | `api`, `ui`, `routes` | **모델 순수성**: 도메인 로직은 I/O나 UI에 의존하지 않는 순수 함수여야 합니다. |
+| `*/ui` | `routes` | **UI 멍청함 유지**: 컴포넌트는 제어 로직을 직접 알지 말고 `props`로 주입받아야 합니다. |
+| `*/api` | `ui`, `routes` | **역할 격리**: 데이터 통신 레이어는 화면 구성이나 경로 정보를 알 필요가 없습니다. |
+
+### 2. 인프라 통제 (Infrastructure Control)
+- **Axios 직접 사용 금지**: `import axios from 'axios'`를 직접 호출하지 마세요. 
+- **해결책**: 반드시 `@shared/api/axios`에 정의된 `api` 인스턴스를 사용하세요. 그래야만 전역 인터셉터와 표준 에러 처리 로직이 누락되지 않습니다.
+
+### 3. 적용 방식
+- 초기 도입 시에는 개발 생산성을 위해 **`warn`** 레벨로 설정되어 있습니다. 
+- 단, CI/CD 파이프라인에서는 이를 에러로 간주하여 아키텍처를 위반한 코드가 메인 브랜치에 병합되는 것을 물리적으로 차단합니다.
+
+---
+
 ## 🔗 관련 문서 바로가기
 - **[전체 프로젝트 루트 (Root)](../../README.md)**
 - **[백엔드 레파지토리 (Spring Boot)](../backend-repo/README.md)**
