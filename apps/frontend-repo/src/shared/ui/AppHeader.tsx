@@ -3,17 +3,18 @@ import {
   Avatar,
   Box,
   Burger,
+  Button,
   Container,
   Divider,
   Drawer,
   Group,
   Menu,
+  NavLink,
   rem,
   ScrollArea,
   Tabs,
   Text,
   Title,
-  UnstyledButton,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import {
@@ -107,19 +108,16 @@ export function AppHeader({
               withinPortal
             >
               <Menu.Target>
-                <UnstyledButton
+                <Button
+                  variant="subtle"
+                  color="gray"
                   px="xs"
-                  py={4}
-                  style={(theme) => ({
-                    borderRadius: theme.radius.sm,
-                    transition: "background-color 100ms ease",
+                  h={38}
+                  style={{
                     backgroundColor: userMenuOpened
                       ? "var(--mantine-color-default-hover)"
-                      : "transparent",
-                    "&:hover": {
-                      backgroundColor: "var(--mantine-color-default-hover)",
-                    },
-                  })}
+                      : undefined,
+                  }}
                 >
                   <Group gap={7}>
                     <Avatar
@@ -133,7 +131,7 @@ export function AppHeader({
                     </Text>
                     <IconChevronDown size={12} stroke={1.5} />
                   </Group>
-                </UnstyledButton>
+                </Button>
               </Menu.Target>
               <Menu.Dropdown>
                 <Menu.Label>사용자</Menu.Label>
@@ -172,7 +170,7 @@ export function AppHeader({
           value={activeTab}
           onChange={(value) => onTabChange(value || "/")}
           variant="outline"
-          styles={(theme) => ({
+          styles={{
             list: {
               borderBottom: 0,
               "--tabs-list-border-width": "0",
@@ -180,31 +178,8 @@ export function AppHeader({
             tab: {
               fontWeight: 500,
               height: rem(38),
-              backgroundColor: "transparent",
-              borderBottomColor: "transparent",
-              "&:hover": {
-                backgroundColor:
-                  colorScheme === "dark"
-                    ? theme.colors.dark[5]
-                    : theme.colors.gray[1],
-              },
-              "&[data-active]": {
-                backgroundColor:
-                  colorScheme === "dark"
-                    ? "var(--mantine-color-dark-8)"
-                    : theme.white,
-                borderColor:
-                  colorScheme === "dark"
-                    ? "var(--mantine-color-dark-4)"
-                    : theme.colors.gray[2],
-                borderBottomColor:
-                  colorScheme === "dark"
-                    ? "var(--mantine-color-dark-8)"
-                    : theme.white,
-                marginBottom: rem(-1),
-              },
             },
-          })}
+          }}
         >
           <Tabs.List>
             {navTabs.map((tab) => (
@@ -228,28 +203,17 @@ export function AppHeader({
         <ScrollArea h="calc(100vh - 80px)" mx="-md">
           <Divider my="sm" />
           {navTabs.map((tab) => (
-            <UnstyledButton
+            <NavLink
               key={tab.value}
+              label={tab.label}
+              active={activeTab === tab.value}
               onClick={() => {
                 onTabChange(tab.value);
                 closeDrawer();
               }}
-              style={(theme) => ({
-                display: "block",
-                width: "100%",
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                color:
-                  activeTab === tab.value
-                    ? "var(--mantine-color-brandYellow-6)"
-                    : "inherit",
-                fontWeight: activeTab === tab.value ? 700 : 500,
-                "&:hover": {
-                  backgroundColor: "var(--mantine-color-default-hover)",
-                },
-              })}
-            >
-              {tab.label}
-            </UnstyledButton>
+              fw={activeTab === tab.value ? 700 : 500}
+              color="brandYellow"
+            />
           ))}
         </ScrollArea>
       </Drawer>
