@@ -4,9 +4,8 @@ import { sampleQueries } from "@/features/sample/api/queries";
 import { SampleList } from "@/features/sample/ui/SampleList";
 
 /**
- * SamplePageContent
- * Main data-driven content for the Sample Page.
- * Uses useSuspenseQuery to ensure data is available before rendering.
+ * 샘플 페이지 콘텐츠 영역
+ * useSuspenseQuery를 통해 데이터를 로드합니다.
  */
 export function SamplePageContent() {
   const { data: samples } = useSuspenseQuery(sampleQueries.list());

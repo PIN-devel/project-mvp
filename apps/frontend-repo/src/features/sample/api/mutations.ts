@@ -7,8 +7,8 @@ export const createSample = async (payload: CreateSampleRequest) => {
 };
 
 /**
- * Standard update method (PUT).
- * Use this as the default for form submissions where the full object is available.
+ * 표준 수정 메서드 (PUT)
+ * 전체 객체 정보를 교체하는 기본 수정 방식입니다.
  */
 export const updateSample = async (id: number, payload: UpdateSampleRequest) => {
   const { data } = await api.put(`/api/sample/${id}`, payload);
@@ -16,8 +16,8 @@ export const updateSample = async (id: number, payload: UpdateSampleRequest) => 
 };
 
 /**
- * Partial update method (PATCH).
- * Use this for atomic UI actions (e.g., status toggles) or performance-critical updates.
+ * 부분 수정 메서드 (PATCH)
+ * 특정 필드만 선택적으로 수정할 때 사용합니다.
  */
 export const patchSample = async (id: number, payload: PatchSampleRequest) => {
   const { data } = await api.patch(`/api/sample/${id}`, payload);

@@ -8,9 +8,8 @@ interface AppState {
 }
 
 /**
- * Global UI State Store
- * Strictly for client-side UI states (theme mode, etc.)
- * Server data should be managed by TanStack Query.
+ * 전역 UI 상태 스토어
+ * 테마 모드 등 클라이언트 전용 UI 상태를 관리합니다.
  */
 export const useAppStore = create<AppState>()(
   persist(

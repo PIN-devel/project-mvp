@@ -1,13 +1,13 @@
 import { createTheme, Button, type MantineColorsTuple } from "@mantine/core";
 
-// Brand Palette Colors
+// 브랜드 컬러 팔레트
 const brandYellow: MantineColorsTuple = [
   "#fff9e1",
   "#fff0b5",
   "#ffe16a",
   "#ffd21a",
   "#ffc800",
-  "#ffbc00", // Primary (Index 5)
+  "#ffbc00", // 메인 컬러 (Index 5)
   "#e6a900",
   "#cc9600",
   "#b38400",
@@ -20,7 +20,7 @@ const brandGray: MantineColorsTuple = [
   "#d1cdc9",
   "#b9b2ad",
   "#a19890",
-  "#4b433e", // Primary (Index 5)
+  "#4b433e", // 서브 컬러 (Index 5)
   "#433c38",
   "#3c3632",
   "#342f2b",

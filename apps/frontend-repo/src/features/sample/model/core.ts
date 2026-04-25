@@ -1,7 +1,7 @@
 import type { CreateSampleRequest, UpdateSampleRequest, PatchSampleRequest } from "./types";
 
 /**
- * SampleCommand represents the intent and associated data for a sample action.
+ * Sample 액션의 의도와 데이터를 정의하는 타입
  */
 export type SampleCommand =
   | { type: "create"; payload: CreateSampleRequest }
@@ -12,8 +12,7 @@ export type SampleCommand =
   | { type: "unknown" };
 
 /**
- * [Pure Logic] Parses FormData into a typed SampleCommand.
- * This function decouples infrastructure (FormData) from domain intent.
+ * [순수 로직] FormData를 SampleCommand로 변환하여 인프라와 도메인을 분리합니다.
  */
 export const parseSampleCommand = (formData: FormData): SampleCommand => {
   const intent = formData.get("intent");
@@ -62,7 +61,7 @@ export const parseSampleCommand = (formData: FormData): SampleCommand => {
 };
 
 /**
- * Domain-specific parsing rules (Pure Functions)
+ * 도메인 특화 파싱 유틸리티 (순수 함수)
  */
 export const extractString = (formData: FormData, key: string): string => 
   String(formData.get(key) || "");

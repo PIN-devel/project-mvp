@@ -1,7 +1,6 @@
 /**
- * Toast component
- * The actual notification rendering is handled by <Notifications /> in AppProvider.
- * This file is kept for organizational consistency or specific component-level overrides.
+ * 토스트 컴포넌트
+ * 실제 렌더링은 AppProvider의 Notifications가 담당합니다.
  */
 export function Toast() {
   return null;

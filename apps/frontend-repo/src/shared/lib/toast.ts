@@ -1,9 +1,8 @@
 import { notifications, type NotificationData } from "@mantine/notifications";
 
 /**
- * Toast utility wrapping Mantine Notifications
- * Centralized for project-wide notification style consistency
- * Moved to shared/lib to allow usage in shared/api without boundary violations
+ * Mantine Notifications를 래핑한 토스트 유틸리티
+ * 전역 알림 스타일의 일관성을 위해 사용합니다.
  */
 export const toast = {
   success: (message: string, options?: Partial<NotificationData>) => {

@@ -8,6 +8,9 @@ const rootElement = document.getElementById("root");
 
 if (!rootElement) throw new Error("Failed to find the root element");
 
+/**
+ * 개발 환경에서 MSW 모킹을 활성화합니다.
+ */
 async function enableMocking() {
   if (import.meta.env.DEV) {
     const { worker } = await import("./mocks/browser");

@@ -14,7 +14,7 @@ import { resetSamples } from "@/mocks/db";
  * 
  * 흐름: Component (UI) -> Action (Router) -> API (MSW) -> Component (Result)
  */
-describe("Sample Feature Integration Flow", () => {
+describe("Sample 기능 통합 테스트 Flow", () => {
   let queryClient: QueryClient;
 
   beforeEach(() => {

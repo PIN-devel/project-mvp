@@ -1,9 +1,7 @@
 import { Container, Skeleton, Stack, Group, Paper, SimpleGrid } from "@mantine/core";
 
 /**
- * SamplePageSkeleton
- * UI skeleton for SamplePage loading state.
- * Separated for HMR optimization and clean FSD structure.
+ * 샘플 페이지 로딩 스켈레톤 UI
  */
 export function SamplePageSkeleton() {
   return (

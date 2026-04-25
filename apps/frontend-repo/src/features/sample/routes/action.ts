@@ -26,7 +26,7 @@ export const action = (queryClient: QueryClient) => async ({ request }: { reques
         await api.get("/api/sample/error");
         break;
       default:
-        // Do nothing or handle unknown intents
+        // 처리할 수 없는 의도(intent)일 경우 무시하거나 예외 처리합니다.
         break;
     }
   } catch (error) {

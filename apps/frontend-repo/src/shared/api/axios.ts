@@ -13,7 +13,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (axios.isAxiosError(error) && error.response?.data) {
-      // RFC 9457 Error Handling
+      // RFC 9457 표준 에러 처리
       const parsed = ProblemDetailSchema.safeParse(error.response.data);
       if (parsed.success) {
         const { detail, title } = parsed.data;

@@ -48,8 +48,7 @@ interface AppHeaderProps {
 }
 
 /**
- * AppHeader Shared Component
- * A presentational component for the application header.
+ * 공용 헤더 컴포넌트
  */
 export function AppHeader({
   colorScheme,

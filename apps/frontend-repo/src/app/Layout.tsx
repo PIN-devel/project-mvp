@@ -6,9 +6,8 @@ import { useEffect } from "react";
 import { Outlet, useLocation, useNavigate, useNavigation } from "react-router";
 
 /**
- * Root Layout Component
- * Provides global AppShell (Header, Sidebar) that renders immediately.
- * Child routes are rendered via <Outlet /> in the Main area.
+ * 애플리케이션 기본 레이아웃
+ * 공통 헤더를 포함하며, 자식 라우트를 Outlet으로 렌더링합니다.
  */
 export function Layout() {
   const navigation = useNavigation();

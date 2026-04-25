@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 /**
- * SampleSchema is used primarily to parse API responses and ensure type safety.
- * Business logic validation (e.g., regex, range checks) should be delegated to the Backend.
+ * API 응답 데이터의 타입 안정성을 위한 스키마
+ * 비즈니스 로직 유효성 검증은 백엔드에 위임합니다.
  */
 export const SampleSchema = z.object({
   id: z.number(),

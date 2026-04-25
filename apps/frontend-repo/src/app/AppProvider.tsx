@@ -18,8 +18,7 @@ interface AppProviderProps {
 }
 
 /**
- * Global Provider Orchestrator
- * Consolidates all context providers for the application
+ * 전역 컨텍스트 프로바이더 통합 관리
  */
 export function AppProvider({ children }: AppProviderProps) {
   const { colorScheme } = useAppStore();
