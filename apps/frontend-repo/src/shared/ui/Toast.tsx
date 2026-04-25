@@ -1,25 +1,26 @@
-import { useAppStore } from "../../app/store/useAppStore";
 import { useEffect } from "react";
 
-export function Toast() {
-  const { toast, hideToast } = useAppStore();
+interface ToastProps {
+  message?: string;
+  type?: 'success' | 'error' | 'info';
+  onClose?: () => void;
+}
 
+export function Toast({ message, type = 'info', onClose }: ToastProps) {
   useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => {
-        hideToast();
-      }, 3000);
+    if (message && onClose) {
+      const timer = setTimeout(onClose, 3000);
       return () => clearTimeout(timer);
     }
-  }, [toast, hideToast]);
+  }, [message, onClose]);
 
-  if (!toast) return null;
+  if (!message) return null;
 
   const backgroundColor = {
     success: "#4caf50",
     error: "#f44336",
     info: "#2196f3",
-  }[toast.type];
+  }[type];
 
   return (
     <div
@@ -36,7 +37,7 @@ export function Toast() {
         transition: "all 0.3s ease",
       }}
     >
-      {toast.message}
+      {message}
     </div>
   );
 }

@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { sampleQueries } from "../api/queries";
-import { SampleList } from "../ui/SampleList";
-import { Toast } from "../../../shared/ui/Toast";
-import { useAppStore } from "../../../app/store/useAppStore";
+import { sampleQueries } from "@/features/sample/api/queries";
+import { SampleList } from "@/features/sample/ui/SampleList";
+import { Toast } from "@/shared/ui/Toast";
+import { useAppStore } from "@/app/store/useAppStore";
 
 export function SamplePage() {
   const { data: samples, isLoading, isError } = useQuery(sampleQueries.list());
-  const { isSidebarOpen, toggleSidebar, showToast } = useAppStore();
+  const { isSidebarOpen, toggleSidebar, showToast, toast, hideToast } = useAppStore();
 
   if (isLoading) return <div style={{ padding: "2rem" }}>Loading samples...</div>;
   if (isError) return <div style={{ padding: "2rem", color: "red" }}>Error loading samples</div>;
@@ -32,7 +32,11 @@ export function SamplePage() {
         </header>
         
         <SampleList samples={samples ?? []} />
-        <Toast />
+        <Toast 
+          message={toast?.message} 
+          type={toast?.type} 
+          onClose={hideToast} 
+        />
       </main>
     </div>
   );

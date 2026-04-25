@@ -1,12 +1,16 @@
-import { http, HttpResponse } from "msw";
+import { http, HttpResponse, delay } from "msw";
 import { db } from "./db";
 
+const IS_TEST = import.meta.env.MODE === "test";
+
 export const handlers = [
-  http.get("/api/sample", () => {
+  http.get("/api/sample", async () => {
+    if (!IS_TEST) await delay();
     return HttpResponse.json(db.getAll());
   }),
 
-  http.get("/api/sample/error", () => {
+  http.get("/api/sample/error", async () => {
+    if (!IS_TEST) await delay();
     return HttpResponse.json(
       {
         type: "about:blank",
@@ -20,7 +24,8 @@ export const handlers = [
     );
   }),
 
-  http.get("/api/sample/:id", ({ params }) => {
+  http.get("/api/sample/:id", async ({ params }) => {
+    if (!IS_TEST) await delay();
     const id = Number(params.id);
     const sample = db.getById(id);
     if (!sample) {
@@ -30,15 +35,17 @@ export const handlers = [
   }),
 
   http.post("/api/sample", async ({ request }) => {
-    const data = await request.json() as any;
-    const newSample = db.create({ message: data.message });
+    if (!IS_TEST) await delay();
+    const data = await request.json() as Record<string, unknown>;
+    const newSample = db.create({ message: data.message as string });
     return HttpResponse.json(newSample, { status: 201 });
   }),
 
   http.put("/api/sample/:id", async ({ params, request }) => {
+    if (!IS_TEST) await delay();
     const id = Number(params.id);
-    const data = await request.json() as any;
-    const updated = db.update(id, { message: data.message });
+    const data = await request.json() as Record<string, unknown>;
+    const updated = db.update(id, { message: data.message as string });
     
     if (!updated) {
       return new HttpResponse(null, { status: 404 });
@@ -48,8 +55,9 @@ export const handlers = [
   }),
 
   http.patch("/api/sample/:id", async ({ params, request }) => {
+    if (!IS_TEST) await delay();
     const id = Number(params.id);
-    const data = await request.json() as any;
+    const data = await request.json() as Record<string, unknown>;
     const updated = db.patch(id, data);
     
     if (!updated) {
@@ -59,7 +67,8 @@ export const handlers = [
     return HttpResponse.json(updated);
   }),
 
-  http.delete("/api/sample/:id", ({ params }) => {
+  http.delete("/api/sample/:id", async ({ params }) => {
+    if (!IS_TEST) await delay();
     const id = Number(params.id);
     const success = db.delete(id);
     
