@@ -202,13 +202,13 @@ graph LR
 
 백엔드의 모든 예외는 `application/problem+json` 표준을 따르며, FE는 이를 다음과 같이 처리합니다.
 
-| 필드     | 설명             | FE 매핑 및 활용                 |
-| -------- | ---------------- | ------------------------------- |
-| `type`   | 에러 식별 URN    | 에러 유형별 조건부 로직 처리    |
-| `title`  | 에러 코드 이름   | 디버깅 및 로깅 활용             |
-| `status` | HTTP 상태 코드   | Router `errorElement` 트리거    |
+| 필드     | 설명             | FE 매핑 및 활용                                       |
+| -------- | ---------------- | ----------------------------------------------------- |
+| `type`   | 에러 식별 URN    | 에러 유형별 조건부 로직 처리                          |
+| `title`  | 에러 코드 이름   | 디버깅 및 로깅 활용                                   |
+| `status` | HTTP 상태 코드   | Router `errorElement` 트리거                          |
 | `detail` | 상세 설명        | `app/queryClient`의 전역 핸들러에서 `Toast` UI로 출력 |
-| `errors` | 필드별 검증 목록 | 폼 필드 하단 에러 메시지 바인딩 |
+| `errors` | 필드별 검증 목록 | 폼 필드 하단 에러 메시지 바인딩                       |
 
 ### 3. Feature Flag 기반 애자일 개발
 
@@ -284,37 +284,80 @@ export const useAppStore = create<AppState>()(
 
 ---
 
-## 📘 부록: 아키텍처 결정 기록 (ADR Summary)
+## 📘 Architecture Decision Records (ADRs) - Project-MVP-COP
 
-개발 시 참고해야 할 주요 기술적 결정 사항 요약입니다.
+본 문서는 프론트엔드 서비스의 주요 아키텍처 결정 사항을 기록합니다.
 
-- **ADR 1 (상태 분리)**: 서버 상태는 Query, UI 상태는 Zustand가 전담 (성능 및 제어권 확보).
-- **ADR 2 (Data Mode)**: 라우팅 단계(`Loader`)에서 데이터를 사전 적재하여 Waterfall 로딩 방지.
-- **ADR 3 (FP 모델링)**: Zod를 통한 데이터 파싱 후 시스템 내부에서는 불변 객체와 순수 함수로만 로직 처리. 특히 `model/core.ts`에 상태가 없는(Stateless) 도메인 연산을 밀집시킴.
-- **ADR 4 (Query Factory)**: 캐시 Key와 Option을 도메인별 `api/queries.ts`에서 중앙 통제.
-- **ADR 5 (PUT 통일)**: 리소스 수정 시 생산성과 불변성 유지를 위해 **PUT(전체 교체)**을 기본으로 함.
-- **ADR 6 (Validation SSOT)**: FE는 파싱에 집중하고, 복잡한 비즈니스 검증은 BE 에러 응답에 위임.
-- **ADR 7 (점진적 FSD)**: 단순 기능은 `shared/ui` 등을 활용하여 엄격한 4단계 파일 분할 오버헤드 방지.
-- **ADR 8 (Global Error Handling)**: `shared/api`는 UI를 참조하지 않고 에러만 던지며, `app/queryClient`에서 전역적으로 UI(Toast)를 제어함 (제어의 역전, IoC).
+### 🌐 공통 (Common) 아키텍처 결정 사항
+
+- **[전체 프로젝트 루트 (Root) ADRs](../../README.md#-1-공통-common-아키텍처-결정-사항)**에서 확인 가능합니다. (리소스 수정 규약, 유효성 검증 SSOT, Feature Toggle 등)
+
+### ⚛️ 프론트엔드 (FE) 아키텍처 결정 사항
+
+#### ADR-F01: FSD의 실용적 단순화 및 시스템적 경계 통제
+
+- **Context**: 원본 FSD(Feature-Sliced Design)의 복잡한 계층(entities, widgets 등)은 MVP 팀에 오버엔지니어링이며 'Shared 비대화'를 유발합니다.
+- **Decision**: FSD를 app, shared, features 3계층으로 대폭 축소합니다. 이 구조를 강제하기 위해 **ESLint(eslint-plugin-boundaries, import-x)**를 도입하여 피처 간 참조 금지, model 세그먼트의 부수 효과 참조 금지, Axios 직접 호출 금지를 로컬/CI 단계에서 시스템적으로 차단합니다.
+- **Consequences**: 진입 장벽이 대폭 낮아지며 아키텍트의 수동 개입 없이 시스템이 구조를 지켜줍니다.
+
+#### ADR-F02: 의도적 코드 중복 허용(AHA)과 제어 조립 (Widget 대체)
+
+- **Context**: FSD 축소로 인해 도메인 간 공통 요소가 생길 때 이를 무작정 shared로 올리면 아키텍처가 붕괴됩니다.
+- **Decision**:
+  1. **AHA (Avoid Hasty Abstractions)**: 피처 간 비슷한 타입/로직이 발견되어도 shared로 성급히 올리지 않고 각 features 내부에 의도적으로 복사-붙여넣기(중복)를 허용합니다.
+  2. **Widget 레이어 대체**: 여러 피처가 섞이는 공통 헤더/푸터 등은 shared가 아닌 최상위 **app/layouts/**에서 컴포넌트 합성(Composition)을 통해 조립합니다.
+- **Consequences**: 피처 간 결합도가 완벽히 차단되어 독립적 병렬 개발이 가능해집니다.
+
+#### ADR-F03: React Router Data Mode 도입과 로직 분리 (Fat Action 방지)
+
+- **Context**: Waterfall 로딩을 막기 위해 Router v7 Data Mode(Loader/Action)를 도입했으나, action 파일에 검증, API 통신, 비즈니스 로직이 몰리는 '비대한 컨트롤러' 현상이 발생합니다.
+- **Decision**: action은 오케스트레이터 역할만 수행합니다. 복잡한 계산이나 파싱 로직은 `features/*/model/core.ts`(순수 함수)로, 서버 통신은 `api/mutations.ts`로 추출하여 위임합니다.
+
+#### ADR-F04: 전역 에러 처리의 의존성 역전 (IoC)
+
+- **Context**: API 통신 모듈(`shared/api/axios.ts`)에서 전역 알림을 위해 토스트(`shared/ui/toast`)를 직접 임포트하는 것은 "데이터 계층이 UI 계층을 알아서는 안 된다"는 원칙을 위반합니다.
+- **Decision**: 통신 모듈은 Zod 파싱 후 순수한 에러 객체(RFC 9457)를 `Promise.reject`로 던지기만 합니다. 실제 토스트 UI 호출은 최상위 제어 계층인 **app/queryClient.ts의 전역 onError 핸들러에서 수행(IoC)**합니다.
+- **Consequences**: 향후 Mantine 같은 UI 라이브러리가 교체되어도 통신 코드는 단 한 줄도 수정할 필요가 없는 견고한 구조가 완성됩니다.
+
+#### ADR-F05: 외부 UI 라이브러리(Mantine) 선택적 래핑 및 종속성 격리
+
+- **Context**: Mantine을 shared/ui로 100% 래핑하는 것은 보일러플레이트를 양산합니다.
+- **Decision**: 단순 배치용 원시 컴포넌트(Box, Flex 등)는 features에서 직수입하여 사용을 허용합니다. 단, 비즈니스 맥락이나 특정 로직이 결합된 요소(Toast, DataTable 등)는 반드시 shared/ui/ 하위에 래핑 및 격리합니다. 토스트 유틸리티 또한 순수 함수가 아니므로 lib이 아닌 shared/ui/toast에 둡니다.
+
+#### ADR-F06: 정적 자산(Font)과 패스 알리아스 환경 최적화
+
+- **Decision**:
+  1. 폰트 등 전역 자산은 public에 방치하지 않고 `src/app/styles/` 내에서 관리하여 브라우저 해시 캐싱과 FSD 구조 응집도를 확보합니다.
+  2. `vite-tsconfig-paths`를 도입하여 tsconfig를 단일 진실 공급원으로 삼아 깔끔한 `@/*` 패스 알리아스 환경을 구축합니다.
+
+#### ADR-F07: 데이터 패칭 및 상태 관리 체계 분리 (Query vs Zustand)
+
+- **Decision**: 서버 데이터는 TanStack Query에 100% 위임하며, Zustand는 다크모드 등 순수 클라이언트 UI 상태 제어에만 제한적으로 사용합니다.
+
+#### ADR-F08: MSW + Zod 기반 API 계약 수동 동기화
+
+- **Decision**: 초기 MVP 병렬 개발을 위해 MSW 핸들러와 Zod 스키마를 수동 동기화합니다. 얼리 액세스 이전에 OpenAPI(Swagger) 기반 자동 생성 파이프라인으로 전환합니다.
 
 ## 🛡️ 아키텍처 가드레일 (Architectural Guardrails)
 
-본 프로젝트는 **"폴더가 곧 성벽이다"**라는 원칙 아래, ESLint(`eslint-plugin-boundaries`)를 통해 물리적으로 의존성 방향을 강제합니다. 이는 대규모 프로젝트에서도 코드의 스파게티화를 방지하고 팀 간 병렬 개발을 가능하게 합니다.
+본 프로젝트는 **"폴더가 곧 성벽이다"**라는 원칙 아래, ESLint(**eslint-plugin-boundaries, import-x**)를 통해 물리적으로 의존성 방향을 강제합니다. 이는 대규모 프로젝트에서도 코드의 스파게티화를 방지하고 팀 간 병렬 개발을 가능하게 합니다. (ADR-F01)
 
 ### 1. 핵심 의존성 규칙 (Dependency Rules)
 
 | 대상 (Zone)  | 제한 사항 (Restricted From) | 이유 및 해결책                                                                              |
 | :----------- | :-------------------------- | :------------------------------------------------------------------------------------------ |
-| `features/A` | `features/B`                | **피처 간 독립성**: 피처는 서로의 존재를 몰라야 합니다. 공유 필요 시 `shared`로 승격하세요. |
+| `features/A` | `features/B`                | **피처 간 독립성**: 피처는 서로의 존재를 몰라야 합니다. (ADR-F02 AHA 원칙 준수)             |
 | `shared`     | `features`, `app`           | **공유 계층 순수성**: 하위 계층이 상위 도메인 지식을 가지면 순환 참조가 발생합니다.         |
-| `*/model`    | `api`, `ui`, `routes`       | **모델 순수성**: 도메인 로직은 I/O나 UI에 의존하지 않는 순수 함수여야 합니다.               |
+| `*/model`    | `api`, `ui`, `routes`       | **모델 순수성**: 도메인 로직은 부수 효과(I/O, UI)에 의존하지 않는 순수 함수여야 합니다.     |
 | `*/ui`       | `routes`                    | **UI 멍청함 유지**: 컴포넌트는 제어 로직을 직접 알지 말고 `props`로 주입받아야 합니다.      |
-| `*/api`      | `ui`, `routes`              | **역할 격리**: 데이터 통신 레이어는 화면 구성이나 경로 정보를 알 필요가 없습니다.           |
+| `*/api`      | `ui`, `routes`              | **역할 격리(IoC)**: 데이터 레이어는 UI(Toast 등)를 직접 참조하지 않습니다. (ADR-F04)        |
 
-### 2. 인프라 통제 (Infrastructure Control)
+### 2. 인프라 및 도구 통제 (Infrastructure Control)
 
-- **Axios 직접 사용 금지**: `import axios from 'axios'`를 직접 호출하지 마세요.
-- **해결책**: 반드시 `@shared/api/axios`에 정의된 `api` 인스턴스를 사용하세요. 그래야만 전역 인터셉터와 표준 에러 처리 로직이 누락되지 않습니다.
+- **Axios 직접 사용 금지**: `import axios from 'axios'`를 직접 호출하지 마세요. 반드시 `@shared/api/axios`의 인스턴스를 사용해야 전역 에러 처리가 보장됩니다.
+- **외부 UI 라이브러리(Mantine) 격리**: 
+  - `Box`, `Flex`, `Text` 같은 **원시 배치 컴포넌트**는 피처에서 직접 임포트가 허용됩니다.
+  - `Toast`, `DataTable`, `Modal` 등 **비즈니스 로직이나 커스텀 스타일이 결합된 요소**는 반드시 `shared/ui/`에서 래핑된 버전을 사용해야 합니다. (ADR-F05)
 
 ### 3. 적용 방식
 
