@@ -11,6 +11,39 @@
 - **상태 관리**: TanStack Query v5 (Server), Zustand v5 (Client)
 - **데이터 검증**: Zod
 - **빌드 툴**: Vite 8
+- **UI 프레임워크**: Mantine v7+ (Custom Brand Theme)
+
+## 🎨 UI & Design System
+
+본 프로젝트는 **Mantine v7+**를 기반으로 브랜드 아이덴티티가 반영된 커스텀 테마를 사용합니다.
+
+### 1. 컬러 및 테마
+- **Primary Color**: `#FFBC00` (Index 5) / **Secondary Color**: `#4B433E` (Index 5)
+- **Typography**: Inter, system-ui 기반의 모던 산세리프 스택
+- **Default Radius**: `sm` (4px)
+
+### 2. 스타일링 원칙
+- **No Inline CSS**: `style={{...}}` 사용을 금지하며, Mantine의 **Style Props**(mt, p, gap 등) 또는 **CSS Modules**를 사용합니다.
+- **Layout**: `Stack`(수직), `Group`(수평), `Grid` 컴포넌트를 우선 활용하여 레이아웃을 구성합니다.
+
+### 3. 주요 유틸리티 활용
+#### 전역 알림 (Toast)
+`@mantine/notifications`를 래핑한 `toast` 유틸리티를 사용합니다.
+```tsx
+import { toast } from "@/shared/ui/Toast";
+toast.success("성공 메시지");
+toast.error("에러 메시지", { title: "오류 발생" });
+```
+
+#### 모달 관리 (Modals)
+Zustand 대신 Mantine의 `modals` 매니저를 통해 대화상자를 제어합니다.
+```tsx
+import { modals } from "@mantine/modals";
+modals.openConfirmModal({ title: "확인", onConfirm: () => {} });
+```
+
+#### 로딩 바 (nprogress)
+React Router 전환 시 `@mantine/nprogress` 바가 상단에 자동 표시됩니다.
 
 ---
 
@@ -174,8 +207,6 @@ graph LR
 export const useAppStore = create<AppState>((set) => ({
   isSidebarOpen: false,
   toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
-  toast: null,
-  showToast: (message, type = 'info') => set({ toast: { message, type } }),
 }));
 ```
 
@@ -223,7 +254,6 @@ export const useAppStore = create<AppState>((set) => ({
 - **ADR 6 (Validation SSOT)**: FE는 파싱에 집중하고, 복잡한 비즈니스 검증은 BE 에러 응답에 위임.
 - **ADR 7 (점진적 FSD)**: 단순 기능은 `shared/ui` 등을 활용하여 엄격한 4단계 파일 분할 오버헤드 방지.
 
----
 
 ## 🛡️ 아키텍처 가드레일 (Architectural Guardrails)
 
