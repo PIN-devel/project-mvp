@@ -182,8 +182,8 @@ export function SourceDataManagementPanel() {
               <Title order={3}>전체 가계부 원천 데이터 관리</Title>
               <Group gap="xs" wrap="nowrap">
                 <Button
-                  variant="light"
-                  color="green"
+                  variant="filled"
+                  color="brandMint"
                   leftSection={<IconFileSpreadsheet size={16} />}
                   onClick={openExcelModal}
                 >
@@ -192,8 +192,7 @@ export function SourceDataManagementPanel() {
               </Group>
             </Group>
             <Text size="sm" c="dimmed">
-              원천 데이터 필터링과 개별 분류 수정 흐름을 이 영역에 모았습니다.
-              카테고리와 태그 변경 사항은 저장 즉시 거래 데이터에 반영됩니다.
+              카드사에서 내려받은 Excel 이용내역을 직접 가져오세요.
             </Text>
           </Stack>
 

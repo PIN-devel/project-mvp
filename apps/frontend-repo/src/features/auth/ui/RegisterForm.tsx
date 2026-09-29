@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSubmit, Link, useNavigation } from "react-router";
-import { TextInput, PasswordInput, Button, Paper, Title, Stack, Text, Anchor } from "@mantine/core";
+import { TextInput, PasswordInput, Button, Paper, Title, Stack, Text, Anchor, useMantineColorScheme } from "@mantine/core";
 import { RegisterFormSchema } from "../model/schemas";
 import type { RegisterFormInput } from "../model/schemas";
 
@@ -11,6 +11,7 @@ import type { RegisterFormInput } from "../model/schemas";
  * 최종 트랜잭션 처리는 React Router Action으로 흘려보냅니다.
  */
 export function RegisterForm() {
+  const { colorScheme } = useMantineColorScheme();
   const submit = useSubmit();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
@@ -86,7 +87,7 @@ export function RegisterForm() {
           <Button
             type="submit"
             radius="sm"
-            color="brandYellow"
+            color="brandMint"
             loading={isSubmitting}
             mt="md"
             fullWidth
@@ -98,7 +99,12 @@ export function RegisterForm() {
 
       <Text ta="center" mt="md" size="sm" c="dimmed">
         이미 계정이 있으신가요?{" "}
-        <Anchor component={Link} to="/login" fw={500} color="brandYellow">
+        <Anchor
+          component={Link}
+          to="/login"
+          fw={500}
+          c={colorScheme === "dark" ? "brandMint.2" : "#006B56"}
+        >
           로그인
         </Anchor>
       </Text>

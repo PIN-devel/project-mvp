@@ -5,6 +5,7 @@ import { NavigationProgress, nprogress } from "@mantine/nprogress";
 import { useEffect } from "react";
 import { Outlet, useLocation, useNavigate, useNavigation } from "react-router";
 import { toast } from "@/shared/ui/toast";
+import { brandTokens } from "@/app/theme";
 
 /**
  * 애플리케이션 기본 레이아웃
@@ -32,11 +33,15 @@ export function Layout() {
   };
 
   return (
-    <AppShell header={{ height: { base: 150, sm: 168 } }} padding="md">
-      <NavigationProgress color="brandYellow" />
+    <AppShell
+      header={{ height: { base: 150, sm: 168 } }}
+      padding="md"
+      bg={colorScheme === "dark" ? "dark.8" : brandTokens.lightBackground}
+    >
+      <NavigationProgress color="brandMint" />
 
       <AppShell.Header
-        bg={colorScheme === "dark" ? "dark.7" : "gray.0"}
+        bg={colorScheme === "dark" ? brandTokens.deepNavy : brandTokens.cardSurface}
         withBorder={false}
       >
         <AppHeader
@@ -51,13 +56,15 @@ export function Layout() {
       </AppShell.Header>
 
 
-      <AppShell.Main>
+      <AppShell.Main
+        bg={colorScheme === "dark" ? "dark.8" : brandTokens.lightBackground}
+      >
         <Box pos="relative" mih="calc(100vh - 168px)" mx="auto" maw={1400}>
           <LoadingOverlay
             visible={isNavigating}
             zIndex={1000}
             overlayProps={{ radius: "sm", blur: 2 }}
-            loaderProps={{ color: "brandYellow", size: "xl" }}
+            loaderProps={{ color: "brandMint", size: "xl" }}
           />
           <Outlet />
         </Box>

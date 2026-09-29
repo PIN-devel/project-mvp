@@ -12,6 +12,7 @@ import {
   Text,
   ThemeIcon,
   Title,
+  useMantineColorScheme,
 } from "@mantine/core";
 import {
   IconAlertTriangle,
@@ -63,6 +64,7 @@ const periodOptions = [
 ];
 
 export function AiInsightsPageContent() {
+  const { colorScheme } = useMantineColorScheme();
   const [transactionsQuery, categoriesQuery] = useSuspenseQueries({
     queries: [aiInsightQueries.transactions(), aiInsightQueries.categories()],
   });
@@ -374,7 +376,7 @@ export function AiInsightsPageContent() {
             <Paper withBorder p="xl" radius="md" shadow="sm">
               <Group justify="space-between" align="flex-start">
                 <Group gap="sm">
-                  <ThemeIcon variant="light" color="yellow">
+                  <ThemeIcon variant="light" color="brandMint">
                     <IconPigMoney size={20} />
                   </ThemeIcon>
                   <Stack gap={2}>
@@ -388,7 +390,11 @@ export function AiInsightsPageContent() {
                   <Text size="xs" c="dimmed">
                     누적 절감액
                   </Text>
-                  <Text size="xl" fw={900} c="brandYellow">
+                  <Text
+                    size="xl"
+                    fw={900}
+                    c={colorScheme === "dark" ? "brandMint.2" : "#006B56"}
+                  >
                     {formatAmount(totalSaved)}원
                   </Text>
                 </Stack>

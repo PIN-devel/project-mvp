@@ -489,7 +489,7 @@ export function RuleEngineBuilderPanel({
         <Stack gap="lg">
           <Stack gap={4}>
             <Group gap="xs">
-              <ThemeIcon variant="light" color="yellow">
+              <ThemeIcon variant="light" color="brandMint">
                 <IconPalette size={20} />
               </ThemeIcon>
               <Title order={3}>무제한 커스텀 카테고리 정의</Title>
@@ -581,7 +581,7 @@ export function RuleEngineBuilderPanel({
         <Stack gap="lg">
           <Stack gap={4}>
             <Group gap="xs">
-              <ThemeIcon variant="light" color="yellow">
+              <ThemeIcon variant="light" color="brandMint">
                 <IconBolt size={20} />
               </ThemeIcon>
               <Title order={3}>패턴 기반 분류 룰 빌더</Title>

@@ -87,8 +87,8 @@ export function ExcelUploadModal({ opened, onClose, onSuccess }: ExcelUploadModa
     >
       <Stack gap="lg">
         <Text size="sm" c="dimmed">
-          신한카드 / KB국민카드 내보내기 파일(.xls, .xlsx)을 업로드하면 카드사를 자동
-          감지하여 파싱합니다.
+          카드사에서 내려받은 Excel 이용내역을 직접 가져오세요. 신한카드와 KB국민카드의
+          내보내기 파일(.xls, .xlsx)을 지원합니다.
         </Text>
 
         <Dropzone

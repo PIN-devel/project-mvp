@@ -9,7 +9,7 @@ export function NotFoundPage() {
           <Text
             fz={{ base: 120, sm: 220 }}
             fw={900}
-            c="brandYellow.1"
+            c="brandMint.0"
             style={{ lineHeight: 1, userSelect: "none" }}
           >
             404
@@ -40,7 +40,7 @@ export function NotFoundPage() {
               to="/"
               size="lg"
               variant="filled"
-              color="brandYellow"
+              color="brandMint"
               radius="md"
             >
               메인 페이지로 돌아가기

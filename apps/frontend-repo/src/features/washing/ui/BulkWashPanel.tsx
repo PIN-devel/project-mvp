@@ -12,6 +12,7 @@
   Text,
   ThemeIcon,
   Title,
+  useMantineColorScheme,
 } from "@mantine/core";
 import { IconSparkles, IconWashDryclean } from "@tabler/icons-react";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
@@ -69,6 +70,7 @@ const detailTransactionReducer = (
 ) => nextTransaction;
 
 export function BulkWashPanel({ overview }: BulkWashPanelProps) {
+  const { colorScheme } = useMantineColorScheme();
   const { data: categories } = useSuspenseQuery(washingQueries.categories());
   const categoryNames = useMemo(
     () => categories.map((category) => category.name),
@@ -290,12 +292,12 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
         )}
       </Modal>
 
-      <Paper withBorder p="xl" radius="lg" bg="rgba(255, 188, 0, 0.06)">
+      <Paper withBorder p="xl" radius="lg" bg="rgba(49, 230, 184, 0.06)">
         <Stack gap="lg">
           <Group justify="space-between" align="flex-start">
             <Stack gap={6}>
               <Group gap="sm">
-                <ThemeIcon variant="light" color="yellow" size="lg">
+                <ThemeIcon variant="light" color="brandMint" size="lg">
                   <IconSparkles size={18} />
                 </ThemeIcon>
                 <Title order={3}>미분류 데이터 일괄 세척 필터</Title>
@@ -398,7 +400,12 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
           <Group justify="space-between" align="flex-end">
             <Text size="sm" c="dimmed">
               선택 항목{" "}
-              <Text component="span" inherit fw={700} c="brandYellow">
+              <Text
+                component="span"
+                inherit
+                fw={700}
+                c={colorScheme === "dark" ? "brandMint.2" : "#006B56"}
+              >
                 {selectedCount}건
               </Text>
             </Text>

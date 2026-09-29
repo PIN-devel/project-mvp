@@ -25,7 +25,7 @@ export function ComingSoonPage({ title, description }: ComingSoonPageProps) {
       <Paper withBorder p="xl" radius="md" shadow="sm">
         <Stack gap="lg">
           <Group gap="md" align="flex-start">
-            <ThemeIcon color="brandYellow" variant="light" size="xl">
+            <ThemeIcon color="brandMint" variant="light" size="xl">
               <IconClock size={28} />
             </ThemeIcon>
             <Stack gap={4}>

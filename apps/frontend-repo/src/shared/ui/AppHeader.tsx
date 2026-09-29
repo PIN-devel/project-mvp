@@ -14,7 +14,7 @@ import {
   Stack,
   Tabs,
   Text,
-  Title,
+  UnstyledButton,
   rem,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
@@ -32,6 +32,7 @@ import {
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import { useState } from "react";
 import type { IconProps } from "@tabler/icons-react";
+import { BrandLogo } from "@/shared/ui/BrandLogo";
 
 const userAvatarDefault =
   "https://raw.githubusercontent.com/mantinedev/mantine/master/.demo/avatars/avatar-5.png";
@@ -90,15 +91,16 @@ export function AppHeader({
               hiddenFrom="sm"
               size="sm"
             />
-            <Button
-              variant="subtle"
-              color="brandYellow"
-              px={0}
+            <UnstyledButton
               onClick={() => onTabChange("/washing")}
-              leftSection={<IconSparkles size={18} />}
+              aria-label="MOTIFIN 홈"
             >
-              <Title order={3}>Card Horizon</Title>
-            </Button>
+              <BrandLogo
+                surface={colorScheme === "dark" ? "dark" : "light"}
+                height={32}
+                alt=""
+              />
+            </UnstyledButton>
           </Group>
 
           <Group gap="sm">
@@ -173,7 +175,7 @@ export function AppHeader({
                   로그인
                 </Button>
                 <Button
-                  color="brandYellow"
+                  color="brandMint"
                   radius="sm"
                   size="sm"
                   h={34}
@@ -224,9 +226,9 @@ export function AppHeader({
                   value={tab.value}
                   disabled={tab.disabled}
                   leftSection={<Icon size={16} />}
-                  bg={isActive ? "brandYellow" : undefined}
-                  c={isActive ? "black" : "dimmed"}
-                  bd={isActive ? "1px solid var(--mantine-color-brandYellow-6)" : undefined}
+                  bg={isActive ? "brandMint.5" : undefined}
+                  c={isActive ? "#0D1730" : "dimmed"}
+                  bd={isActive ? "1px solid var(--mantine-color-brandMint-6)" : undefined}
                 >
                   {tab.label}
                 </Tabs.Tab>
@@ -265,7 +267,7 @@ export function AppHeader({
                   closeDrawer();
                 }}
                 fw={resolvedActiveTab === tab.value ? 700 : 500}
-                color="brandYellow"
+                color={colorScheme === "dark" ? "brandMint.2" : "#006B56"}
               />
             );
           })}
@@ -304,7 +306,7 @@ export function AppHeader({
                   로그인
                 </Button>
                 <Button
-                  color="brandYellow"
+                  color="brandMint"
                   radius="sm"
                   fullWidth
                   onClick={() => {

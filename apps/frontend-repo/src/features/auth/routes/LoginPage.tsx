@@ -20,7 +20,7 @@ export function LoginPage() {
     <Box
       mih="100vh"
       w="100%"
-      bg="linear-gradient(135deg, var(--mantine-color-gray-1) 0%, var(--mantine-color-brandYellow-light) 100%)"
+      bg="linear-gradient(135deg, #F4F8F8 0%, var(--mantine-color-brandMint-0) 100%)"
       darkHidden
     >
       <Center mih="calc(100vh - 120px)">

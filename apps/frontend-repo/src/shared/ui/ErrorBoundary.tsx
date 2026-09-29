@@ -156,7 +156,7 @@ export function ErrorBoundary() {
                 component={Link}
                 to="/"
                 leftSection={<IconHome2 size={16} />}
-                color="brandYellow"
+                color="brandMint"
               >
                 홈으로 이동
               </Button>
