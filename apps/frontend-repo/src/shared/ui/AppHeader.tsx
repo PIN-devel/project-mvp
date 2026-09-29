@@ -170,40 +170,44 @@ export function AppHeader({
           onChange={(value) => onTabChange(value || "/washing")}
           styles={{
             list: {
-              gap: rem(6),
-              borderBottom: 0,
-              paddingBottom: rem(8),
-              "--tabs-list-border-width": "0",
+              gap: rem(24),
+              borderBottom: "1px solid #E8EDF2",
+              "--tabs-list-border-width": "1px",
             },
             tab: {
-              minHeight: rem(42),
-              paddingInline: rem(16),
-              borderRadius: rem(12),
-              fontWeight: 700,
-              color: "var(--mantine-color-dimmed)",
+              minHeight: rem(52),
+              paddingInline: rem(12),
+              fontWeight: 500,
+              color: "#64748B",
               backgroundColor: "transparent",
-              transition:
-                "background-color 150ms ease, color 150ms ease, box-shadow 150ms ease",
-            },
-            tabSection: {
-              marginInlineEnd: rem(8),
+              border: 0,
+              borderBottom: "2px solid transparent",
+              borderRadius: 0,
+              marginBottom: rem(-1),
+              transition: "background-color 150ms ease, color 150ms ease",
+              "&[data-active]": {
+                color: "#0D1730",
+                fontWeight: 600,
+                borderBottomColor: "#31E6B8",
+              },
+              "&:hover:not([data-active])": {
+                color: "#0D1730",
+                backgroundColor: "#F7FBFA",
+              },
+              "&:focus-visible": {
+                outline: "2px solid #31E6B8",
+                outlineOffset: 2,
+              },
             },
           }}
         >
           <Tabs.List>
             {navTabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = resolvedActiveTab === tab.value;
-
               return (
                 <Tabs.Tab
                   key={tab.value}
                   value={tab.value}
                   disabled={tab.disabled}
-                  leftSection={<Icon size={16} />}
-                  bg={isActive ? "brandMint.5" : undefined}
-                  c={isActive ? "#0D1730" : "dimmed"}
-                  bd={isActive ? "1px solid var(--mantine-color-brandMint-6)" : undefined}
                 >
                   {tab.label}
                 </Tabs.Tab>

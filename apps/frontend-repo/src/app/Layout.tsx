@@ -34,7 +34,7 @@ export function Layout() {
 
   return (
     <AppShell
-      header={{ height: { base: 150, sm: 168 } }}
+      header={{ height: { base: 60, sm: 112 } }}
       padding="md"
       bg={brandTokens.lightBackground}
     >
@@ -55,7 +55,12 @@ export function Layout() {
 
 
       <AppShell.Main bg={brandTokens.lightBackground}>
-        <Box pos="relative" mih="calc(100vh - 168px)" mx="auto" maw={1400}>
+        <Box
+          pos="relative"
+          mih={{ base: "calc(100vh - 60px)", sm: "calc(100vh - 112px)" }}
+          mx="auto"
+          maw={1400}
+        >
           <LoadingOverlay
             visible={isNavigating}
             zIndex={1000}
