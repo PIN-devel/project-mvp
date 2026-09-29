@@ -28,20 +28,36 @@
 - 업로드 설명: **카드사에서 내려받은 Excel 이용내역을 직접 가져오세요.** 자동 연동을 암시하지 않는다.
 - AI 인사이트 생성 성공 화면이나 절감액 등은 실제 작동 및 실제 데이터가 확인될 때만 표시한다.
 
+## 최종 브랜드 에셋 · MVP-362에서 그대로 사용
+
+![Signal Mint 최종 에셋 통합 Preview Sheet](./motifin-assets-preview.svg)
+
+| 파일 (`docs/brand/` 기준) | 용도 · 적용 방식 |
+| --- | --- |
+| [`motifin-symbol.svg`](./motifin-symbol.svg) | 40×40 M 심벌 원본. 단독 아이콘과 좁은 화면의 로고 영역에 사용. |
+| [`motifin-wordmark-on-light.svg`](./motifin-wordmark-on-light.svg) | 투명 배경, 민트 심벌 + 네이비 글자. 밝은 Shell/카드에 사용. |
+| [`motifin-wordmark-on-dark.svg`](./motifin-wordmark-on-dark.svg) | 동일한 220×40 형태와 비율, 민트 심벌 + 흰 글자. 네이비 헤더/어두운 Hero에 사용. |
+| [`motifin-favicon.svg`](./motifin-favicon.svg) | 브라우저 아이콘용 40×40 원본. 16·32·48px에서 실제 렌더링으로 M 판독 확인. |
+| [`motifin-assets-preview.svg`](./motifin-assets-preview.svg) | 최종 4종과 favicon 세 크기의 비교 시트. 검토용이며 서비스에 로드하지 않음. |
+
+두 워드마크의 글자는 저장소의 Pretendard Variable 800 윤곽을 SVG 경로로 고정했다. 모든 최종 SVG는 외부 폰트·CSS·이미지·스크립트·네트워크 참조 없이 독립적으로 렌더링된다. 배경은 투명하며, Light/Dark는 글자색만 달라 같은 크기로 교체할 수 있다. 심벌의 민트 `#31E6B8`와 네이비 `#0D1730` 및 M 경로는 기존 확정안과 동일하다.
+
+MVP-362에서는 위 원본 파일을 프론트엔드에서 접근 가능한 정적 에셋 경로로 **그대로 복사**하거나 동등한 방식으로 연결한다. 예를 들어 헤더 배경에 따라 두 워드마크를 선택하고, `motifin-favicon.svg`를 `apps/frontend-repo/public/favicon.svg`로 복사해 기존 favicon 링크와 연결한다. 원본 `docs/brand/`과 이전 시안·결정 이력은 보존한다. 브랜드 SVG를 새로 그릴 필요는 없다.
+
 ## 구현 인계 · MVP-362
 
 1. `apps/frontend-repo/src/app/theme.ts`: B의 주색 `#31E6B8`, 짙은 네이비 `#0D1730`, 밝은 배경 `#F4F8F8`, 흰 카드, 밝은 배경용 강조 글자 `#006B56`을 기준으로 Mantine 색상 튜플/최소 토큰을 정리한다. 기존 `brandYellow` 직접 참조를 화면별로 확인해 필요한 부분만 치환한다. Pretendard는 `src/app/fonts.css`와 기존 폰트 파일을 재사용한다.
-2. `apps/frontend-repo/src/shared/ui/AppHeader.tsx`: 기존 별 아이콘과 `Card Horizon` 글자를 M 심벌과 MOTIFIN 워드마크로 교체한다. 모바일 Drawer와 탭 선택 상태도 확인한다.
+2. `apps/frontend-repo/src/shared/ui/AppHeader.tsx`: 기존 별 아이콘과 `Card Horizon` 글자를 위 최종 Light/Dark 워드마크와 필요 시 단독 심벌로 교체한다. 이미지에 대체 텍스트/홈 링크 이름을 제공하고, 모바일 Drawer와 탭 선택 상태도 확인한다.
 3. `apps/frontend-repo/src/app/Layout.tsx`: 헤더·탭·본문의 밝은/어두운 모드와 로딩 표시를 함께 검토한다. 대규모 Shell 재구축 없이 적용한다.
 4. `apps/frontend-repo/src/features/washing/ui/WashingPageContent.tsx` 및 실제 업로드 진입 UI: 기존 내역·업로드 기능을 유지하며 국문 메시지와 직접 Excel 업로드 안내를 배치한다. 도식의 Hero는 새 업로드 동작을 약속하는 명세가 아니다.
 5. `apps/frontend-repo/src/features/ai-insights/ui/AiInsightsPageContent.tsx`: 브랜드 강조색은 제목·액션에 제한하고 분석 상태, 오류, 경고, 목표 상태의 의미색을 유지한다. MVP-370의 AI 생성 장애 해결과 분리한다.
-6. `apps/frontend-repo/index.html`과 `public/`: title, description, favicon SVG를 실제 파일로 연결한다. 현재 title은 `frontend-repo`이고 `/favicon.svg`는 존재하지 않는다. 필요하면 공유용 메타정보도 일관되게 교체한다.
+6. `apps/frontend-repo/index.html`과 `public/`: title, description을 교체하고 최종 `motifin-favicon.svg`를 실제 `/favicon.svg`로 연결한다. 현재 title은 `frontend-repo`이고 `/favicon.svg`는 존재하지 않는다. 필요하면 공유용 메타정보도 일관되게 교체한다.
 7. 표시되는 구 가칭을 화면과 메타정보에서 검색·정리한다. 내부 패키지/DB/API 식별자는 일괄 변경하지 않는다. 빌드와 주요 화면 회귀 검증을 수행한다.
 
 ### 에셋 규격
 
-- 워드마크: 심벌과 `MOTIFIN` 텍스트. 별도 폰트 다운로드 없이 기존 Pretendard 800 정도, 약간 넓은 자간. 접근 가능한 헤더 홈 링크 텍스트를 유지한다.
-- 심벌: 둥근 민트 사각형 안에 꺾인 M 경로와 절점을 네이비로 표현한다. 기준 에셋은 [`mvp-375-signal-mint-mark.svg`](./mvp-375-signal-mint-mark.svg), `viewBox="0 0 40 40"`. 이를 `public/favicon.svg`로 적용하기 전 16·32·48px 축소 상태를 검증한다.
+- 워드마크: 확정된 심벌과 Pretendard 800 윤곽의 `MOTIFIN`. Light/Dark SVG의 크기는 모두 220×40이며 텍스트 경로가 내장되어 있다. 접근 가능한 헤더 홈 링크 텍스트를 유지한다.
+- 심벌: 둥근 민트 사각형 안에 꺾인 M 경로와 절점을 네이비로 표현한다. 기존 [`mvp-375-signal-mint-mark.svg`](./mvp-375-signal-mint-mark.svg)는 결정 이력으로 보존하고, 정식 원본은 `motifin-symbol.svg`다. 전용 `motifin-favicon.svg`를 16·32·48px에 렌더링해 M 판독을 확인했다.
 - 데이터 그래픽: 점과 꺾인 선을 장식 요소로만 사용한다. 실제 차트의 수입/지출, 증감, 오류·성공 색과 충돌시키지 않는다. 필수 모션은 없다.
 
 ### 대비·가독성 확인
