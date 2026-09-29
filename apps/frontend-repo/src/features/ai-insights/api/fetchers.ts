@@ -37,12 +37,6 @@ export const fetchMonthlyGoals = async (): Promise<MonthlyGoal[]> => {
   return MonthlyGoalListSchema.parse(data);
 };
 
-export const generateInsightWithMonthlyGoals = async (payload: InsightRequest) => {
-  const insight = await generateInsight(payload);
-  const goals = await fetchMonthlyGoals();
-  return { insight, goals };
-};
-
 export const upsertMonthlyGoal = async (
   goalMonth: string,
   payload: MonthlyGoalUpsertRequest,

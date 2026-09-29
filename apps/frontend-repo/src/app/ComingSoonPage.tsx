@@ -35,7 +35,7 @@ export function ComingSoonPage({ title, description }: ComingSoonPageProps) {
           </Group>
 
           <Alert color="blue" variant="light" icon={<IconInfoCircle size={18} />}>
-            ADR-C03 기준으로 준비 중인 기능입니다. 기능이 활성화되기 전까지는 현재 제공 중인 화면을 이용해주세요.
+            이 기능은 아직 준비 중이에요. 이용내역 화면으로 이동해 지금 사용할 수 있는 기능을 이어서 이용해 주세요.
           </Alert>
 
           <Group justify="flex-end">

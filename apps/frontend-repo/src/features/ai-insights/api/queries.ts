@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import {
+  fetchMonthlyGoals,
   fetchInsightCategories,
   fetchInsightTransactions,
 } from "@/features/ai-insights/api/fetchers";
@@ -23,5 +24,11 @@ export const aiInsightQueries = {
       queryKey: aiInsightKeys.categories(),
       queryFn: fetchInsightCategories,
       refetchOnMount: "always",
+    }),
+  monthlyGoals: () =>
+    queryOptions({
+      queryKey: aiInsightKeys.monthlyGoals(),
+      queryFn: fetchMonthlyGoals,
+      retry: false,
     }),
 };

@@ -98,22 +98,90 @@ describe("AI insights integration flow", () => {
     });
   });
 
-  it("connects actual insight results to the existing goal selection", async () => {
+  it("selects a plan separately and saves it through the goal API", async () => {
     renderFeature();
 
     await screen.findByText("내 소비를 이해하는 첫 번째 발견", {}, { timeout: 3000 });
     fireEvent.click(screen.getByRole("button", { name: "내 소비 분석하기" }));
 
-    await screen.findByText("다음에 바꿔볼 행동을 골라보세요", {}, { timeout: 3000 });
-    expect(screen.getByText(/목표 금액은 선택한 이용내역에서 계산한 계획값/)).toBeInTheDocument();
-    expect(screen.getByText("이용내역을 바탕으로 목표를 살펴보기")).toBeInTheDocument();
+    await screen.findByText("발견한 흐름에서 다음 목표를 골라보세요", {}, { timeout: 3000 });
+    expect(screen.getByText("이용내역에서 고를 수 있는 목표")).toBeInTheDocument();
+    expect(screen.getByText(/한 거래월의 정리된 카테고리 금액/)).toBeInTheDocument();
 
-    const chooseButtons = screen.getAllByRole("button", { name: "이 목표 선택" });
+    const chooseButtons = screen.getAllByRole("button", { name: "이 계획 선택" });
     fireEvent.click(chooseButtons[0]);
+    expect(screen.getByRole("button", { name: "이 목표 저장하기" })).toBeInTheDocument();
+    expect(screen.queryByText("저장 완료")).not.toBeInTheDocument();
 
-    await waitFor(() => {
-      expect(screen.getByText("선택됨")).toBeInTheDocument();
-    });
+    fireEvent.click(screen.getByRole("button", { name: "이 목표 저장하기" }));
+    expect(await screen.findByText("저장 완료")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "저장된 목표" })).toBeInTheDocument();
+  });
+
+  it("shows saved goals even when there is no AI result", async () => {
+    server.use(
+      http.get("/api/monthly-goals", () =>
+        HttpResponse.json([
+          {
+            id: 91,
+            month: "2026-06",
+            title: "저장 데이터 목표",
+            targetCategory: "교통",
+            reductionRatio: 0.3,
+            baselineAmount: 100000,
+            targetAmount: 70000,
+            monthlySave: 30000,
+            status: "active",
+            actualSaved: null,
+            createdAt: "2026-06-01T00:00:00Z",
+            updatedAt: "2026-06-01T00:00:00Z",
+          },
+        ]),
+      ),
+    );
+
+    renderFeature();
+
+    expect(await screen.findAllByText("저장 데이터 목표")).toHaveLength(2);
+    expect(screen.queryByText("이 내역에서 발견한 점")).not.toBeInTheDocument();
+    expect(screen.queryByText("30,000원 절감했어요")).not.toBeInTheDocument();
+  });
+
+  it("keeps the selected plan and replacement notice when saving fails", async () => {
+    server.use(
+      http.get("/api/monthly-goals", () =>
+        HttpResponse.json([
+          {
+            id: 92,
+            month: "2026-06",
+            title: "기존 교통 목표",
+            targetCategory: "교통",
+            reductionRatio: 0.2,
+            baselineAmount: 100000,
+            targetAmount: 80000,
+            monthlySave: 20000,
+            status: "active",
+            actualSaved: null,
+            createdAt: "2026-06-01T00:00:00Z",
+            updatedAt: "2026-06-01T00:00:00Z",
+          },
+        ]),
+      ),
+      http.put("/api/monthly-goals/:month", () =>
+        HttpResponse.json({ status: 503 }, { status: 503 }),
+      ),
+    );
+
+    renderFeature();
+    await screen.findByText("주유 30% 줄이기");
+
+    fireEvent.click(screen.getAllByRole("button", { name: "이 계획 선택" })[0]);
+    expect(await screen.findByText(/기존 교통 목표 목표를 새 선택으로 교체합니다/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "기존 목표 교체하기" }));
+
+    expect(await screen.findByText("저장 실패")).toBeInTheDocument();
+    expect(screen.getByText("선택됨")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "교체 다시 시도하기" })).toBeInTheDocument();
   });
 
   it("keeps a successful insight visible when the separate goal lookup fails", async () => {
@@ -131,7 +199,7 @@ describe("AI insights integration flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "내 소비 분석하기" }));
 
     expect(await screen.findByText("이 내역에서 발견한 점", {}, { timeout: 3000 })).toBeInTheDocument();
-    expect(await screen.findByText("목표 정보를 불러오지 못했어요")).toBeInTheDocument();
+    expect(await screen.findByText("저장된 목표를 불러오지 못했어요")).toBeInTheDocument();
     expect(screen.getByText("가장 큰 지출 영역")).toBeInTheDocument();
   });
 });
