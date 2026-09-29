@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>MOTIFIN — 소비 이해에서 목표 선택까지 · Stage A</title>
+  <link rel="stylesheet" href="./prototype.css">
+</head>
+<body>
+  <div class="review-rail" aria-label="디자인 검토 도구">
+    <div class="review-heading"><span class="review-mark">M</span><span><strong>STAGE A · DESIGN SAMPLE</strong><small>실제 사용자 데이터·API 요청이 없는 독립 프로토타입</small></span></div>
+    <div class="review-controls">
+      <label for="experience">화면</label><select id="experience"><option value="insight">MVP-364 · 소비 분석</option><option value="goal">MVP-365 · 목표와 변화</option></select>
+      <label for="scenario">상태</label><select id="scenario"></select>
+    </div>
+  </div>
+  <header class="site-header">
+    <div class="header-inner"><img src="../../brand/motifin-wordmark-on-light.svg" alt="MOTIFIN" class="brand"><span class="header-user">나의 소비를 이해하는 공간 <span class="avatar" aria-hidden="true">M</span></span></div>
+    <nav class="site-nav" aria-label="제품 내비게이션 참조"><span>이용내역</span><span>자동 분류 규칙</span><span class="active">소비 분석</span></nav>
+  </header>
+  <main id="app" aria-live="polite"></main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="./prototype.js"></script>
+</body>
+</html>
