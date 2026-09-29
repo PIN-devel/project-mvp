@@ -9,14 +9,13 @@
 - [인터랙티브 고충실도 시안](./prototype.html) — 다운로드 후 브라우저로 열기. 폰트·공식 로고 내장, 네트워크 및 API 호출 없음.
 - [Desktop / In Progress](./desktop-progress.png)
 - [Empty](./desktop-empty.png) / [Ready](./desktop-ready.png)
-- [Mobile / In Progress](./mobile-progress.png) / [Mobile / Empty](./mobile-empty.png) / [Mobile / Ready](./mobile-ready.png)
-- 참고용 기존 시안(이번 프리뷰의 신규 구현·검수 범위 제외): [Desktop / Dark](./desktop-dark.png) / [Mobile / Dark](./mobile-dark.png)
+- 참고용 기존 시안(이번 프리뷰의 신규 구현·검수 범위 제외): [Desktop / Dark](./desktop-dark.png)
 - [Loading](./desktop-loading.png) / [Error](./desktop-error.png) / [분류 후 전환 시연](./interaction-classify.png)
 - [Stage B 상세 명세 및 Design Integrity Notes](./design-spec.md)
 
 GitHub는 HTML을 실행하지 않는다. `prototype.html`을 다운로드해 직접 열거나 이 디렉터리를 정적 파일로 제공한다. 빌드·패키지 설치 불필요. PNG는 GitHub에서 바로 볼 수 있다.
 
-**모든 거래·금액·건수·카테고리 분포는 디자인 목업용 예시다.** 실제 계정 데이터나 AI 결과를 사용하지 않았다. 시안 상단의 검토 툴바와 하단 예시 표시는 제품에 구현하지 않는다. 공통 Header는 기존 높이와 탐색 구조를 유지하며 MVP-378에 따라 메뉴 문구만 개선했다.
+**모든 거래·금액·건수·카테고리 분포는 디자인 목업용 예시다.** 실제 계정 데이터나 AI 결과를 사용하지 않았다. 시안 상단의 검토 툴바와 하단 예시 표시는 제품에 구현하지 않는다. 디자인 산출물은 Desktop 화면만 포함한다. 공통 Header는 기존 높이와 탐색 구조를 유지하며 MVP-378에 따라 메뉴 문구만 개선했다.
 
 ## 확정 후보의 핵심
 
@@ -39,7 +38,7 @@ GitHub는 HTML을 실행하지 않는다. `prototype.html`을 다운로드해 �
 ## 시안에서 확인할 동작
 
 1. 상단 상태 선택: Empty / In Progress / Ready / Loading / Error.
-2. 좁은 창에서 반응형 확인. Dark 보기는 기존 참고 시안을 남긴 것으로 신규 디자인 탐색이나 Stage B 필수 구현 요구가 아니다.
+2. Desktop 시안의 상태 전환과 Dark 참고 시안 확인. Dark 보기는 신규 디자인 탐색이나 Stage B 필수 구현 요구가 아니다.
 3. Empty의 `Excel 내역 업로드`: 기존 업로드 모달 연결과 저장 후 전환을 설명하는 **시연 전용** 다이얼로그.
 4. In Progress의 `남은 32건 정리하기`: 작업실로 스크롤하고 포커스 이동.
 5. 예시 내역 선택 → `선택 내역 분류` → 시연 설명 → `분류 완료 장면 보기`: Ready의 전체 완료 장면을 보여준다. 선택한 1~3건만으로 32건 모두 분류된다는 실제 동작을 의미하지 않는다.
@@ -52,7 +51,7 @@ GitHub는 HTML을 실행하지 않는다. `prototype.html`을 다운로드해 �
 
 - 변경 경로: `docs/design/mvp-363/`만. 실제 프론트엔드·비즈니스 로직·API·라우팅 변경 없음.
 - 시안 자체의 정적 렌더링과 시연 인터랙션만 확인. 제품 Build / Test / Lint / E2E / 운영 브라우저 QA 미수행.
-- 목업 렌더링: Desktop 1440px / Mobile 390px에서 가로 넘침 없음, Pretendard 로드 확인. 예시 분류→Ready 전환 및 목업 JavaScript 오류 없음 확인.
+- 목업 렌더링: Desktop 1440px에서 Pretendard 로드 확인. 예시 분류→Ready 전환 및 목업 JavaScript 오류 없음 확인.
 - 상태별 캡처는 독립 디자인 HTML의 화면이며, 실제 애플리케이션 구현·배포 결과가 아니다.
 - MVP-363은 진행 중 유지. Design Freeze 이후 별도 Stage B 프롬프트로 구현 착수.
 - 브랜치 `integration/motifin-preview-2026-10-01`, 기존 Draft PR #47. 별도 브랜치·PR·main 병합 없음.
