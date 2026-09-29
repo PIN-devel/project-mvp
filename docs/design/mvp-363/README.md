@@ -9,7 +9,6 @@
 - [인터랙티브 고충실도 시안](./prototype.html) — 다운로드 후 브라우저로 열기. 폰트·공식 로고 내장, 네트워크 및 API 호출 없음.
 - [Desktop / In Progress](./desktop-progress.png)
 - [Empty](./desktop-empty.png) / [Ready](./desktop-ready.png)
-- 참고용 기존 시안(이번 프리뷰의 신규 구현·검수 범위 제외): [Desktop / Dark](./desktop-dark.png)
 - [Loading](./desktop-loading.png) / [Error](./desktop-error.png) / [분류 후 전환 시연](./interaction-classify.png)
 - [Stage B 상세 명세 및 Design Integrity Notes](./design-spec.md)
 
@@ -38,7 +37,7 @@ GitHub는 HTML을 실행하지 않는다. `prototype.html`을 다운로드해 �
 ## 시안에서 확인할 동작
 
 1. 상단 상태 선택: Empty / In Progress / Ready / Loading / Error.
-2. Desktop 시안의 상태 전환과 Dark 참고 시안 확인. Dark 보기는 신규 디자인 탐색이나 Stage B 필수 구현 요구가 아니다.
+2. Desktop Light 시안에서 상태별 정보 위계와 행동 전환을 확인.
 3. Empty의 `Excel 내역 업로드`: 기존 업로드 모달 연결과 저장 후 전환을 설명하는 **시연 전용** 다이얼로그.
 4. In Progress의 `남은 32건 정리하기`: 작업실로 스크롤하고 포커스 이동.
 5. 예시 내역 선택 → `선택 내역 분류` → 시연 설명 → `분류 완료 장면 보기`: Ready의 전체 완료 장면을 보여준다. 선택한 1~3건만으로 32건 모두 분류된다는 실제 동작을 의미하지 않는다.
@@ -58,4 +57,4 @@ GitHub는 HTML을 실행하지 않는다. `prototype.html`을 다운로드해 �
 
 ## 자산 출처
 
-공식 로고는 `docs/brand/motifin-wordmark-on-{light,dark}.svg` 원본을 그대로 내장했다. 서체는 기존 `apps/frontend-repo/public/font/PretendardVariable.woff2`에서 시안에 필요한 글리프만 서브셋하여 내장했다. 로고와 제품 테마를 새로 설계하지 않았다. Stage B는 임베디드 사본 대신 기존 `BrandLogo`와 Pretendard를 그대로 사용한다.
+공식 로고는 `docs/brand/motifin-wordmark-on-light.svg` 원본을 그대로 내장했다. 서체는 기존 `apps/frontend-repo/public/font/PretendardVariable.woff2`에서 시안에 필요한 글리프만 서브셋하여 내장했다. 로고와 공통 Shell을 새로 설계하지 않았다. Stage B는 임베디드 사본 대신 기존 `BrandLogo`와 Pretendard를 그대로 사용한다.
