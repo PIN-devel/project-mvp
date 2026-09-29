@@ -18,22 +18,17 @@
   Table,
   Text,
   TextInput,
-  ThemeIcon,
   Title,
 } from "@mantine/core";
-import { useMediaQuery } from "@mantine/hooks";
 import { modals } from "@mantine/modals";
 import {
   IconAlertTriangle,
-  IconBolt,
   IconCategoryPlus,
   IconDeviceFloppy,
   IconMinus,
-  IconPalette,
   IconRefresh,
   IconSearch,
   IconTrash,
-  IconZoomQuestion,
 } from "@tabler/icons-react";
 import {
   useMutation,
@@ -54,6 +49,7 @@ import {
 } from "@/features/rule-engine-builder/api/queries";
 import type { RuleDryRunResult } from "@/features/rule-engine-builder/model/types";
 import { toast } from "@/shared/ui/toast";
+import styles from "./RuleEngineBuilderPanel.module.css";
 
 interface RuleEngineCategory {
   id: number;
@@ -253,7 +249,6 @@ export function RuleEngineBuilderPanel({
   onRuleApplied,
   onCategoriesChanged,
 }: RuleEngineBuilderPanelProps) {
-  const isDesktopLayout = useMediaQuery("(min-width: 62em)");
   const queryClient = useQueryClient();
   const [rulesQuery, patternsQuery] = useSuspenseQueries({
     queries: [ruleEngineQueries.rules(), ruleEngineQueries.patterns()],
@@ -477,11 +472,11 @@ export function RuleEngineBuilderPanel({
   };
 
   return (
-    <Stack gap="xl">
-      <Paper withBorder p={{ base: "lg", md: "xl" }} radius="lg" bg="white">
-        <Group justify="space-between" align="center" gap="xl">
-          <Stack gap={4}>
-            <Text size="sm" fw={800} c="teal.8" tt="uppercase" lts={1}>
+    <Stack gap="xl" className={styles.page}>
+      <section className={styles.intro}>
+        <Group justify="space-between" align="flex-end" gap="xl">
+          <Stack gap="sm">
+            <Text size="xs" fw={800} c="teal.8" tt="uppercase" lts={1}>
               SUPPORTING EXPERIENCE
             </Text>
             <Title order={1}>반복되는 내역을 내 기준으로 정리해요</Title>
@@ -489,37 +484,30 @@ export function RuleEngineBuilderPanel({
               카테고리를 정돈하고 자동 분류 규칙을 만들면, 다음 소비 분석에서 더 알아보기 쉬운 기록을 만날 수 있어요.
             </Text>
           </Stack>
-          <Badge color={unclassifiedCount > 0 ? "orange" : "brandMint"} variant="light" size="lg">
-            {unclassifiedCount > 0
-              ? `분류가 필요한 내역 ${unclassifiedCount}건`
-              : "분류가 필요한 내역 없음"}
-          </Badge>
+          <div className={styles.status} aria-label={`분류가 필요한 내역 ${unclassifiedCount}건`}>
+            <span>분류가 필요한 내역</span>
+            <strong>{unclassifiedCount}<small>건</small></strong>
+            <p>{unclassifiedCount > 0 ? "이용내역에서 이어서 정리할 수 있어요" : "현재 정리할 내역이 없어요"}</p>
+          </div>
         </Group>
-      </Paper>
+      </section>
 
-      <Group align="stretch" gap="xl">
+      <div className={styles.grid}>
         <Paper
           withBorder
           p="xl"
           radius="lg"
-          flex={{ base: "1 1 100%", lg: "5 1 0" }}
-          miw={{ base: "100%", lg: 0 }}
-          mih={isDesktopLayout ? 632 : undefined}
+          className={styles.utilityCard}
         >
         <Stack gap="lg">
           <Stack gap={4}>
-            <Group gap="xs">
-              <ThemeIcon variant="light" color="brandMint">
-                <IconPalette size={20} />
-              </ThemeIcon>
-              <Title order={3}>01 · 카테고리 관리</Title>
-            </Group>
+            <Title order={3}>01 · 카테고리 관리</Title>
             <Text size="sm" c="dimmed">
               나에게 익숙한 이름과 색상으로 소비를 구분해 보세요.
             </Text>
           </Stack>
 
-          <Paper withBorder bg="var(--mantine-color-gray-light)" p="md" radius="md">
+          <Paper bg="gray.0" p="md" radius="md" className={styles.categoryForm}>
             <Stack gap="md">
               <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
                 <TextInput
@@ -557,10 +545,10 @@ export function RuleEngineBuilderPanel({
             <Text size="sm" fw={700} c="dimmed">
               등록된 카테고리
             </Text>
-            <ScrollArea h={348} type="always">
+            <ScrollArea h={348} type="auto">
               <Stack gap="xs">
                 {categories.map((category) => (
-                  <Paper key={category.id} withBorder p="sm" radius="md">
+                  <Paper key={category.id} p="sm" radius="sm" className={styles.categoryRow}>
                     <Group justify="space-between" wrap="nowrap">
                       <Group gap="sm" wrap="nowrap">
                         <ColorSwatch color={category.color} size={14} />
@@ -594,32 +582,19 @@ export function RuleEngineBuilderPanel({
           withBorder
           p="xl"
           radius="lg"
-          flex={{ base: "1 1 100%", lg: "7 1 0" }}
-          miw={{ base: "100%", lg: 0 }}
-          mih={isDesktopLayout ? 632 : undefined}
+          className={styles.utilityCard}
         >
         <Stack gap="lg">
           <Stack gap={4}>
-            <Group gap="xs">
-              <ThemeIcon variant="light" color="brandMint">
-                <IconBolt size={20} />
-              </ThemeIcon>
-              <Title order={3}>02 · 자동 분류 규칙 만들기</Title>
-              <Badge color={unclassifiedCount > 0 ? "orange" : "brandMint"} variant="light">
-                분류 필요 {unclassifiedCount}건
-              </Badge>
-            </Group>
+            <Title order={3}>02 · 자동 분류 규칙 만들기</Title>
             <Text size="sm" c="dimmed">
               반복되는 이용내역을 확인하고, 적용 범위를 미리 본 뒤 규칙을 저장할 수 있어요.
             </Text>
           </Stack>
 
-          <Paper withBorder p="md" radius="md">
+          <Paper p="md" radius="md" className={styles.patternAction}>
             <Group justify="space-between" align="center">
               <Group gap="sm">
-                <ThemeIcon variant="light" color="brandMint">
-                  <IconZoomQuestion size={20} />
-                </ThemeIcon>
                 <Stack gap={2}>
                   <Text fw={900}>반복되는 내역 찾기</Text>
                   <Text size="xs" c="dimmed">
@@ -684,7 +659,7 @@ export function RuleEngineBuilderPanel({
             </Stack>
           )}
 
-          <Paper withBorder bg="var(--mantine-color-gray-light)" p="md" radius="md">
+          <Paper bg="gray.0" p="md" radius="md" className={styles.ruleForm}>
             <Stack gap="md">
               <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
                 <TextInput
@@ -814,11 +789,11 @@ export function RuleEngineBuilderPanel({
             </Stack>
           </Paper>
 
-          <Stack gap="sm">
+          <Stack gap="sm" className={styles.savedRules}>
             <Text size="sm" fw={700} c="dimmed">
               03 · 저장된 규칙
             </Text>
-            <ScrollArea h={188} type="always">
+            <ScrollArea h={188} type="auto">
               <Table highlightOnHover verticalSpacing="sm">
                 <Table.Thead>
                   <Table.Tr>
@@ -845,9 +820,7 @@ export function RuleEngineBuilderPanel({
                           <Text fw={800}>"{rule.keyword}"</Text>
                         </Table.Td>
                         <Table.Td>
-                          <Badge variant="light" color="orange">
-                            {rule.categoryName || "미지정"}
-                          </Badge>
+                          <Text size="sm">{rule.categoryName || "미지정"}</Text>
                         </Table.Td>
                         <Table.Td>
                           <Text c="teal.8" fw={800}>
@@ -855,9 +828,7 @@ export function RuleEngineBuilderPanel({
                           </Text>
                         </Table.Td>
                         <Table.Td ta="right">
-                          <Badge color="brandMint" variant="filled">
-                            {rule.appliedCount}건
-                          </Badge>
+                          <Text size="sm" fw={700} c="teal.8">{rule.appliedCount}건</Text>
                         </Table.Td>
                         <Table.Td ta="center">
                           <ActionIcon
@@ -879,7 +850,7 @@ export function RuleEngineBuilderPanel({
           </Stack>
         </Stack>
         </Paper>
-      </Group>
+      </div>
     </Stack>
   );
 }

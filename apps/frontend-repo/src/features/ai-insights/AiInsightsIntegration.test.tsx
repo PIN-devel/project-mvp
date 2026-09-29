@@ -104,9 +104,9 @@ describe("AI insights integration flow", () => {
     await screen.findByText("내 소비를 이해하는 첫 번째 발견", {}, { timeout: 3000 });
     fireEvent.click(screen.getByRole("button", { name: "내 소비 분석하기" }));
 
-    await screen.findByText("발견한 흐름에서 다음 목표를 골라보세요", {}, { timeout: 3000 });
-    expect(screen.getByText("이용내역에서 고를 수 있는 목표")).toBeInTheDocument();
-    expect(screen.getByText(/한 거래월의 정리된 카테고리 금액/)).toBeInTheDocument();
+    await screen.findByText("발견을 나의 선택으로.", {}, { timeout: 3000 });
+    expect(screen.getByText("바꿔볼 목표 고르기")).toBeInTheDocument();
+    expect(screen.getByText(/한 거래월의 실제 분류 내역/)).toBeInTheDocument();
 
     const chooseButtons = screen.getAllByRole("button", { name: "이 계획 선택" });
     fireEvent.click(chooseButtons[0]);
@@ -115,7 +115,7 @@ describe("AI insights integration flow", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "이 목표 저장하기" }));
     expect(await screen.findByText("저장 완료")).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "저장된 목표" })).toBeInTheDocument();
+    expect(await screen.findByText("저장된 목표 1건 보기")).toBeInTheDocument();
   });
 
   it("shows saved goals even when there is no AI result", async () => {
@@ -173,6 +173,8 @@ describe("AI insights integration flow", () => {
     );
 
     renderFeature();
+    await screen.findByText("저장된 목표 1건 보기");
+    fireEvent.click(screen.getByRole("button", { name: "다른 목표 살펴보기" }));
     await screen.findByText("주유 30% 줄이기");
 
     fireEvent.click(screen.getAllByRole("button", { name: "이 계획 선택" })[0]);

@@ -20,6 +20,7 @@ import { toast } from "@/shared/ui/toast";
 import type { ActionResult } from "@/features/washing/model/types";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import { washingQueries } from "@/features/washing/api/queries";
+import styles from "@/features/washing/ui/FirstExperience.module.css";
 import {
   DEFAULT_WASHING_FILTERS,
   formatAmount,
@@ -173,14 +174,14 @@ export function SourceDataManagementPanel({ onOpenUpload }: SourceDataManagement
 
   return (
     <>
-      <Paper withBorder p="xl" radius="lg">
+      <Paper withBorder p="xl" radius="lg" className={styles.workSurface}>
         <Stack gap="lg">
           <Stack gap={4}>
             <Group justify="space-between" wrap="nowrap">
               <Title order={3}>전체 이용내역</Title>
               <Group gap="xs" wrap="nowrap">
                 <Button
-                  variant="filled"
+                  variant="light"
                   color="brandMint"
                   leftSection={<IconFileSpreadsheet size={16} />}
                   onClick={onOpenUpload}

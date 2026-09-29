@@ -1,0 +1,22 @@
+.page{padding:28px 0 72px;color:#172842}
+.intro{padding:0 4px}
+.intro h1{font-size:clamp(32px,3vw,42px);line-height:1.2;letter-spacing:-.055em;font-weight:800;word-break:keep-all}
+.intro p{line-height:1.7;color:#60727D}
+.status{flex:0 0 200px;border-radius:16px;background:#E6F8F1;padding:16px 20px;color:#006B56}
+.status span{font-size:11px;font-weight:800}
+.status strong{display:block;font-size:38px;line-height:1.1;letter-spacing:-.04em;margin-top:5px;font-variant-numeric:tabular-nums}
+.status small{font-size:15px;letter-spacing:0;margin-left:4px}
+.status p{font-size:11px;margin:7px 0 0;color:#558475;line-height:1.45}
+.grid{display:grid;grid-template-columns:minmax(320px,380px) minmax(0,1fr);gap:17px;align-items:start}
+.utilityCard{min-width:0;border-color:#DCE7E8!important;border-radius:21px!important;box-shadow:0 12px 38px rgba(14,49,61,.045)}
+.utilityCard h3{font-size:19px;letter-spacing:-.03em;color:#0D1730;line-height:1.35}
+.utilityCard :global(.mantine-InputWrapper-label){font-size:12px;font-weight:700;color:#526773;margin-bottom:7px}
+.categoryForm,.ruleForm{background:#F6FAF9!important;border:1px solid #E2EBEB}
+.categoryRow{border-bottom:1px solid #E7EEEE;border-radius:0!important}
+.categoryRow:last-child{border-bottom:0}
+.patternAction{border:1px solid #DCECE7;background:#F2FAF7}
+.savedRules{border-top:1px solid #DCE7E8;padding-top:24px}
+.savedRules :global(.mantine-Table-th){font-size:11px;font-weight:700;color:#60727D;white-space:nowrap}
+.savedRules :global(.mantine-Table-td){font-variant-numeric:tabular-nums}
+@media(max-width:1050px){.grid{grid-template-columns:minmax(0,1fr)}.status{flex-basis:180px}}
+@media(max-width:680px){.page{padding-top:18px}.intro :global(.mantine-Group-root){align-items:stretch}.status{flex:1 1 100%}.utilityCard{padding:20px!important}}

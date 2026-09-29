@@ -10,15 +10,15 @@
   Stack,
   Table,
   Text,
-  ThemeIcon,
   Title,
 } from "@mantine/core";
-import { IconCategory2, IconCheck } from "@tabler/icons-react";
+import { IconCheck } from "@tabler/icons-react";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Form, useActionData, useNavigation, useSubmit } from "react-router";
 import { toast } from "@/shared/ui/toast";
 import { washingQueries } from "@/features/washing/api/queries";
+import styles from "@/features/washing/ui/FirstExperience.module.css";
 import type { ActionResult } from "@/features/washing/model/types";
 import {
   formatAmount,
@@ -290,16 +290,11 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
         )}
       </Modal>
 
-      <Paper withBorder p="xl" radius="lg">
+      <Paper withBorder p="xl" radius="lg" className={styles.workSurface}>
         <Stack gap="lg">
           <Group justify="space-between" align="flex-start">
             <Stack gap={6}>
-              <Group gap="sm">
-                <ThemeIcon variant="light" color="brandMint" size="lg">
-                  <IconCategory2 size={18} />
-                </ThemeIcon>
-                <Title order={3}>정리할 내역</Title>
-              </Group>
+              <Title order={3}>정리할 내역</Title>
               <Text size="sm" c="dimmed">
                 같은 카테고리의 내역을 골라 한 번에 정리하거나 개별 내역을 분류하세요.
               </Text>

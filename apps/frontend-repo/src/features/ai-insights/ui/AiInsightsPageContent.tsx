@@ -58,6 +58,7 @@ import type {
   MonthlyGoalDraft,
 } from "@/features/ai-insights/model/types";
 import { toast } from "@/shared/ui/toast";
+import styles from "./AiInsightsPageContent.module.css";
 
 const periodOptions = [
   { value: "ALL", label: "전체 기간" },
@@ -86,6 +87,26 @@ interface SelectedGoalPlan {
 interface GoalFeedback {
   type: "success" | "error";
   message: string;
+}
+
+function GoalAmountComparison({ baseline, target }: { baseline: number; target: number }) {
+  const targetShare = baseline > 0 ? (target / baseline) * 100 : 0;
+
+  return (
+    <Stack gap="sm" className={styles.amountComparison}>
+      <Group justify="space-between" gap="sm">
+        <Text size="xs" c="gray.3">기준 금액</Text>
+        <Text size="sm" fw={800} c="white">{formatAmount(baseline)}원</Text>
+      </Group>
+      <Progress value={100} color="gray.5" size="sm" radius="xl" aria-label={`기준 금액 ${formatAmount(baseline)}원`} />
+      <Group justify="space-between" gap="sm">
+        <Text size="xs" c="brandMint.4">목표 금액</Text>
+        <Text size="sm" fw={800} c="brandMint.4">{formatAmount(target)}원</Text>
+      </Group>
+      <Progress value={targetShare} color="brandMint" size="sm" radius="xl" aria-label={`목표 금액 ${formatAmount(target)}원`} />
+      <Text size="xs" c="gray.4">기준 대비 계획상 차이 {formatAmount(Math.max(0, baseline - target))}원 · 실제 절감액이 아닙니다.</Text>
+    </Stack>
+  );
 }
 
 const getInsightErrorMessage = (error: unknown) => {
@@ -128,6 +149,7 @@ export function AiInsightsPageContent() {
   const [selectedGoalPlan, setSelectedGoalPlan] =
     useState<SelectedGoalPlan | null>(null);
   const [goalFeedback, setGoalFeedback] = useState<GoalFeedback | null>(null);
+  const [showGoalChoices, setShowGoalChoices] = useState(false);
 
   const filteredTransactions = useMemo(
     () => filterTransactionsForInsight(transactions, filters),
@@ -165,6 +187,7 @@ export function AiInsightsPageContent() {
   const currentMonthGoal = currentGoalMonth
     ? goals.find((goal) => goal.month === currentGoalMonth)
     : undefined;
+  const displayedSavedGoal = currentMonthGoal ?? [...goals].sort((a, b) => b.month.localeCompare(a.month))[0];
 
   const insightMutation = useMutation({
     mutationFn: ({ request }: InsightMutationVariables) =>
@@ -214,6 +237,7 @@ export function AiInsightsPageContent() {
       );
       if (variables.type === "upsert") {
         setSelectedGoalPlan(null);
+        setShowGoalChoices(false);
         setGoalFeedback({ type: "success", message: "목표를 저장했어요." });
       } else {
         toast.success("목표 상태를 저장했습니다.");
@@ -283,6 +307,7 @@ export function AiInsightsPageContent() {
   };
 
   const jumpToGoalSelection = () => {
+    setShowGoalChoices(true);
     document.getElementById("goal-selection")?.scrollIntoView({
       behavior: "smooth",
       block: "start",
@@ -293,9 +318,9 @@ export function AiInsightsPageContent() {
   const hasNoMatchingTransactions = filteredTransactions.length === 0;
 
   return (
-    <Container size="xl">
-      <Stack gap="xl" py="md">
-        <Stack gap={4}>
+    <Container size={1180}>
+      <Stack gap="xl" className={styles.page}>
+        <Stack gap="sm" className={styles.pageHeading}>
           <Text size="sm" fw={800} c="teal.8" tt="uppercase" lts={1}>
             CONSUMPTION INTELLIGENCE
           </Text>
@@ -305,13 +330,10 @@ export function AiInsightsPageContent() {
           </Text>
         </Stack>
 
-        <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
+        <div className={styles.analysisGrid}>
           <Paper
-            radius="xl"
-            p={{ base: "lg", md: "xl" }}
-            bg="#0D1730"
+            className={styles.analysisStory}
             c="white"
-            mih={250}
           >
             <Stack justify="space-between" h="100%" gap="xl">
               <Group justify="space-between" align="flex-start">
@@ -349,6 +371,11 @@ export function AiInsightsPageContent() {
                     {formatGeneratedAt(insight.generatedAt)} 생성
                   </Text>
                 </Stack>
+              ) : requestErrorMessage ? (
+                <Stack gap="sm">
+                  <Title order={2} c="white">이번 분석을 마치지 못했어요</Title>
+                  <Text c="gray.3" maw={520}>선택한 내역은 그대로예요. 아래 안내를 확인하고 같은 조건으로 다시 시도할 수 있어요.</Text>
+                </Stack>
               ) : hasNoMatchingTransactions ? (
                 <Stack gap="sm">
                   <Title order={2} c="white">
@@ -368,7 +395,19 @@ export function AiInsightsPageContent() {
                   </Text>
                 </Stack>
               )}
-              {insight && !requestInProgress && (
+              {!insight && !requestInProgress && !requestErrorMessage && (
+                <Button
+                  color="brandMint"
+                  leftSection={<IconSparkles size={17} />}
+                  onClick={requestInsight}
+                  disabled={hasNoMatchingTransactions}
+                  w="fit-content"
+                  size="md"
+                >
+                  내 소비 분석하기
+                </Button>
+              )}
+              {insight && !requestInProgress && !isStaleInsight && (
                 <Button
                   color="brandMint"
                   leftSection={<IconTargetArrow size={17} />}
@@ -381,14 +420,19 @@ export function AiInsightsPageContent() {
             </Stack>
           </Paper>
 
-          <Paper withBorder radius="xl" p={{ base: "lg", md: "xl" }}>
-            <Stack gap="md">
+          <Paper className={styles.analysisEvidence}>
+            <Stack gap="lg" h="100%">
               <Stack gap={3}>
                 <Title order={3}>분석에 사용되는 정보</Title>
                 <Text size="sm" c="dimmed">
                   선택한 기간과 카테고리에 해당하는 이용내역을 분석합니다.
                 </Text>
               </Stack>
+              <div className={styles.scopeCount}>
+                <Text size="xs" c="dimmed">조회 조건에 맞는 카드 이용내역</Text>
+                <strong>{filteredTransactions.length}<small>건</small></strong>
+                <Text size="sm" fw={700}>{getPeriodLabel(filters.period)} · {categoryLabel}</Text>
+              </div>
               <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
                 <NativeSelect
                   label="조회 기간"
@@ -423,40 +467,21 @@ export function AiInsightsPageContent() {
                   ]}
                 />
               </SimpleGrid>
-              <Paper withBorder bg="gray.0" radius="md" p="sm">
-                <Group justify="space-between" gap="sm">
-                  <Stack gap={2}>
-                    <Text size="xs" c="dimmed">
-                      조회 조건에 맞는 카드 이용내역
-                    </Text>
-                    <Text fw={800}>
-                      {getPeriodLabel(filters.period)} · {categoryLabel}
-                    </Text>
-                  </Stack>
-                  <Text size="xl" fw={900} c="teal.8">
-                    {filteredTransactions.length}
-                    <Text span size="sm" fw={700} c="dimmed">
-                      건
-                    </Text>
-                  </Text>
-                </Group>
-              </Paper>
-              <Button
-                color="brandMint"
-                leftSection={
-                  hasNoMatchingTransactions ? (
-                    <IconArrowDownRight size={17} />
-                  ) : (
-                    <IconSparkles size={17} />
-                  )
-                }
-                onClick={requestInsight}
-                loading={requestInProgress}
-                disabled={hasNoMatchingTransactions}
-                size="md"
-              >
-                내 소비 분석하기
-              </Button>
+              {insight && (
+                <Button
+                  color={isStaleInsight ? "brandMint" : "teal"}
+                  variant={isStaleInsight ? "filled" : "subtle"}
+                  leftSection={<IconRefresh size={17} />}
+                  onClick={requestInsight}
+                  loading={requestInProgress}
+                  disabled={hasNoMatchingTransactions}
+                  size="sm"
+                  w="fit-content"
+                  mt="auto"
+                >
+                  내 소비 분석하기
+                </Button>
+              )}
               {hasNoMatchingTransactions && (
                 <Text size="xs" c="dimmed" ta="center">
                   분석을 시작하려면 조회 조건을 다시 선택해 주세요.
@@ -464,7 +489,7 @@ export function AiInsightsPageContent() {
               )}
             </Stack>
           </Paper>
-        </SimpleGrid>
+        </div>
 
         {unclassifiedCount > 0 && (
           <Alert
@@ -538,9 +563,10 @@ export function AiInsightsPageContent() {
                   <Paper
                     key={`${card.title}-${index}`}
                     withBorder
-                    p="lg"
+                    p="xl"
                     radius="lg"
                     bg="white"
+                    className={styles.findingCard}
                   >
                     <Stack gap="sm">
                       <Group justify="space-between">
@@ -563,43 +589,27 @@ export function AiInsightsPageContent() {
           </Stack>
         )}
 
-        <Paper
-          id="goal-selection"
-          withBorder
-          radius="xl"
-          p={{ base: "lg", md: "xl" }}
-        >
+        <section id="goal-selection" className={styles.goalSection}>
           <Stack gap="lg">
-            <Group align="flex-start" gap="md">
-              <ThemeIcon variant="light" color="brandMint" size={44} radius="xl">
-                <IconTargetArrow size={22} />
-              </ThemeIcon>
-              <Stack gap={3}>
-                <Text size="sm" fw={800} c="teal.8">
-                  DISCOVERY → ACTION
-                </Text>
-                <Title order={3}>발견한 흐름에서 다음 목표를 골라보세요</Title>
-                <Text size="sm" c="dimmed" maw={760}>
-                  AI 분석과 별도로 저장된 목표를 확인할 수 있어요. 이용내역에서 만든 후보는 계획이며, 실제 절감 성과를 뜻하지 않습니다.
-                </Text>
-              </Stack>
-            </Group>
+            <Stack gap={5} className={styles.goalHeading}>
+              <Text size="sm" fw={800} c="teal.8" lts={1}>DISCOVERY → ACTION</Text>
+              <Title order={2}>발견을 나의 선택으로.</Title>
+              <Text size="sm" c="dimmed">
+                정리한 이용내역에서 바꿔볼 한 가지를 고르세요. 저장된 목표는 소비 분석 결과와 관계없이 확인할 수 있어요.
+              </Text>
+            </Stack>
 
-            <Group align="stretch" gap="md" wrap="wrap">
+            <div className={styles.goalGrid}>
               <Paper
-                radius="lg"
-                p={{ base: "lg", md: "xl" }}
-                bg="#0D1730"
+                className={styles.goalFocus}
                 c="white"
-                flex={{ base: "1 1 100%", lg: "0.86 1 0" }}
-                miw={{ base: "100%", lg: 300 }}
               >
                 <Stack gap="lg" h="100%" justify="space-between">
                   <Stack gap="md">
                     <Badge color="brandMint" variant="light" w="fit-content">
                       {selectedGoalPlan
                         ? "선택한 목표 계획"
-                        : currentMonthGoal
+                        : displayedSavedGoal
                           ? "저장된 목표"
                           : "목표 선택"}
                     </Badge>
@@ -616,74 +626,20 @@ export function AiInsightsPageContent() {
                             {selectedGoalPlan.sourcePeriod} · 해당 거래월의 분류된 내역 {selectedGoalPlan.sourceTransactionCount}건
                           </Text>
                         </Stack>
-                        <Group grow align="flex-start">
-                          <Stack gap={2}>
-                            <Text size="xs" c="gray.4">기준 금액</Text>
-                            <Text fw={800}>{formatAmount(selectedGoalPlan.goal.baselineAmount)}원</Text>
-                          </Stack>
-                          <Stack gap={2}>
-                            <Text size="xs" c="brandMint.4">목표 금액</Text>
-                            <Text fw={800} c="brandMint.4">
-                              {formatAmount(selectedGoalPlan.goal.targetAmount)}원
-                            </Text>
-                          </Stack>
-                        </Group>
-                        <Progress
-                          value={
-                            selectedGoalPlan.goal.baselineAmount > 0
-                              ? (selectedGoalPlan.goal.targetAmount /
-                                  selectedGoalPlan.goal.baselineAmount) *
-                                100
-                              : 0
-                          }
-                          color="brandMint"
-                          size="lg"
-                          radius="xl"
-                          aria-label="선택한 목표 금액과 기준 금액 비교"
-                        />
-                        <Badge color="brandMint" variant="light" w="fit-content">
-                          기준 대비 계획상 차이 {formatAmount(selectedGoalPlan.goal.monthlySave)}원
-                        </Badge>
+                        <GoalAmountComparison baseline={selectedGoalPlan.goal.baselineAmount} target={selectedGoalPlan.goal.targetAmount} />
                       </>
-                    ) : currentMonthGoal ? (
+                    ) : displayedSavedGoal ? (
                       <Stack gap="md">
                         <Stack gap={4}>
-                          <Title order={3} c="white">{currentMonthGoal.title}</Title>
+                          <Title order={3} c="white">{displayedSavedGoal.title}</Title>
                           <Text size="sm" c="gray.3">
-                            {currentMonthGoal.month} · {currentMonthGoal.status === "active" ? "진행 중" : currentMonthGoal.status === "completed" ? "완수로 표시" : "중단"}
+                            {displayedSavedGoal.month} · {displayedSavedGoal.status === "active" ? "진행 중" : displayedSavedGoal.status === "completed" ? "완수로 표시" : "중단"}
                           </Text>
                           <Text size="xs" c="gray.4">
                             저장 당시 기준과 목표 금액
                           </Text>
                         </Stack>
-                        <Group grow align="flex-start">
-                          <Stack gap={2}>
-                            <Text size="xs" c="gray.4">기준 금액</Text>
-                            <Text fw={800}>{formatAmount(currentMonthGoal.baselineAmount)}원</Text>
-                          </Stack>
-                          <Stack gap={2}>
-                            <Text size="xs" c="brandMint.4">목표 금액</Text>
-                            <Text fw={800} c="brandMint.4">
-                              {formatAmount(currentMonthGoal.targetAmount)}원
-                            </Text>
-                          </Stack>
-                        </Group>
-                        <Progress
-                          value={
-                            currentMonthGoal.baselineAmount > 0
-                              ? (currentMonthGoal.targetAmount /
-                                  currentMonthGoal.baselineAmount) *
-                                100
-                              : 0
-                          }
-                          color="brandMint"
-                          size="lg"
-                          radius="xl"
-                          aria-label="저장된 목표 금액과 기준 금액 비교"
-                        />
-                        <Badge color="brandMint" variant="light" w="fit-content">
-                          기준 대비 계획상 차이 {formatAmount(currentMonthGoal.monthlySave)}원
-                        </Badge>
+                        <GoalAmountComparison baseline={displayedSavedGoal.baselineAmount} target={displayedSavedGoal.targetAmount} />
                       </Stack>
                     ) : (
                       <Stack gap="sm">
@@ -746,23 +702,15 @@ export function AiInsightsPageContent() {
               </Paper>
 
               <Paper
-                withBorder
-                radius="lg"
-                p={{ base: "lg", md: "xl" }}
-                flex={{ base: "1 1 100%", lg: "1.14 1 0" }}
-                miw={{ base: "100%", lg: 420 }}
+                className={styles.goalPanel}
               >
                 <Stack gap="lg">
                   <Stack gap={3}>
-                    <Title order={4}>이용내역에서 고를 수 있는 목표</Title>
+                    <Title order={4}>{goals.length > 0 && !showGoalChoices && !selectedGoalPlan ? "나의 목표" : "바꿔볼 목표 고르기"}</Title>
                     <Text size="xs" c="dimmed">
-                      AI 추천이 아닌, 한 거래월의 정리된 카테고리 금액에서 만든 계획 예시예요.
+                      목표 후보는 AI 추천이 아닌, 한 거래월의 실제 분류 내역에서 계산한 계획입니다.
                     </Text>
-                    {currentGoalMonth && (
-                      <Badge color="gray" variant="light" w="fit-content">
-                        거래월 {currentGoalMonth} · 분류된 내역 {goalReferenceTransactions.length}건 · 취소 표시 내역 제외
-                      </Badge>
-                    )}
+                    {currentGoalMonth && <Text size="xs" c="dimmed">거래월 {currentGoalMonth} · 분류된 내역 {goalReferenceTransactions.length}건 · 취소 표시 내역 제외</Text>}
                   </Stack>
 
                   {monthlyGoalsQuery.isPending && (
@@ -802,33 +750,16 @@ export function AiInsightsPageContent() {
                   )}
 
                   {!monthlyGoalsQuery.isError && goals.length > 0 && (
-                    <Stack gap="sm">
-                      <Title order={5}>저장된 목표</Title>
+                    <details className={styles.savedGoals}>
+                      <summary>저장된 목표 {goals.length}건 보기</summary>
+                      <Stack gap="xs" mt="sm">
                       {goals.map((goal) => (
-                        <Paper key={goal.id} withBorder p="md" radius="md">
+                        <div key={goal.id} className={styles.savedGoalRow}>
                           <Group justify="space-between" align="center" gap="md">
                             <Stack gap={5}>
-                              <Group gap="xs">
-                                <Text fw={800}>{goal.title}</Text>
-                                <Badge
-                                  color={
-                                    goal.status === "active"
-                                      ? "brandMint"
-                                      : goal.status === "completed"
-                                        ? "green"
-                                        : "gray"
-                                  }
-                                  variant="light"
-                                >
-                                  {goal.status === "active"
-                                    ? "진행 중"
-                                    : goal.status === "completed"
-                                      ? "완수로 표시"
-                                      : "중단"}
-                                </Badge>
-                              </Group>
+                              <Text fw={800}>{goal.title}</Text>
                               <Text size="xs" c="dimmed">
-                                {goal.month} · 기준 {formatAmount(goal.baselineAmount)}원 → 목표 {formatAmount(goal.targetAmount)}원 · 계획상 차이 {formatAmount(goal.monthlySave)}원
+                                {goal.month} · {goal.status === "active" ? "진행 중" : goal.status === "completed" ? "완수로 표시" : "중단"} · 기준 {formatAmount(goal.baselineAmount)}원 → 목표 {formatAmount(goal.targetAmount)}원 · 계획상 차이 {formatAmount(goal.monthlySave)}원
                               </Text>
                             </Stack>
                             {goal.status === "active" && (
@@ -856,9 +787,10 @@ export function AiInsightsPageContent() {
                               </Group>
                             )}
                           </Group>
-                        </Paper>
+                        </div>
                       ))}
-                    </Stack>
+                      </Stack>
+                    </details>
                   )}
                   {!monthlyGoalsQuery.isError &&
                     !monthlyGoalsQuery.isPending &&
@@ -868,10 +800,16 @@ export function AiInsightsPageContent() {
                       </Text>
                     )}
 
-                  {recommendedGoals.length > 0 ? (
+                  {goals.length > 0 && !showGoalChoices && !selectedGoalPlan && recommendedGoals.length > 0 && (
+                    <Button variant="light" color="teal" w="fit-content" onClick={() => setShowGoalChoices(true)}>
+                      다른 목표 살펴보기
+                    </Button>
+                  )}
+
+                  {(goals.length === 0 || showGoalChoices || selectedGoalPlan) && recommendedGoals.length > 0 ? (
                     <Stack gap="sm">
                       <Title order={5}>선택할 수 있는 목표 계획</Title>
-                      <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="sm">
+                      <Stack gap="xs">
                         {recommendedGoals.map((goal) => {
                           const isSelected = selectedGoalPlan?.goal.id === goal.id;
                           const isAlreadySaved = Boolean(
@@ -883,60 +821,35 @@ export function AiInsightsPageContent() {
                           return (
                             <Paper
                               key={goal.id}
-                              withBorder
-                              p="md"
-                              radius="md"
-                              bg={isSelected ? "teal.0" : "white"}
+                              className={`${styles.goalChoice} ${isSelected ? styles.goalChoiceSelected : ""}`}
                             >
-                              <Stack gap="sm">
-                                <Group justify="space-between" align="flex-start">
+                              <Group justify="space-between" align="center" gap="md" wrap="wrap">
+                                <Stack gap={4}>
                                   <Stack gap={2}>
                                     <Text fw={800}>{goal.title}</Text>
                                     <Text size="xs" c="dimmed">
                                       거래월 {goal.month} · {goal.targetCategory}
                                     </Text>
                                   </Stack>
-                                  {isAlreadySaved && (
-                                    <Badge color="brandMint" variant="light">
-                                      저장된 목표
-                                    </Badge>
-                                  )}
-                                </Group>
-                                <Group justify="space-between" gap="xs">
-                                  <Text size="xs" c="dimmed">
-                                    기준 {formatAmount(goal.baselineAmount)}원
-                                  </Text>
-                                  <Text size="xs" fw={700} c="teal.8">
-                                    목표 {formatAmount(goal.targetAmount)}원
-                                  </Text>
-                                </Group>
-                                <Progress
-                                  value={(goal.targetAmount / goal.baselineAmount) * 100}
-                                  color="brandMint"
-                                  size="md"
-                                  radius="xl"
-                                  aria-label={`${goal.title}: 기준 금액과 목표 금액 비교`}
-                                />
-                                <Text size="xs" c="dimmed">
-                                  기준 대비 계획상 차이 {formatAmount(goal.monthlySave)}원
-                                </Text>
+                                  <Text size="xs" c="dimmed">기준 {formatAmount(goal.baselineAmount)}원 → 목표 {formatAmount(goal.targetAmount)}원 · 계획상 차이 {formatAmount(goal.monthlySave)}원</Text>
+                                </Stack>
                                 <Button
                                   size="xs"
                                   variant={isSelected ? "filled" : "light"}
                                   color="brandMint"
-                                  disabled={goalMutation.isPending}
+                                  disabled={goalMutation.isPending || isAlreadySaved}
                                   aria-pressed={isSelected}
                                   onClick={() => selectGoal(goal)}
                                 >
-                                  {isSelected ? "선택됨" : "이 계획 선택"}
+                                  {isAlreadySaved ? "저장된 목표" : isSelected ? "선택됨" : "이 계획 선택"}
                                 </Button>
-                              </Stack>
+                              </Group>
                             </Paper>
                           );
                         })}
-                      </SimpleGrid>
+                      </Stack>
                     </Stack>
-                  ) : (
+                  ) : recommendedGoals.length === 0 ? (
                     <Paper withBorder radius="md" p="lg" bg="gray.0">
                       <Stack gap="sm">
                         <Text fw={700}>목표 계획을 만들 수 있는 내역이 아직 없어요</Text>
@@ -955,12 +868,12 @@ export function AiInsightsPageContent() {
                         </Button>
                       </Stack>
                     </Paper>
-                  )}
+                  ) : null}
                 </Stack>
               </Paper>
-            </Group>
+            </div>
           </Stack>
-        </Paper>
+        </section>
       </Stack>
     </Container>
   );

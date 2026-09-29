@@ -60,6 +60,9 @@
 .tabs button[aria-selected="true"]{border-color:#006B56;color:#006B56}
 .tabs span{display:inline-block;background:#EAF1EF;padding:2px 6px;border-radius:4px;margin-left:5px;font-size:11px}
 .view{min-width:0}.view > :first-child{border-radius:0 0 16px 16px}
+.workSurface{border-top:0!important;box-shadow:none!important;background:#fff}
+.workSurface :global(.mantine-Table-th){font-size:12px;color:#60727D;font-weight:700;white-space:nowrap}
+.workSurface :global(.mantine-Table-td){font-variant-numeric:tabular-nums}
 .startGuide,.readySummary{background:#fff;border:1px solid #DCE6E5;border-radius:0 0 16px 16px;padding:28px;display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:center}
 .startGuide h3,.readySummary h3{margin:0 0 10px;font-size:20px;letter-spacing:-.04em}.startGuide p,.readySummary p{font-size:14px;line-height:1.7;color:#586574;margin:0}
 .fileHelp{border-radius:12px;background:#F4F8F8;padding:18px;font-size:13px;line-height:1.8}.fileHelp strong{display:block}
