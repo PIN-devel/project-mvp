@@ -46,7 +46,7 @@ export function ExcelUploadModal({ opened, onClose, onSuccess }: ExcelUploadModa
     onSuccess: async ({ added, skippedCount }) => {
       await queryClient.invalidateQueries({ queryKey: washingKeys.all });
       const msg = skippedCount > 0
-        ? `${added.length}건 저장 완료 (${skippedCount}건 중복 스킵)`
+        ? `${added.length}건 저장 완료 (${skippedCount}건 중복된 내역 제외)`
         : `${added.length}건 저장 완료`;
       toast.success(msg);
       handleClose();
@@ -87,8 +87,8 @@ export function ExcelUploadModal({ opened, onClose, onSuccess }: ExcelUploadModa
     >
       <Stack gap="lg">
         <Text size="sm" c="dimmed">
-          신한카드 / KB국민카드 내보내기 파일(.xls, .xlsx)을 업로드하면 카드사를 자동
-          감지하여 파싱합니다.
+          카드사에서 내려받은 Excel 이용내역을 직접 가져오세요. 신한카드와 KB국민카드의
+          내보내기 파일(.xls, .xlsx)을 지원합니다.
         </Text>
 
         <Dropzone
@@ -146,7 +146,7 @@ export function ExcelUploadModal({ opened, onClose, onSuccess }: ExcelUploadModa
           <Stack gap="sm">
             <Group justify="space-between">
               <Text size="sm" fw={600}>
-                파싱 결과{" "}
+                불러온 내역{" "}
                 <Text component="span" c="blue" inherit>
                   {preview.length}건
                 </Text>

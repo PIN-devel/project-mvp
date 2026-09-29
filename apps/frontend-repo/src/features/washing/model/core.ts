@@ -3,6 +3,7 @@ import type {
   WashingFilters,
   WashingOverview,
   WashingTransaction,
+  TransactionDto,
 } from "@/features/washing/model/types";
 
 export type WashingCommand =
@@ -60,6 +61,12 @@ export const getUnclassifiedTransactions = (
   transactions: WashingTransaction[],
 ): WashingTransaction[] =>
   transactions.filter((transaction) => !transaction.isClassified);
+
+// 서버의 명시적 판정을 우선하고, 이전 응답에는 카테고리로 보완합니다.
+export const isTransactionClassified = (
+  transaction: Pick<TransactionDto, "isClassified" | "categoryId" | "categoryName">,
+) => transaction.isClassified ??
+  (transaction.categoryId != null || !!transaction.categoryName);
 
 export const filterTransactions = (
   transactions: WashingTransaction[],

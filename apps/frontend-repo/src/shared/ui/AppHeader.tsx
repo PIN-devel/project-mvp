@@ -1,5 +1,4 @@
 import {
-  ActionIcon,
   Avatar,
   Box,
   Burger,
@@ -14,24 +13,23 @@ import {
   Stack,
   Tabs,
   Text,
-  Title,
+  UnstyledButton,
   rem,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import {
-  IconBrain,
-  IconBrush,
+  IconChartBar,
   IconChevronDown,
   IconLogout,
-  IconMoon,
+  IconReceipt,
   IconSettings,
+  IconSettingsAutomation,
   IconSparkles,
-  IconSun,
-  IconTool,
 } from "@tabler/icons-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import { useState } from "react";
 import type { IconProps } from "@tabler/icons-react";
+import { BrandLogo } from "@/shared/ui/BrandLogo";
 
 const userAvatarDefault =
   "https://raw.githubusercontent.com/mantinedev/mantine/master/.demo/avatars/avatar-5.png";
@@ -44,17 +42,15 @@ interface NavTab {
 }
 
 const navTabs: NavTab[] = [
-  { label: "내역 세척 및 관리", value: "/washing", icon: IconBrush },
-  { label: "규칙 엔진 빌더", value: "/rules", icon: IconTool },
-  { label: "AI 소비 인사이트", value: "/insights", icon: IconBrain },
+  { label: "이용내역", value: "/washing", icon: IconReceipt },
+  { label: "자동 분류 규칙", value: "/rules", icon: IconSettingsAutomation },
+  { label: "소비 분석", value: "/insights", icon: IconChartBar },
   ...(import.meta.env.DEV
     ? [{ label: "샘플", value: "/sample", icon: IconSparkles }]
     : []),
 ];
 
 interface AppHeaderProps {
-  colorScheme: "light" | "dark";
-  onToggleColorScheme: () => void;
   activeTab: string | null;
   onTabChange: (value: string) => void;
   isAuthenticated: boolean;
@@ -66,8 +62,6 @@ const getActiveTab = (pathname: string | null) =>
   navTabs.find((tab) => pathname?.startsWith(tab.value))?.value ?? "/washing";
 
 export function AppHeader({
-  colorScheme,
-  onToggleColorScheme,
   activeTab,
   onTabChange,
   isAuthenticated,
@@ -90,32 +84,15 @@ export function AppHeader({
               hiddenFrom="sm"
               size="sm"
             />
-            <Button
-              variant="subtle"
-              color="brandYellow"
-              px={0}
+            <UnstyledButton
               onClick={() => onTabChange("/washing")}
-              leftSection={<IconSparkles size={18} />}
+              aria-label="MOTIFIN 홈"
             >
-              <Title order={3}>Card Horizon</Title>
-            </Button>
+              <BrandLogo surface="light" height={32} alt="" />
+            </UnstyledButton>
           </Group>
 
           <Group gap="sm">
-            <ActionIcon
-              variant="default"
-              size="lg"
-              onClick={onToggleColorScheme}
-              title="테마 변경"
-              visibleFrom="sm"
-            >
-              {colorScheme === "dark" ? (
-                <IconSun size={20} stroke={1.5} />
-              ) : (
-                <IconMoon size={20} stroke={1.5} />
-              )}
-            </ActionIcon>
-
             {isAuthenticated ? (
               <Menu
                 width={260}
@@ -173,7 +150,7 @@ export function AppHeader({
                   로그인
                 </Button>
                 <Button
-                  color="brandYellow"
+                  color="brandMint"
                   radius="sm"
                   size="sm"
                   h={34}
@@ -193,29 +170,23 @@ export function AppHeader({
           onChange={(value) => onTabChange(value || "/washing")}
           styles={{
             list: {
-              gap: rem(6),
-              borderBottom: 0,
-              paddingBottom: rem(8),
-              "--tabs-list-border-width": "0",
+              gap: rem(24),
+              borderBottom: "1px solid #E8EDF2",
+              "--tabs-list-border-width": "1px",
             },
             tab: {
-              minHeight: rem(42),
-              paddingInline: rem(16),
-              borderRadius: rem(12),
-              fontWeight: 700,
-              color: "var(--mantine-color-dimmed)",
-              backgroundColor: "transparent",
-              transition:
-                "background-color 150ms ease, color 150ms ease, box-shadow 150ms ease",
-            },
-            tabSection: {
-              marginInlineEnd: rem(8),
+              minHeight: rem(52),
+              paddingInline: rem(12),
+              border: 0,
+              borderBottom: "2px solid transparent",
+              borderRadius: 0,
+              marginBottom: rem(-1),
+              transition: "background-color 150ms ease, color 150ms ease",
             },
           }}
         >
           <Tabs.List>
             {navTabs.map((tab) => {
-              const Icon = tab.icon;
               const isActive = resolvedActiveTab === tab.value;
 
               return (
@@ -223,10 +194,11 @@ export function AppHeader({
                   key={tab.value}
                   value={tab.value}
                   disabled={tab.disabled}
-                  leftSection={<Icon size={16} />}
-                  bg={isActive ? "brandYellow" : undefined}
-                  c={isActive ? "black" : "dimmed"}
-                  bd={isActive ? "1px solid var(--mantine-color-brandYellow-6)" : undefined}
+                  c={isActive ? "#0D1730" : "#64748B"}
+                  fw={isActive ? 600 : 500}
+                  style={{
+                    borderBottomColor: isActive ? "#31E6B8" : "transparent",
+                  }}
                 >
                   {tab.label}
                 </Tabs.Tab>
@@ -265,7 +237,7 @@ export function AppHeader({
                   closeDrawer();
                 }}
                 fw={resolvedActiveTab === tab.value ? 700 : 500}
-                color="brandYellow"
+                color="#006B56"
               />
             );
           })}
@@ -304,7 +276,7 @@ export function AppHeader({
                   로그인
                 </Button>
                 <Button
-                  color="brandYellow"
+                  color="brandMint"
                   radius="sm"
                   fullWidth
                   onClick={() => {

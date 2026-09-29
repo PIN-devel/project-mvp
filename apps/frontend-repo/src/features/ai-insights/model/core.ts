@@ -3,7 +3,6 @@ import type {
   InsightFilters,
   InsightRequest,
   InsightTransaction,
-  MonthlyGoal,
   TransactionDto,
 } from "@/features/ai-insights/model/types";
 
@@ -114,20 +113,43 @@ export const getLatestTransactionMonth = (transactions: TransactionDto[]) =>
   transactions
     .map((transaction) => transaction.transactionDate.slice(0, 7))
     .sort()
-    .at(-1) ?? new Date().toISOString().slice(0, 7);
+    .at(-1) ?? null;
+
+export const getGoalReferenceTransactions = (
+  transactions: TransactionDto[],
+  goalMonth: string | null,
+) => {
+  if (!goalMonth) return [];
+
+  return transactions.filter((transaction) => {
+    const normalizedStatus = transaction.status?.trim().toLocaleLowerCase();
+    const isCancelled =
+      normalizedStatus === "취소" ||
+      normalizedStatus === "canceled" ||
+      normalizedStatus === "cancelled";
+
+    return (
+      transaction.transactionDate.slice(0, 7) === goalMonth &&
+      !isCancelled &&
+      isTransactionClassified(transaction) &&
+      Boolean(transaction.categoryName)
+    );
+  });
+};
 
 export const buildRecommendedGoals = (
   transactions: TransactionDto[],
-  goalMonth: string,
+  goalMonth: string | null,
 ) => {
-  const stats = calculateCategoryStats(transactions).filter(
-    (category) => category.name !== "미분류",
-  );
-  const baseStats = stats.length > 0 ? stats : [{ name: "생활비", amount: 120000 }];
+  const stats = calculateCategoryStats(
+    getGoalReferenceTransactions(transactions, goalMonth),
+  ).filter((category) => category.name !== "미분류" && category.amount > 0);
+  if (!goalMonth || stats.length === 0) return [];
+
   const ratios = [0.3, 0.4, 0.5];
 
   return ratios.map((ratio, index) => {
-    const category = baseStats[index % baseStats.length];
+    const category = stats[index % stats.length];
     const monthlySave = Math.round(category.amount * ratio);
     return {
       id: `${goalMonth}-${category.name}-${ratio}`,
@@ -139,67 +161,9 @@ export const buildRecommendedGoals = (
       targetAmount: category.amount - monthlySave,
       monthlySave,
       status: "active" as const,
-      savedAtLabel: new Intl.DateTimeFormat("ko-KR", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }).format(new Date()),
-      actualSaved: null,
     };
   });
 };
-
-export const seedMonthlyGoals = () => [
-  {
-    id: "goal-2026-04",
-    month: "2026-04",
-    title: "카페인 지출 30% 줄이기",
-    targetCategory: "음식료",
-    reductionRatio: 0.3,
-    baselineAmount: 18000,
-    targetAmount: 12600,
-    monthlySave: 5400,
-    status: "completed",
-    savedAtLabel: "2026. 4. 1. 오전 10:00",
-    actualSaved: 6200,
-  },
-  {
-    id: "goal-2026-05",
-    month: "2026-05",
-    title: "충동 지출 40% 줄이기",
-    targetCategory: "생활",
-    reductionRatio: 0.4,
-    baselineAmount: 52500,
-    targetAmount: 31500,
-    monthlySave: 21000,
-    status: "active",
-    savedAtLabel: "2026. 5. 3. 오후 2:15",
-    actualSaved: null,
-  },
-];
-
-export const calculateTotalSaved = (
-  goals: MonthlyGoal[],
-  transactions: TransactionDto[],
-) => {
-  const categoryStats = calculateCategoryStats(transactions);
-
-  return goals.reduce((sum, goal) => {
-    if (goal.status === "completed") {
-      return sum + (goal.actualSaved ?? goal.monthlySave);
-    }
-    if (goal.status !== "active") {
-      return sum;
-    }
-
-    const currentAmount =
-      categoryStats.find((category) => category.name === goal.targetCategory)
-        ?.amount ?? goal.baselineAmount;
-    return sum + Math.max(goal.monthlySave * 0.5, goal.baselineAmount - currentAmount);
-  }, 0);
-};
-
-export const hasCurrentMonthGoal = (goals: MonthlyGoal[], currentGoalMonth: string) =>
-  goals.some((goal) => goal.month === currentGoalMonth && goal.status !== "stopped");
 
 export const buildDataSignature = (transactions: TransactionDto[]) =>
   transactions
@@ -212,65 +176,11 @@ export const buildDataSignature = (transactions: TransactionDto[]) =>
         transaction.categoryName ?? "",
         transaction.amount,
         transaction.tag ?? "",
+        transaction.status ?? "",
         transaction.isClassified ?? "",
       ].join(":"),
     )
     .join("|");
-
-export const buildTrajectoryRows = (
-  goals: MonthlyGoal[],
-  currentGoalMonth: string,
-) => {
-  const months = buildTrajectoryMonths(goals, currentGoalMonth);
-  let running = 0;
-  let target = 0;
-
-  return months.map((month) => {
-    const monthGoals = goals.filter(
-      (goal) => goal.month <= month && goal.status !== "stopped",
-    );
-    const monthlySave = monthGoals.reduce(
-      (sum, goal) =>
-        sum +
-        (goal.status === "completed"
-          ? goal.actualSaved ?? goal.monthlySave
-          : goal.monthlySave),
-      0,
-    );
-    running += monthlySave;
-    target += Math.max(12000, monthlySave);
-    return {
-      month,
-      saved: Math.round(running),
-      target: Math.round(target),
-      isCurrent: month === currentGoalMonth,
-    };
-  });
-};
-
-const buildTrajectoryMonths = (
-  goals: MonthlyGoal[],
-  currentGoalMonth: string,
-) => {
-  const goalMonths = goals.map((goal) => goal.month);
-  const startMonth = [...goalMonths, currentGoalMonth].sort()[0] ?? currentGoalMonth;
-  const endMonth = addMonths(currentGoalMonth, 3);
-  const months: string[] = [];
-  let cursor = startMonth;
-
-  while (cursor <= endMonth) {
-    months.push(cursor);
-    cursor = addMonths(cursor, 1);
-  }
-
-  return months;
-};
-
-const addMonths = (month: string, amount: number) => {
-  const [year, monthIndex] = month.split("-").map(Number);
-  const date = new Date(Date.UTC(year, monthIndex - 1 + amount, 1));
-  return date.toISOString().slice(0, 7);
-};
 
 const toInsightTransaction = (
   transaction: TransactionDto,

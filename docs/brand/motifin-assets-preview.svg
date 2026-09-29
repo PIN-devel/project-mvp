@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="780" viewBox="0 0 1280 780" role="img" aria-labelledby="title desc">
+  <title id="title">MOTIFIN Signal Mint final brand assets</title>
+  <desc id="desc">The final symbol, light and dark horizontal wordmarks, and favicon at 16, 32, and 48 pixels.</desc>
+  <defs>
+    <g id="mark"><rect width="40" height="40" rx="10" fill="#31E6B8"/>
+  <path d="M8 30V10L20 24L32 10V30" fill="none" stroke="#0D1730" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="8" cy="10" r="2.3" fill="#0D1730"/>
+  <circle cx="20" cy="24" r="2.3" fill="#0D1730"/>
+  <circle cx="32" cy="10" r="2.3" fill="#0D1730"/></g>
+    <g id="logo-light"><use href="#mark"/><path fill="#0D1730" d="M65.82 6.62 72.75 23.46H73.05L79.95 6.62H87.77V33.38H81.64V16.73H81.41L74.88 33.21H70.92L64.38 16.68H64.16V33.38H58.04V6.62ZM105.32 33.75Q101.69 33.75 98.8 32.12Q95.91 30.5 94.26 27.37Q92.6 24.25 92.6 20Q92.6 15.68 94.26 12.58Q95.91 9.47 98.8 7.86Q101.69 6.25 105.32 6.25Q108.95 6.25 111.84 7.86Q114.73 9.47 116.39 12.58Q118.04 15.68 118.04 20Q118.04 24.28 116.39 27.39Q114.73 30.5 111.84 32.12Q108.95 33.75 105.32 33.75ZM105.32 11.78Q103.36 11.78 101.94 12.73Q100.53 13.67 99.78 15.52Q99.02 17.36 99.02 20Q99.02 22.64 99.78 24.48Q100.53 26.33 101.94 27.27Q103.36 28.22 105.32 28.22Q107.3 28.22 108.71 27.27Q110.12 26.33 110.87 24.48Q111.62 22.64 111.62 20Q111.62 17.36 110.87 15.52Q110.12 13.67 108.71 12.73Q107.3 11.78 105.32 11.78ZM121.95 6.62H144.45V11.75H136.31V33.38H130.1V11.75H121.95ZM154.98 33.38H148.7V6.62H154.98ZM160.15 6.62H178.3V11.75H166.43V17.43H177.13V22.56H166.43V33.38H160.15ZM188.91 33.38H182.63V6.62H188.91ZM216.75 33.38H211.4L200.57 17.67H200.36V33.38H194.08V6.62H199.53L210.25 22.31H210.48V6.62H216.75Z"/></g>
+    <g id="logo-dark"><use href="#mark"/><path fill="#FFFFFF" d="M65.82 6.62 72.75 23.46H73.05L79.95 6.62H87.77V33.38H81.64V16.73H81.41L74.88 33.21H70.92L64.38 16.68H64.16V33.38H58.04V6.62ZM105.32 33.75Q101.69 33.75 98.8 32.12Q95.91 30.5 94.26 27.37Q92.6 24.25 92.6 20Q92.6 15.68 94.26 12.58Q95.91 9.47 98.8 7.86Q101.69 6.25 105.32 6.25Q108.95 6.25 111.84 7.86Q114.73 9.47 116.39 12.58Q118.04 15.68 118.04 20Q118.04 24.28 116.39 27.39Q114.73 30.5 111.84 32.12Q108.95 33.75 105.32 33.75ZM105.32 11.78Q103.36 11.78 101.94 12.73Q100.53 13.67 99.78 15.52Q99.02 17.36 99.02 20Q99.02 22.64 99.78 24.48Q100.53 26.33 101.94 27.27Q103.36 28.22 105.32 28.22Q107.3 28.22 108.71 27.27Q110.12 26.33 110.87 24.48Q111.62 22.64 111.62 20Q111.62 17.36 110.87 15.52Q110.12 13.67 108.71 12.73Q107.3 11.78 105.32 11.78ZM121.95 6.62H144.45V11.75H136.31V33.38H130.1V11.75H121.95ZM154.98 33.38H148.7V6.62H154.98ZM160.15 6.62H178.3V11.75H166.43V17.43H177.13V22.56H166.43V33.38H160.15ZM188.91 33.38H182.63V6.62H188.91ZM216.75 33.38H211.4L200.57 17.67H200.36V33.38H194.08V6.62H199.53L210.25 22.31H210.48V6.62H216.75Z"/></g>
+  </defs>
+  <rect width="1280" height="780" fill="#EAEFF0"/>
+  <rect width="1280" height="112" fill="#0D1730"/>
+  <text x="52" y="60" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="32" font-weight="700">MOTIFIN · Signal Mint</text>
+  <text x="53" y="88" fill="#AFC7C7" font-family="Arial, sans-serif" font-size="16">FINAL BRAND ASSETS · MVP-375 · 2026.09.29</text>
+  <rect x="48" y="144" width="570" height="242" rx="20" fill="#F4F8F8" stroke="#D7E4E2"/>
+  <text x="78" y="186" fill="#0D1730" font-family="Arial, sans-serif" font-size="19" font-weight="700">Horizontal wordmark · on light</text>
+  <use href="#logo-light" transform="translate(86 240) scale(1.72)"/>
+  <text x="78" y="352" fill="#596A70" font-family="Arial, sans-serif" font-size="14">Transparent asset · navy lettering · mint symbol</text>
+  <rect x="662" y="144" width="570" height="242" rx="20" fill="#0D1730"/>
+  <text x="692" y="186" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="19" font-weight="700">Horizontal wordmark · on dark</text>
+  <use href="#logo-dark" transform="translate(700 240) scale(1.72)"/>
+  <text x="692" y="352" fill="#AFC7C7" font-family="Arial, sans-serif" font-size="14">Transparent asset · white lettering · mint symbol</text>
+  <rect x="48" y="418" width="364" height="300" rx="20" fill="#FFFFFF"/>
+  <text x="78" y="462" fill="#0D1730" font-family="Arial, sans-serif" font-size="19" font-weight="700">M symbol</text>
+  <use href="#mark" transform="translate(142 490) scale(3)"/>
+  <text x="78" y="685" fill="#596A70" font-family="Arial, sans-serif" font-size="14">40 × 40 viewBox · standalone SVG</text>
+  <rect x="444" y="418" width="788" height="300" rx="20" fill="#FFFFFF"/>
+  <text x="474" y="462" fill="#0D1730" font-family="Arial, sans-serif" font-size="19" font-weight="700">Browser favicon · native-size check</text>
+  <rect x="488" y="500" width="190" height="150" rx="14" fill="#F4F8F8"/>
+  <rect x="743" y="500" width="190" height="150" rx="14" fill="#F4F8F8"/>
+  <rect x="998" y="500" width="190" height="150" rx="14" fill="#F4F8F8"/>
+  <use href="#mark" transform="translate(575 550) scale(0.4)"/>
+  <use href="#mark" transform="translate(822 542) scale(0.8)"/>
+  <use href="#mark" transform="translate(1069 534) scale(1.2)"/>
+  <text x="565" y="685" fill="#0D1730" font-family="Arial, sans-serif" font-size="17" font-weight="700">16 px</text>
+  <text x="812" y="685" fill="#0D1730" font-family="Arial, sans-serif" font-size="17" font-weight="700">32 px</text>
+  <text x="1060" y="685" fill="#0D1730" font-family="Arial, sans-serif" font-size="17" font-weight="700">48 px</text>
+  <text x="48" y="754" fill="#596A70" font-family="Arial, sans-serif" font-size="15">Source SVGs have no linked font, CSS, image, script, or network dependency. Preview is an illustration, not an application screen.</text>
+</svg>

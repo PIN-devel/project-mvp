@@ -112,7 +112,7 @@ export const handlers = [
           type: "about:blank",
           title: "Bad Request",
           status: 400,
-          detail: "일괄 세척 대상과 카테고리가 필요합니다.",
+          detail: "분류할 내역과 카테고리를 선택해 주세요.",
           instance: "/api/transactions/bulk-classify",
           errorCode: "WASH001",
         },

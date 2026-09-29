@@ -1,4 +1,3 @@
-import { useAppStore } from "@/app/store/useAppStore";
 import { MantineProvider } from "@mantine/core";
 import { ModalsProvider } from "@mantine/modals";
 import { Notifications } from "@mantine/notifications";
@@ -21,11 +20,9 @@ interface AppProviderProps {
  * 전역 컨텍스트 프로바이더 통합 관리
  */
 export function AppProvider({ children }: AppProviderProps) {
-  const { colorScheme } = useAppStore();
-
   return (
     <QueryClientProvider client={queryClient}>
-      <MantineProvider theme={theme} forceColorScheme={colorScheme}>
+      <MantineProvider theme={theme} forceColorScheme="light">
         <ModalsProvider>
           <Notifications position="top-right" zIndex={2000} />
           {children}

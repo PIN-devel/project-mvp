@@ -122,14 +122,14 @@ export function ErrorBoundary() {
                 c="orange.8"
                 style={{ letterSpacing: "0.12em" }}
               >
-                Error Notice
+                서비스 안내
               </Text>
               <Title order={1} ta="center">
                 요청을 완료하지 못했어요
               </Title>
               <Text c="dimmed" ta="center" maw={460} lh={1.6}>
-                문제가 된 기술 정보는 숨기고, 필요한 안내만 보여드리고 있어요.
-                아래 메시지를 확인한 뒤 다시 시도해 주세요.
+                요청을 처리하지 못했어요. 아래 안내를 확인한 뒤 다시 시도하거나
+                홈으로 이동해 주세요.
               </Text>
             </Stack>
 
@@ -156,7 +156,7 @@ export function ErrorBoundary() {
                 component={Link}
                 to="/"
                 leftSection={<IconHome2 size={16} />}
-                color="brandYellow"
+                color="brandMint"
               >
                 홈으로 이동
               </Button>

@@ -18,22 +18,17 @@
   Table,
   Text,
   TextInput,
-  ThemeIcon,
   Title,
 } from "@mantine/core";
-import { useMediaQuery } from "@mantine/hooks";
 import { modals } from "@mantine/modals";
 import {
   IconAlertTriangle,
-  IconBolt,
   IconCategoryPlus,
   IconDeviceFloppy,
   IconMinus,
-  IconPalette,
   IconRefresh,
   IconSearch,
   IconTrash,
-  IconZoomQuestion,
 } from "@tabler/icons-react";
 import {
   useMutation,
@@ -54,6 +49,7 @@ import {
 } from "@/features/rule-engine-builder/api/queries";
 import type { RuleDryRunResult } from "@/features/rule-engine-builder/model/types";
 import { toast } from "@/shared/ui/toast";
+import styles from "./RuleEngineBuilderPanel.module.css";
 
 interface RuleEngineCategory {
   id: number;
@@ -79,7 +75,7 @@ interface RuleEngineBuilderPanelProps {
   onCategoriesChanged?: () => void | Promise<void>;
 }
 
-const defaultCategoryColor = "#8b5cf6";
+const defaultCategoryColor = "#31e6b8";
 const rgbChannelFields = [
   { key: "r", label: "R" },
   { key: "g", label: "G" },
@@ -253,7 +249,6 @@ export function RuleEngineBuilderPanel({
   onRuleApplied,
   onCategoriesChanged,
 }: RuleEngineBuilderPanelProps) {
-  const isDesktopLayout = useMediaQuery("(min-width: 62em)");
   const queryClient = useQueryClient();
   const [rulesQuery, patternsQuery] = useSuspenseQueries({
     queries: [ruleEngineQueries.rules(), ruleEngineQueries.patterns()],
@@ -311,7 +306,7 @@ export function RuleEngineBuilderPanel({
       setKeyword("");
       setTag("");
       clearPreview();
-      toast.success("매핑 규칙을 등록하고 일치 거래를 갱신했습니다.");
+      toast.success("자동 분류 규칙을 저장하고 일치 내역을 적용했습니다.");
     },
   });
 
@@ -477,34 +472,47 @@ export function RuleEngineBuilderPanel({
   };
 
   return (
-    <Group align="stretch" gap="xl">
-      <Paper
-        withBorder
-        p="xl"
-        radius="lg"
-        flex={{ base: "1 1 100%", lg: "5 1 0" }}
-        miw={{ base: "100%", lg: 0 }}
-        mih={isDesktopLayout ? 632 : undefined}
-      >
+    <Stack gap="xl" className={styles.page}>
+      <section className={styles.intro}>
+        <Group justify="space-between" align="flex-end" gap="xl">
+          <Stack gap="sm">
+            <Text size="xs" fw={800} c="teal.8" tt="uppercase" lts={1}>
+              SUPPORTING EXPERIENCE
+            </Text>
+            <Title order={1}>반복되는 내역을 내 기준으로 정리해요</Title>
+            <Text size="sm" c="dimmed" maw={760}>
+              카테고리를 정돈하고 자동 분류 규칙을 만들면, 다음 소비 분석에서 더 알아보기 쉬운 기록을 만날 수 있어요.
+            </Text>
+          </Stack>
+          <div className={styles.status} aria-label={`분류가 필요한 내역 ${unclassifiedCount}건`}>
+            <span>분류가 필요한 내역</span>
+            <strong>{unclassifiedCount}<small>건</small></strong>
+            <p>{unclassifiedCount > 0 ? "이용내역에서 이어서 정리할 수 있어요" : "현재 정리할 내역이 없어요"}</p>
+          </div>
+        </Group>
+      </section>
+
+      <div className={styles.grid}>
+        <Paper
+          withBorder
+          p="xl"
+          radius="lg"
+          className={styles.utilityCard}
+        >
         <Stack gap="lg">
           <Stack gap={4}>
-            <Group gap="xs">
-              <ThemeIcon variant="light" color="yellow">
-                <IconPalette size={20} />
-              </ThemeIcon>
-              <Title order={3}>무제한 커스텀 카테고리 정의</Title>
-            </Group>
+            <Title order={3}>01 · 카테고리 관리</Title>
             <Text size="sm" c="dimmed">
-              분류 전략을 빠르게 실험할 수 있도록 카테고리 그룹을 직접 만들고 삭제할 수 있습니다.
+              나에게 익숙한 이름과 색상으로 소비를 구분해 보세요.
             </Text>
           </Stack>
 
-          <Paper withBorder bg="var(--mantine-color-gray-light)" p="md" radius="md">
+          <Paper bg="gray.0" p="md" radius="md" className={styles.categoryForm}>
             <Stack gap="md">
               <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
                 <TextInput
                   label="카테고리명"
-                  placeholder="예: 식비, 배달중독"
+                  placeholder="예: 식비, 취미"
                   value={categoryName}
                   onChange={(event) => setCategoryName(event.currentTarget.value)}
                 />
@@ -514,7 +522,7 @@ export function RuleEngineBuilderPanel({
                   onChange={setCategoryColor}
                   swatches={[
                     "#f97316",
-                    "#8b5cf6",
+                    "#31e6b8",
                     "#10b981",
                     "#3b82f6",
                     "#ec4899",
@@ -537,10 +545,10 @@ export function RuleEngineBuilderPanel({
             <Text size="sm" fw={700} c="dimmed">
               등록된 카테고리
             </Text>
-            <ScrollArea h={348} type="always">
+            <ScrollArea h={348} type="auto">
               <Stack gap="xs">
                 {categories.map((category) => (
-                  <Paper key={category.id} withBorder p="sm" radius="md">
+                  <Paper key={category.id} p="sm" radius="sm" className={styles.categoryRow}>
                     <Group justify="space-between" wrap="nowrap">
                       <Group gap="sm" wrap="nowrap">
                         <ColorSwatch color={category.color} size={14} />
@@ -570,51 +578,38 @@ export function RuleEngineBuilderPanel({
         </Stack>
       </Paper>
 
-      <Paper
-        withBorder
-        p="xl"
-        radius="lg"
-        flex={{ base: "1 1 100%", lg: "7 1 0" }}
-        miw={{ base: "100%", lg: 0 }}
-        mih={isDesktopLayout ? 632 : undefined}
-      >
+        <Paper
+          withBorder
+          p="xl"
+          radius="lg"
+          className={styles.utilityCard}
+        >
         <Stack gap="lg">
           <Stack gap={4}>
-            <Group gap="xs">
-              <ThemeIcon variant="light" color="yellow">
-                <IconBolt size={20} />
-              </ThemeIcon>
-              <Title order={3}>패턴 기반 분류 룰 빌더</Title>
-              <Badge color="red" variant="light">
-                미분류 {unclassifiedCount}건
-              </Badge>
-            </Group>
+            <Title order={3}>02 · 자동 분류 규칙 만들기</Title>
             <Text size="sm" c="dimmed">
-              미분류 패턴을 분석하고 Dry Run으로 검증한 뒤 곧바로 분류 규칙을 등록할 수 있습니다.
+              반복되는 이용내역을 확인하고, 적용 범위를 미리 본 뒤 규칙을 저장할 수 있어요.
             </Text>
           </Stack>
 
-          <Paper withBorder p="md" radius="md">
+          <Paper p="md" radius="md" className={styles.patternAction}>
             <Group justify="space-between" align="center">
               <Group gap="sm">
-                <ThemeIcon variant="light" color="teal">
-                  <IconZoomQuestion size={20} />
-                </ThemeIcon>
                 <Stack gap={2}>
-                  <Text fw={900}>미분류 패턴 자동 탐색기</Text>
+                  <Text fw={900}>반복되는 내역 찾기</Text>
                   <Text size="xs" c="dimmed">
-                    반복되는 미분류 가맹점을 자동으로 찾아 규칙 후보를 제안합니다.
+                    이용내역에서 반복되는 가맹점과 분류 제안을 살펴봅니다.
                   </Text>
                 </Stack>
               </Group>
               <Button
-                color="teal"
+                color="brandMint"
                 variant="light"
                 leftSection={<IconRefresh size={16} />}
                 onClick={analyzePatterns}
                 loading={patternsQuery.isFetching}
               >
-                패턴 분석 실행
+                제안 살펴보기
               </Button>
             </Group>
           </Paper>
@@ -624,7 +619,7 @@ export function RuleEngineBuilderPanel({
               {suggestions.length === 0 ? (
                 <Paper withBorder p="md" radius="md">
                   <Text ta="center" c="dimmed">
-                    추천할 미분류 패턴이 없습니다.
+                    지금은 살펴볼 분류 제안이 없어요.
                   </Text>
                 </Paper>
               ) : (
@@ -634,7 +629,7 @@ export function RuleEngineBuilderPanel({
                       <Stack gap={4}>
                         <Group gap="xs">
                           <Text fw={900}>"{suggestion.keyword}"</Text>
-                          <Badge color="teal" variant="light">
+                          <Badge color="brandMint" variant="light">
                             {suggestion.occurrences}건
                           </Badge>
                         </Group>
@@ -650,9 +645,13 @@ export function RuleEngineBuilderPanel({
                           </Badge>
                         </Group>
                       </Stack>
-                      <Button size="xs" color="teal" onClick={() => applySuggestion(suggestion)}>
-                        규칙 만들기
-                      </Button>
+                        <Button
+                          size="xs"
+                          color="brandMint"
+                          onClick={() => applySuggestion(suggestion)}
+                        >
+                          규칙 만들기
+                        </Button>
                     </Group>
                   </Paper>
                 ))
@@ -660,7 +659,7 @@ export function RuleEngineBuilderPanel({
             </Stack>
           )}
 
-          <Paper withBorder bg="var(--mantine-color-gray-light)" p="md" radius="md">
+          <Paper bg="gray.0" p="md" radius="md" className={styles.ruleForm}>
             <Stack gap="md">
               <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
                 <TextInput
@@ -673,7 +672,7 @@ export function RuleEngineBuilderPanel({
                   }}
                 />
                 <NativeSelect
-                  label="타겟 카테고리"
+                  label="분류할 카테고리"
                   value={targetCategory}
                   onChange={(event) => {
                     setTargetCategory(event.currentTarget.value);
@@ -683,7 +682,7 @@ export function RuleEngineBuilderPanel({
                 />
                 <TextInput
                   label="자동 태그"
-                  placeholder="예: #식비 #충동지출"
+                  placeholder="예: #식비 #취미"
                   value={tag}
                   onChange={(event) => {
                     setTag(event.currentTarget.value);
@@ -699,16 +698,16 @@ export function RuleEngineBuilderPanel({
                 onClick={runDryRun}
                 loading={dryRunMutation.isPending}
               >
-                이 규칙으로 영향 분석하기 (Dry Run 미리보기)
+                이 규칙이 적용될 내역 미리보기
               </Button>
 
               {showDryRun && (
                 <Paper withBorder p="md" radius="md">
                   <Stack gap="sm">
                     <Group justify="space-between">
-                      <Text fw={900}>Dry Run 결과</Text>
+                      <Text fw={900}>적용 전 미리보기</Text>
                       <Group gap="xs">
-                        <Badge color={dryRunResult?.matchCount ? "teal" : "gray"} variant="light">
+                        <Badge color={dryRunResult?.matchCount ? "brandMint" : "gray"} variant="light">
                           영향 {dryRunResult?.matchCount ?? 0}건
                         </Badge>
                         {dryRunResult && dryRunResult.newlyClassifiedCount > 0 && (
@@ -718,7 +717,7 @@ export function RuleEngineBuilderPanel({
                         )}
                         {dryRunResult?.hasOverrideRisk && (
                           <Badge color="orange" variant="light">
-                            Override {dryRunResult.overrideCount}건
+                            기존 분류 변경 {dryRunResult.overrideCount}건
                           </Badge>
                         )}
                       </Group>
@@ -729,7 +728,7 @@ export function RuleEngineBuilderPanel({
                         variant="light"
                         icon={<IconAlertTriangle size={16} />}
                       >
-                        이미 분류된 거래가 포함되어 있습니다. 기존 분류를 덮어쓸 수 있으니 적용 범위를 먼저 확인해주세요.
+                        이미 분류된 내역이 포함되어 있어요. 미리보기의 기존 분류 변경 건수를 확인해 주세요.
                       </Alert>
                     )}
                     <ScrollArea h={180}>
@@ -754,7 +753,7 @@ export function RuleEngineBuilderPanel({
                                     </Text>
                                     {transaction.override && (
                                       <Badge size="xs" color="orange" variant="light">
-                                        덮어쓰기
+                                        분류 변경
                                       </Badge>
                                     )}
                                     {transaction.newlyClassified && (
@@ -782,7 +781,7 @@ export function RuleEngineBuilderPanel({
                 onClick={addRule}
                 loading={createRuleMutation.isPending}
               >
-                매핑 룰 등록 및 거래 일괄 적용
+                규칙 저장하고 적용하기
               </Button>
               <Text size="xs" ta="center" c="dimmed">
                 미리보기로 영향을 확인한 뒤 등록하는 것을 권장합니다.
@@ -790,11 +789,11 @@ export function RuleEngineBuilderPanel({
             </Stack>
           </Paper>
 
-          <Stack gap="sm">
+          <Stack gap="sm" className={styles.savedRules}>
             <Text size="sm" fw={700} c="dimmed">
-              생성된 규칙 목록
+              03 · 저장된 규칙
             </Text>
-            <ScrollArea h={188} type="always">
+            <ScrollArea h={188} type="auto">
               <Table highlightOnHover verticalSpacing="sm">
                 <Table.Thead>
                   <Table.Tr>
@@ -821,19 +820,15 @@ export function RuleEngineBuilderPanel({
                           <Text fw={800}>"{rule.keyword}"</Text>
                         </Table.Td>
                         <Table.Td>
-                          <Badge variant="light" color="orange">
-                            {rule.categoryName || "미지정"}
-                          </Badge>
+                          <Text size="sm">{rule.categoryName || "미지정"}</Text>
                         </Table.Td>
                         <Table.Td>
-                          <Text c="teal" fw={800}>
+                          <Text c="teal.8" fw={800}>
                             {rule.tag ?? "-"}
                           </Text>
                         </Table.Td>
                         <Table.Td ta="right">
-                          <Badge color="teal" variant="filled">
-                            {rule.appliedCount}건
-                          </Badge>
+                          <Text size="sm" fw={700} c="teal.8">{rule.appliedCount}건</Text>
                         </Table.Td>
                         <Table.Td ta="center">
                           <ActionIcon
@@ -854,7 +849,8 @@ export function RuleEngineBuilderPanel({
             </ScrollArea>
           </Stack>
         </Stack>
-      </Paper>
-    </Group>
+        </Paper>
+      </div>
+    </Stack>
   );
 }

@@ -5,6 +5,7 @@ import { NavigationProgress, nprogress } from "@mantine/nprogress";
 import { useEffect } from "react";
 import { Outlet, useLocation, useNavigate, useNavigation } from "react-router";
 import { toast } from "@/shared/ui/toast";
+import { brandTokens } from "@/app/theme";
 
 /**
  * 애플리케이션 기본 레이아웃
@@ -14,7 +15,7 @@ export function Layout() {
   const navigation = useNavigation();
   const navigate = useNavigate();
   const location = useLocation();
-  const { colorScheme, toggleColorScheme, isAuthenticated, nickname, clearSession } = useAppStore();
+  const { isAuthenticated, nickname, clearSession } = useAppStore();
   const isNavigating = navigation.state === "loading";
 
   useEffect(() => {
@@ -32,16 +33,18 @@ export function Layout() {
   };
 
   return (
-    <AppShell header={{ height: { base: 150, sm: 168 } }} padding="md">
-      <NavigationProgress color="brandYellow" />
+    <AppShell
+      header={{ height: { base: 60, sm: 112 } }}
+      padding="md"
+      bg={brandTokens.lightBackground}
+    >
+      <NavigationProgress color="brandMint" />
 
       <AppShell.Header
-        bg={colorScheme === "dark" ? "dark.7" : "gray.0"}
+        bg={brandTokens.cardSurface}
         withBorder={false}
       >
         <AppHeader
-          colorScheme={colorScheme}
-          onToggleColorScheme={toggleColorScheme}
           activeTab={location.pathname}
           onTabChange={(value) => navigate(value)}
           isAuthenticated={isAuthenticated}
@@ -51,13 +54,18 @@ export function Layout() {
       </AppShell.Header>
 
 
-      <AppShell.Main>
-        <Box pos="relative" mih="calc(100vh - 168px)" mx="auto" maw={1400}>
+      <AppShell.Main bg={brandTokens.lightBackground}>
+        <Box
+          pos="relative"
+          mih={{ base: "calc(100vh - 60px)", sm: "calc(100vh - 112px)" }}
+          mx="auto"
+          maw={1400}
+        >
           <LoadingOverlay
             visible={isNavigating}
             zIndex={1000}
             overlayProps={{ radius: "sm", blur: 2 }}
-            loaderProps={{ color: "brandYellow", size: "xl" }}
+            loaderProps={{ color: "brandMint", size: "xl" }}
           />
           <Outlet />
         </Box>

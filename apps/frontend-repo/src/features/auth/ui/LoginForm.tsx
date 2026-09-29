@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSubmit, Link, useNavigation } from "react-router";
-import { TextInput, PasswordInput, Button, Paper, Title, Stack, Text, Anchor } from "@mantine/core";
+import { TextInput, PasswordInput, Button, Paper, Title, Stack, Text, Anchor, useMantineColorScheme } from "@mantine/core";
 import { LoginRequestSchema } from "../model/schemas";
 import type { LoginRequest } from "../model/types";
 
@@ -11,6 +11,7 @@ import type { LoginRequest } from "../model/types";
  * 최종 제출은 React Router Data Mode의 action으로 위임합니다.
  */
 export function LoginForm() {
+  const { colorScheme } = useMantineColorScheme();
   const submit = useSubmit();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
@@ -61,7 +62,7 @@ export function LoginForm() {
           <Button
             type="submit"
             radius="sm"
-            color="brandYellow"
+            color="brandMint"
             loading={isSubmitting}
             mt="md"
             fullWidth
@@ -73,7 +74,12 @@ export function LoginForm() {
 
       <Text ta="center" mt="md" size="sm" c="dimmed">
         아직 회원이 아니신가요?{" "}
-        <Anchor component={Link} to="/register" fw={500} color="brandYellow">
+        <Anchor
+          component={Link}
+          to="/register"
+          fw={500}
+          c={colorScheme === "dark" ? "brandMint.2" : "#006B56"}
+        >
           회원가입
         </Anchor>
       </Text>

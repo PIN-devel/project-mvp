@@ -10,6 +10,7 @@ import type {
   TransactionDto,
   WashingOverview,
 } from "@/features/washing/model/types";
+import { isTransactionClassified } from "@/features/washing/model/core";
 
 export const fetchWashingOverview = async (): Promise<WashingOverview> => {
   const [transactionsResponse, categoriesResponse] = await Promise.all([
@@ -29,9 +30,7 @@ export const fetchWashingOverview = async (): Promise<WashingOverview> => {
       cardLabel: transaction.cardName,
       amount: transaction.amount,
       category: transaction.categoryName ?? null,
-      isClassified:
-        transaction.isClassified ??
-        (transaction.categoryId != null || !!transaction.categoryName),
+      isClassified: isTransactionClassified(transaction),
       matchedRuleLabel: transaction.tag ?? null,
       tag: transaction.tag ?? "",
       source: "CARD",
