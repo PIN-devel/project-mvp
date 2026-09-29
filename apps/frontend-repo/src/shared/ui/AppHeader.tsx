@@ -177,37 +177,28 @@ export function AppHeader({
             tab: {
               minHeight: rem(52),
               paddingInline: rem(12),
-              fontWeight: 500,
-              color: "#64748B",
-              backgroundColor: "transparent",
               border: 0,
               borderBottom: "2px solid transparent",
               borderRadius: 0,
               marginBottom: rem(-1),
               transition: "background-color 150ms ease, color 150ms ease",
-              "&[data-active]": {
-                color: "#0D1730",
-                fontWeight: 600,
-                borderBottomColor: "#31E6B8",
-              },
-              "&:hover:not([data-active])": {
-                color: "#0D1730",
-                backgroundColor: "#F7FBFA",
-              },
-              "&:focus-visible": {
-                outline: "2px solid #31E6B8",
-                outlineOffset: 2,
-              },
             },
           }}
         >
           <Tabs.List>
             {navTabs.map((tab) => {
+              const isActive = resolvedActiveTab === tab.value;
+
               return (
                 <Tabs.Tab
                   key={tab.value}
                   value={tab.value}
                   disabled={tab.disabled}
+                  c={isActive ? "#0D1730" : "#64748B"}
+                  fw={isActive ? 600 : 500}
+                  style={{
+                    borderBottomColor: isActive ? "#31E6B8" : "transparent",
+                  }}
                 >
                   {tab.label}
                 </Tabs.Tab>
