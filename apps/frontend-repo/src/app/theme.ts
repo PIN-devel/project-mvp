@@ -1,6 +1,28 @@
 import { createTheme, Button, type MantineColorsTuple } from "@mantine/core";
 
-// 브랜드 컬러 팔레트
+// MOTIFIN · Signal Mint brand tokens shared by app-level UI.
+export const brandTokens = {
+  primaryMint: "#31E6B8",
+  deepNavy: "#0D1730",
+  lightBackground: "#F4F8F8",
+  lightTextAccent: "#006B56",
+  cardSurface: "#FFFFFF",
+} as const;
+
+const brandMint: MantineColorsTuple = [
+  "#E8FFF8",
+  "#C7F9EA",
+  "#A0F4DB",
+  "#79EFD0",
+  "#55EAC4",
+  brandTokens.primaryMint, // Primary Mint (Index 5)
+  "#26C9A0",
+  "#1BAA86",
+  "#10816A",
+  "#075B4B",
+];
+
+// Legacy palettes remain available while existing screens are migrated in C.
 const brandYellow: MantineColorsTuple = [
   "#fff9e1",
   "#fff0b5",
@@ -28,9 +50,13 @@ const brandGray: MantineColorsTuple = [
 ];
 
 export const theme = createTheme({
-  primaryColor: "brandYellow",
-  primaryShade: { light: 5, dark: 7 },
+  primaryColor: "brandMint",
+  primaryShade: { light: 5, dark: 5 },
+  other: {
+    brand: brandTokens,
+  },
   colors: {
+    brandMint,
     brandYellow,
     brandGray,
   },
@@ -40,9 +66,15 @@ export const theme = createTheme({
   components: {
     Button: Button.extend({
       defaultProps: {
-        color: "brandYellow",
+        color: "brandMint",
         variant: "filled",
       },
+      styles: (_theme, props) => ({
+        root:
+          props.variant === "filled" && props.color === "brandMint"
+            ? { color: brandTokens.deepNavy }
+            : undefined,
+      }),
     }),
   },
 });
