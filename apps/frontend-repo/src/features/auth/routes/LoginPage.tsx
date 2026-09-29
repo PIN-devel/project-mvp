@@ -21,7 +21,6 @@ export function LoginPage() {
       mih="100vh"
       w="100%"
       bg="linear-gradient(135deg, #F4F8F8 0%, var(--mantine-color-brandMint-0) 100%)"
-      darkHidden
     >
       <Center mih="calc(100vh - 120px)">
         <Container size="xs" w="100%">
@@ -32,34 +31,4 @@ export function LoginPage() {
   );
 }
 
-/**
- * 다크모드를 지원하는 동일 페이지의 래퍼 컴포넌트
- * 다크모드/라이트모드 환경에 따른 세련된 대비 효과를 보장합니다.
- */
-export function LoginPageDark() {
-  const isAuthenticated = useAppStore((state) => state.isAuthenticated);
-
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
-
-  return (
-    <Box
-      mih="100vh"
-      w="100%"
-      bg="linear-gradient(135deg, var(--mantine-color-dark-8) 0%, var(--mantine-color-dark-9) 100%)"
-    >
-      <Center mih="calc(100vh - 120px)">
-        <Container size="xs" w="100%">
-          <LoginForm />
-        </Container>
-      </Center>
-    </Box>
-  );
-}
-
-// 최종 렌더링에 적합한 반응형 다형성 내보내기
-export default function LoginPageWrapper() {
-  const colorScheme = useAppStore((state) => state.colorScheme);
-  return colorScheme === "dark" ? <LoginPageDark /> : <LoginPage />;
-}
+export default LoginPage;

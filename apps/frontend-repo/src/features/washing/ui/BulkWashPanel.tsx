@@ -12,9 +12,8 @@
   Text,
   ThemeIcon,
   Title,
-  useMantineColorScheme,
 } from "@mantine/core";
-import { IconSparkles, IconWashDryclean } from "@tabler/icons-react";
+import { IconCategory2, IconCheck } from "@tabler/icons-react";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Form, useActionData, useNavigation, useSubmit } from "react-router";
@@ -70,7 +69,6 @@ const detailTransactionReducer = (
 ) => nextTransaction;
 
 export function BulkWashPanel({ overview }: BulkWashPanelProps) {
-  const { colorScheme } = useMantineColorScheme();
   const { data: categories } = useSuspenseQuery(washingQueries.categories());
   const categoryNames = useMemo(
     () => categories.map((category) => category.name),
@@ -135,9 +133,9 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
 
     if (actionData.intent === "bulk_wash") {
       if (actionData.error) {
-        toast.error("일괄 세척에 실패했습니다.");
+        toast.error("선택한 내역을 분류하지 못했어요.");
       } else {
-        toast.success(`${actionData.count}건 세척 완료`);
+        toast.success(`${actionData.count}건을 분류했어요.`);
         updateSelectedIds({ type: "clear" });
       }
       return;
@@ -209,7 +207,7 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
           if (isDetailSubmitting) return;
           updateDetailTransaction(null);
         }}
-        title="세척 대기 상세"
+        title="미분류 내역 상세"
         centered
       >
         {detailTransaction && (
@@ -279,7 +277,7 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
                 취소
               </Button>
               <Button
-                leftSection={<IconWashDryclean size={16} />}
+                leftSection={<IconCheck size={16} />}
                 type="submit"
                 loading={isDetailSubmitting}
                 disabled={detailCategoryValue === ""}
@@ -292,26 +290,22 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
         )}
       </Modal>
 
-      <Paper withBorder p="xl" radius="lg" bg="rgba(49, 230, 184, 0.06)">
+      <Paper withBorder p="xl" radius="lg">
         <Stack gap="lg">
           <Group justify="space-between" align="flex-start">
             <Stack gap={6}>
               <Group gap="sm">
                 <ThemeIcon variant="light" color="brandMint" size="lg">
-                  <IconSparkles size={18} />
+                  <IconCategory2 size={18} />
                 </ThemeIcon>
-                <Title order={3}>미분류 데이터 일괄 세척 필터</Title>
-                <Badge color="red" variant="light">
-                  Bulk Wash
-                </Badge>
+                <Title order={3}>정리할 내역</Title>
               </Group>
               <Text size="sm" c="dimmed">
-                자동 분류 규칙에 걸리지 않은 내역만 모아서 한 번에 카테고리를
-                지정하거나, 단건 상세 모달에서 바로 분류할 수 있습니다.
+                같은 카테고리의 내역을 골라 한 번에 정리하거나 개별 내역을 분류하세요.
               </Text>
             </Stack>
-            <Badge color="red" variant="filled" size="lg">
-              미세척 {unclassifiedTransactions.length}건
+            <Badge color="brandMint" variant="light" size="lg">
+              미분류 {unclassifiedTransactions.length}건
             </Badge>
           </Group>
 
@@ -387,7 +381,7 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
                       </Table.Td>
                       <Table.Td>
                         <Badge color="gray" variant="light">
-                          수동 세척 대기
+                          미분류
                         </Badge>
                       </Table.Td>
                     </Table.Tr>
@@ -404,25 +398,25 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
                 component="span"
                 inherit
                 fw={700}
-                c={colorScheme === "dark" ? "brandMint.2" : "#006B56"}
+                c="#006B56"
               >
                 {selectedCount}건
               </Text>
             </Text>
             <Group align="flex-end">
               <NativeSelect
-                label="일괄 적용 카테고리"
+                label="분류할 카테고리"
                 value={selectedCategoryValue}
                 onChange={(event) => setSelectedCategory(event.currentTarget.value)}
                 data={bulkCategoryOptions}
               />
               <Button
-                leftSection={<IconWashDryclean size={16} />}
+                leftSection={<IconCheck size={16} />}
                 onClick={handleBulkWash}
                 disabled={selectedCount === 0 || selectedCategoryValue === ""}
                 loading={isSubmitting}
               >
-                일괄 세척 적용
+                선택한 내역 분류하기
               </Button>
             </Group>
           </Group>

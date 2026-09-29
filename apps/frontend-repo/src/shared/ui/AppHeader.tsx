@@ -1,5 +1,4 @@
 import {
-  ActionIcon,
   Avatar,
   Box,
   Burger,
@@ -19,15 +18,13 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import {
-  IconBrain,
-  IconBrush,
+  IconChartBar,
   IconChevronDown,
   IconLogout,
-  IconMoon,
+  IconReceipt,
   IconSettings,
+  IconSettingsAutomation,
   IconSparkles,
-  IconSun,
-  IconTool,
 } from "@tabler/icons-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import { useState } from "react";
@@ -45,17 +42,15 @@ interface NavTab {
 }
 
 const navTabs: NavTab[] = [
-  { label: "내역 세척 및 관리", value: "/washing", icon: IconBrush },
-  { label: "규칙 엔진 빌더", value: "/rules", icon: IconTool },
-  { label: "AI 소비 인사이트", value: "/insights", icon: IconBrain },
+  { label: "이용내역", value: "/washing", icon: IconReceipt },
+  { label: "자동 분류 규칙", value: "/rules", icon: IconSettingsAutomation },
+  { label: "소비 분석", value: "/insights", icon: IconChartBar },
   ...(import.meta.env.DEV
     ? [{ label: "샘플", value: "/sample", icon: IconSparkles }]
     : []),
 ];
 
 interface AppHeaderProps {
-  colorScheme: "light" | "dark";
-  onToggleColorScheme: () => void;
   activeTab: string | null;
   onTabChange: (value: string) => void;
   isAuthenticated: boolean;
@@ -67,8 +62,6 @@ const getActiveTab = (pathname: string | null) =>
   navTabs.find((tab) => pathname?.startsWith(tab.value))?.value ?? "/washing";
 
 export function AppHeader({
-  colorScheme,
-  onToggleColorScheme,
   activeTab,
   onTabChange,
   isAuthenticated,
@@ -95,29 +88,11 @@ export function AppHeader({
               onClick={() => onTabChange("/washing")}
               aria-label="MOTIFIN 홈"
             >
-              <BrandLogo
-                surface={colorScheme === "dark" ? "dark" : "light"}
-                height={32}
-                alt=""
-              />
+              <BrandLogo surface="light" height={32} alt="" />
             </UnstyledButton>
           </Group>
 
           <Group gap="sm">
-            <ActionIcon
-              variant="default"
-              size="lg"
-              onClick={onToggleColorScheme}
-              title="테마 변경"
-              visibleFrom="sm"
-            >
-              {colorScheme === "dark" ? (
-                <IconSun size={20} stroke={1.5} />
-              ) : (
-                <IconMoon size={20} stroke={1.5} />
-              )}
-            </ActionIcon>
-
             {isAuthenticated ? (
               <Menu
                 width={260}
@@ -267,7 +242,7 @@ export function AppHeader({
                   closeDrawer();
                 }}
                 fw={resolvedActiveTab === tab.value ? 700 : 500}
-                color={colorScheme === "dark" ? "brandMint.2" : "#006B56"}
+                color="#006B56"
               />
             );
           })}

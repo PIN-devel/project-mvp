@@ -19,12 +19,11 @@ import { Form, useActionData, useNavigation, useSubmit } from "react-router";
 import { toast } from "@/shared/ui/toast";
 import type { ActionResult } from "@/features/washing/model/types";
 import { useSuspenseQueries } from "@tanstack/react-query";
-import { useDisclosure } from "@mantine/hooks";
 import { washingQueries } from "@/features/washing/api/queries";
-import { ExcelUploadModal } from "@/features/washing/ui/ExcelUploadModal";
 import {
   DEFAULT_WASHING_FILTERS,
   formatAmount,
+  isTransactionClassified,
 } from "@/features/washing/model/core";
 import type {
   CategoryDto,
@@ -37,9 +36,6 @@ const categorySelectData = (categories: CategoryDto[]) => [
   { value: "unclassified", label: "미분류" },
   ...categories.map((cat) => ({ value: cat.name, label: cat.name })),
 ];
-
-const isTransactionClassified = (tx: TransactionDto) =>
-  tx.categoryId != null || !!tx.categoryName;
 
 const buildCategoryValue = (tx: TransactionDto, categories: CategoryDto[]) => {
   if (tx.categoryId != null) return `${tx.categoryId}:${tx.categoryName ?? ""}`;
@@ -87,7 +83,11 @@ const filterLedgerTransactions = (
 type SortField = "transactionDate" | "amount";
 type SortDir = "asc" | "desc";
 
-export function SourceDataManagementPanel() {
+interface SourceDataManagementPanelProps {
+  onOpenUpload: () => void;
+}
+
+export function SourceDataManagementPanel({ onOpenUpload }: SourceDataManagementPanelProps) {
   const [{ data: transactions }, { data: categories }] = useSuspenseQueries({
     queries: [washingQueries.transactions(), washingQueries.categories()],
   });
@@ -98,7 +98,6 @@ export function SourceDataManagementPanel() {
   const [sortField, setSortField] = useState<SortField | null>("transactionDate");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [focusedMemoId, setFocusedMemoId] = useState<number | null>(null);
-  const [excelModalOpened, { open: openExcelModal, close: closeExcelModal }] = useDisclosure(false);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -164,9 +163,9 @@ export function SourceDataManagementPanel() {
 
     if (actionData.intent === "delete_transaction") {
       if (actionData.error) {
-        toast.error("원천 데이터 삭제에 실패했습니다.");
+        toast.error("이용내역 삭제에 실패했습니다.");
       } else {
-        toast.success("원천 데이터가 삭제됐습니다.");
+        toast.success("이용내역이 삭제됐습니다.");
         window.setTimeout(resetFilters, 0);
       }
     }
@@ -174,20 +173,19 @@ export function SourceDataManagementPanel() {
 
   return (
     <>
-      <ExcelUploadModal opened={excelModalOpened} onClose={closeExcelModal} onSuccess={resetFilters} />
       <Paper withBorder p="xl" radius="lg">
         <Stack gap="lg">
           <Stack gap={4}>
             <Group justify="space-between" wrap="nowrap">
-              <Title order={3}>전체 가계부 원천 데이터 관리</Title>
+              <Title order={3}>전체 이용내역</Title>
               <Group gap="xs" wrap="nowrap">
                 <Button
                   variant="filled"
                   color="brandMint"
                   leftSection={<IconFileSpreadsheet size={16} />}
-                  onClick={openExcelModal}
+                  onClick={onOpenUpload}
                 >
-                  엑셀 업로드
+                  Excel 추가
                 </Button>
               </Group>
             </Group>
@@ -217,7 +215,7 @@ export function SourceDataManagementPanel() {
               data={categorySelectData(categories)}
             />
             <NativeSelect
-              label="세척 상태"
+              label="분류 상태"
               value={filters.status}
               onChange={(event) => {
                 const value = event.currentTarget.value as "all" | "classified" | "unclassified";
@@ -225,8 +223,8 @@ export function SourceDataManagementPanel() {
               }}
               data={[
                 { value: "all", label: "전체 상태" },
-                { value: "classified", label: "세척 완료" },
-                { value: "unclassified", label: "세척 대기" },
+                { value: "classified", label: "분류 완료" },
+                { value: "unclassified", label: "미분류" },
               ]}
             />
           </SimpleGrid>
@@ -269,7 +267,7 @@ export function SourceDataManagementPanel() {
                       금액
                     </Group>
                   </Table.Th>
-                  <Table.Th>매핑 적용 규칙/태그</Table.Th>
+                  <Table.Th>태그</Table.Th>
                   <Table.Th>동작</Table.Th>
                 </Table.Tr>
               </Table.Thead>
@@ -278,7 +276,7 @@ export function SourceDataManagementPanel() {
                   <Table.Tr>
                     <Table.Td colSpan={7}>
                       <Text ta="center" c="dimmed" py="xl">
-                        조건에 맞는 원천 데이터가 없습니다.
+                        조건에 맞는 이용내역이 없습니다.
                       </Text>
                     </Table.Td>
                   </Table.Tr>
@@ -307,7 +305,7 @@ export function SourceDataManagementPanel() {
                           form={`category-form-${tx.id}`}
                           name="tag"
                           defaultValue={tx.tag ?? ""}
-                          placeholder="매핑 적용 규칙 또는 태그 입력"
+                          placeholder="태그 입력"
                           readOnly={focusedMemoId !== tx.id}
                           onFocus={() => setFocusedMemoId(tx.id)}
                           onBlur={() =>
@@ -331,7 +329,7 @@ export function SourceDataManagementPanel() {
                             loading={isDeleteSubmitting(tx.id)}
                             onClick={() =>
                               modals.openConfirmModal({
-                                title: "원천 데이터 삭제",
+                                title: "이용내역 삭제",
                                 children: (
                                   <Stack gap="xs">
                                     <Text size="sm">아래 항목을 삭제하시겠습니까?</Text>

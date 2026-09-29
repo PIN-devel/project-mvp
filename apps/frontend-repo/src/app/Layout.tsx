@@ -15,7 +15,7 @@ export function Layout() {
   const navigation = useNavigation();
   const navigate = useNavigate();
   const location = useLocation();
-  const { colorScheme, toggleColorScheme, isAuthenticated, nickname, clearSession } = useAppStore();
+  const { isAuthenticated, nickname, clearSession } = useAppStore();
   const isNavigating = navigation.state === "loading";
 
   useEffect(() => {
@@ -36,17 +36,15 @@ export function Layout() {
     <AppShell
       header={{ height: { base: 150, sm: 168 } }}
       padding="md"
-      bg={colorScheme === "dark" ? "dark.8" : brandTokens.lightBackground}
+      bg={brandTokens.lightBackground}
     >
       <NavigationProgress color="brandMint" />
 
       <AppShell.Header
-        bg={colorScheme === "dark" ? brandTokens.deepNavy : brandTokens.cardSurface}
+        bg={brandTokens.cardSurface}
         withBorder={false}
       >
         <AppHeader
-          colorScheme={colorScheme}
-          onToggleColorScheme={toggleColorScheme}
           activeTab={location.pathname}
           onTabChange={(value) => navigate(value)}
           isAuthenticated={isAuthenticated}
@@ -56,9 +54,7 @@ export function Layout() {
       </AppShell.Header>
 
 
-      <AppShell.Main
-        bg={colorScheme === "dark" ? "dark.8" : brandTokens.lightBackground}
-      >
+      <AppShell.Main bg={brandTokens.lightBackground}>
         <Box pos="relative" mih="calc(100vh - 168px)" mx="auto" maw={1400}>
           <LoadingOverlay
             visible={isNavigating}

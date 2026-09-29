@@ -45,7 +45,7 @@ export function ComingSoonPage({ title, description }: ComingSoonPageProps) {
               leftSection={<IconArrowLeft size={16} />}
               onClick={() => navigate("/washing")}
             >
-              내역 세척 및 관리로 이동
+              이용내역으로 이동
             </Button>
           </Group>
         </Stack>
