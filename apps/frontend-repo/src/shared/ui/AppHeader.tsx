@@ -22,17 +22,14 @@ import {
   IconChevronDown,
   IconLogout,
   IconReceipt,
-  IconSettings,
   IconSettingsAutomation,
   IconSparkles,
+  IconUser,
 } from "@tabler/icons-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import { useState } from "react";
 import type { IconProps } from "@tabler/icons-react";
 import { BrandLogo } from "@/shared/ui/BrandLogo";
-
-const userAvatarDefault =
-  "https://raw.githubusercontent.com/mantinedev/mantine/master/.demo/avatars/avatar-5.png";
 
 interface NavTab {
   label: string;
@@ -108,14 +105,17 @@ export function AppHeader({
                     color="gray"
                     px="xs"
                     h={38}
+                    aria-label={`${nickname || "사용자"} 계정 메뉴`}
                   >
                     <Group gap={7}>
                       <Avatar
-                        src={userAvatarDefault}
-                        alt={nickname || "사용자"}
                         radius="xl"
                         size={24}
-                      />
+                        color="gray"
+                        aria-hidden="true"
+                      >
+                        <IconUser size={16} stroke={1.5} />
+                      </Avatar>
                       <Text fw={500} size="sm" lh={1} mr={3} visibleFrom="xs">
                         {nickname}
                       </Text>
@@ -125,11 +125,6 @@ export function AppHeader({
                 </Menu.Target>
                 <Menu.Dropdown>
                   <Menu.Label>사용자</Menu.Label>
-                  <Menu.Item
-                    leftSection={<IconSettings size={16} stroke={1.5} />}
-                  >
-                    계정 설정
-                  </Menu.Item>
                   <Menu.Item
                     leftSection={<IconLogout size={16} stroke={1.5} />}
                     onClick={onLogout}
@@ -197,7 +192,7 @@ export function AppHeader({
                   c={isActive ? "#0D1730" : "#64748B"}
                   fw={isActive ? 600 : 500}
                   style={{
-                    borderBottomColor: isActive ? "#31E6B8" : "transparent",
+                    borderBottomColor: isActive ? "#006B56" : "transparent",
                   }}
                 >
                   {tab.label}
