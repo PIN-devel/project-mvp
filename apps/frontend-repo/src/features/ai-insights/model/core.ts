@@ -212,6 +212,7 @@ export const buildDataSignature = (transactions: TransactionDto[]) =>
         transaction.categoryName ?? "",
         transaction.amount,
         transaction.tag ?? "",
+        transaction.status ?? "",
         transaction.isClassified ?? "",
       ].join(":"),
     )

@@ -3,8 +3,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { beforeEach, describe, expect, it } from "vitest";
+import { http, HttpResponse } from "msw";
 import { theme } from "@/app/theme";
 import { resetAllMocks } from "@/mocks/db";
+import { server } from "@/mocks/server";
 import { AiInsightsPage } from "@/features/ai-insights/routes/AiInsightsPage";
 import { loader } from "@/features/ai-insights/routes/loader";
 
@@ -45,72 +47,91 @@ describe("AI insights integration flow", () => {
     );
   };
 
-  it("renders request controls and an empty result state before generation", async () => {
+  it("renders request controls and an initial state before analysis", async () => {
     renderFeature();
 
-    await screen.findByText("AI 소비 인사이트", {}, { timeout: 3000 });
+    await screen.findByText("내 소비를 이해하는 첫 번째 발견", {}, { timeout: 3000 });
 
-    expect(screen.getByLabelText("기간 조건")).toBeInTheDocument();
-    expect(screen.getByLabelText("카테고리 조건")).toBeInTheDocument();
+    expect(screen.getByLabelText("조회 기간")).toBeInTheDocument();
+    expect(screen.getByLabelText("카테고리")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "인사이트 생성" }),
+      screen.getByRole("button", { name: "내 소비 분석하기" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("인사이트가 아직 없습니다")).toBeInTheDocument();
+    expect(screen.getByText("정리한 내역에서 나의 소비를 읽어볼까요?")).toBeInTheDocument();
   });
 
-  it("shows unclassified warning and prompt preview from current transactions", async () => {
+  it("explains unclassified transactions without exposing the prompt", async () => {
     renderFeature();
 
-    await screen.findByText("미분류 데이터 잔여", {}, { timeout: 3000 });
-    fireEvent.click(screen.getByRole("button", { name: "프롬프트 보기" }));
+    await screen.findByText("분류가 필요한 내역이 있어요", {}, { timeout: 3000 });
 
-    expect(screen.getByText("전송 프롬프트 미리보기")).toBeInTheDocument();
-    expect(screen.getByText(/미분류 거래:/)).toBeInTheDocument();
+    expect(screen.getByText(/미분류 거래 \d+건/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "이용내역 정리하기" })).toBeInTheDocument();
+    expect(screen.queryByText(/전송 프롬프트/)).not.toBeInTheDocument();
   });
 
   it("generates insight results, supports re-request, and marks stale results when filters change", async () => {
     renderFeature();
 
-    await screen.findByText("AI 소비 인사이트", {}, { timeout: 3000 });
+    await screen.findByText("내 소비를 이해하는 첫 번째 발견", {}, { timeout: 3000 });
 
-    fireEvent.click(screen.getByRole("button", { name: "인사이트 생성" }));
+    fireEvent.click(screen.getByRole("button", { name: "내 소비 분석하기" }));
 
-    await screen.findByText("AI 인사이트", {}, { timeout: 3000 });
+    await screen.findByText("이 내역에서 발견한 점", {}, { timeout: 3000 });
     expect(screen.getByText("가장 큰 지출 영역")).toBeInTheDocument();
     expect(screen.getByText("반복 소비 패턴")).toBeInTheDocument();
     expect(screen.getByText("소비 점검 포인트")).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("기간 조건"), {
+    fireEvent.change(screen.getByLabelText("조회 기간"), {
       target: { value: "LAST_1_MONTH" },
     });
 
     expect(
-      await screen.findByText(/거래 데이터나 조회 조건이 변경되었습니다/),
+      await screen.findByText(/조회 조건이 바뀌었어요/),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "인사이트 생성" }));
+    fireEvent.click(screen.getByRole("button", { name: "내 소비 분석하기" }));
     await waitFor(() => {
       expect(
-        screen.queryByText(/거래 데이터나 조회 조건이 변경되었습니다/),
+        screen.queryByText(/조회 조건이 바뀌었어요/),
       ).not.toBeInTheDocument();
     });
   });
 
-  it("renders goal management, trajectory, and lets user choose this month's goal", async () => {
+  it("connects actual insight results to the existing goal selection", async () => {
     renderFeature();
 
-    await screen.findByText("AI 소비 인사이트", {}, { timeout: 3000 });
-    fireEvent.click(screen.getByRole("button", { name: "인사이트 생성" }));
+    await screen.findByText("내 소비를 이해하는 첫 번째 발견", {}, { timeout: 3000 });
+    fireEvent.click(screen.getByRole("button", { name: "내 소비 분석하기" }));
 
-    await screen.findByText("목표 관리 & 총 절감", {}, { timeout: 3000 });
-    expect(screen.getByText("절감·자산 추이")).toBeInTheDocument();
-    expect(screen.getByText("이번 달 AI 추천 목표")).toBeInTheDocument();
+    await screen.findByText("다음에 바꿔볼 행동을 골라보세요", {}, { timeout: 3000 });
+    expect(screen.getByText(/목표 금액은 선택한 이용내역에서 계산한 계획값/)).toBeInTheDocument();
+    expect(screen.getByText("이용내역을 바탕으로 목표를 살펴보기")).toBeInTheDocument();
 
-    const chooseButtons = screen.getAllByRole("button", { name: "목표 선택" });
+    const chooseButtons = screen.getAllByRole("button", { name: "이 목표 선택" });
     fireEvent.click(chooseButtons[0]);
 
     await waitFor(() => {
-      expect(screen.getByText("선택된 목표")).toBeInTheDocument();
+      expect(screen.getByText("선택됨")).toBeInTheDocument();
     });
+  });
+
+  it("keeps a successful insight visible when the separate goal lookup fails", async () => {
+    server.use(
+      http.get("/api/monthly-goals", () =>
+        HttpResponse.json(
+          { type: "about:blank", title: "Unavailable", status: 503 },
+          { status: 503 },
+        ),
+      ),
+    );
+
+    renderFeature();
+    await screen.findByText("내 소비를 이해하는 첫 번째 발견", {}, { timeout: 3000 });
+    fireEvent.click(screen.getByRole("button", { name: "내 소비 분석하기" }));
+
+    expect(await screen.findByText("이 내역에서 발견한 점", {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByText("목표 정보를 불러오지 못했어요")).toBeInTheDocument();
+    expect(screen.getByText("가장 큰 지출 영역")).toBeInTheDocument();
   });
 });

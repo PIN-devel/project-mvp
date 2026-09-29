@@ -8,6 +8,7 @@ export const aiInsightKeys = {
   all: ["ai-insights"] as const,
   transactions: () => [...aiInsightKeys.all, "transactions"] as const,
   categories: () => [...aiInsightKeys.all, "categories"] as const,
+  monthlyGoals: () => [...aiInsightKeys.all, "monthly-goals"] as const,
 };
 
 export const aiInsightQueries = {
