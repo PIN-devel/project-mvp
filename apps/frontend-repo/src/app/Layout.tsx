@@ -41,6 +41,7 @@ export function Layout() {
       <NavigationProgress color="brandMint" />
 
       <AppShell.Header
+        data-product-header
         bg={brandTokens.cardSurface}
         withBorder={false}
       >
