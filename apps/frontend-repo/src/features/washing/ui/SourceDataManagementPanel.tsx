@@ -15,7 +15,7 @@ import {
 import { modals } from "@mantine/modals";
 import { IconArrowsSort, IconSortAscending, IconSortDescending, IconFileSpreadsheet, IconSearch } from "@tabler/icons-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Form, Link, useActionData, useNavigation, useSubmit } from "react-router";
+import { Form, Link, useActionData, useNavigation, useSearchParams, useSubmit } from "react-router";
 import { toast } from "@/shared/ui/toast";
 import type { ActionResult } from "@/features/washing/model/types";
 import { useSuspenseQueries } from "@tanstack/react-query";
@@ -81,6 +81,9 @@ interface SourceDataManagementPanelProps {
 }
 
 export function SourceDataManagementPanel({ onOpenUpload }: SourceDataManagementPanelProps) {
+  const [params] = useSearchParams();
+  const goalContext = params.get("flow") === "goal-update" && params.get("goalId")
+    ? `?${new URLSearchParams({ goalId: params.get("goalId")!, flow: "goal-update" })}` : "";
   const [{ data: transactions }, { data: categories }] = useSuspenseQueries({
     queries: [washingQueries.transactions(), washingQueries.categories()],
   });
@@ -303,10 +306,10 @@ export function SourceDataManagementPanel({ onOpenUpload }: SourceDataManagement
                       </Table.Td>
                       <Table.Td>
                         <Stack gap={4}>
-                          <Badge color={isTransactionClassified(tx) ? "teal" : "orange"} variant="light">
+                          <Badge color={isTransactionClassified(tx) ? "teal" : !tx.foundation || tx.foundation.classification === "INCONSISTENT" ? "orange" : "gray"} variant="light">
                             {(!tx.foundation || tx.foundation.classification === "INCONSISTENT") ? "분류 확인 필요" : isTransactionClassified(tx) ? "분류 완료" : "미분류"}
                           </Badge>
-                          {tx.foundation?.appliedRuleId != null && <Text component={Link} to="/washing/rules" size="xs" c="teal.8">규칙 #{tx.foundation.appliedRuleId}</Text>}
+                          {tx.foundation?.appliedRuleId != null && <Text component={Link} to={`/washing/rules${goalContext}`} size="xs" c="teal.8">규칙 #{tx.foundation.appliedRuleId}</Text>}
                           <Text size="xs" c="dimmed">{(tx.foundation?.canonicalStatus ?? "UNKNOWN") === "UNKNOWN" ? `승인 상태 확인 필요 (${tx.status || "값 없음"})` : tx.status}</Text>
                         </Stack>
                       </Table.Td>

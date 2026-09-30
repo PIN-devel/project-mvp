@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
-import { Button } from "@mantine/core";
+import { Button, Group, Stack } from "@mantine/core";
 import { IconArrowRight } from "@tabler/icons-react";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { washingKeys, washingQueries } from "@/features/washing/api/queries";
@@ -13,7 +13,16 @@ import styles from "./FirstExperience.module.css";
 
 type WorkView = "pending" | "all" | "summary" | "help";
 
-export function WashingPageContent({ onUploadSaved, onUploadFailed }: {
+export interface GoalUpdateJourney {
+  state: "checking" | "error" | "unchanged" | "needs-organization" | "ready";
+  supportingContext: string;
+  onReview: () => void;
+  onRetry: () => void;
+}
+
+export function WashingPageContent({ onUploadSaved, onUploadFailed, goalContext: goalContextBand, goalUpdate }: {
+  goalContext?: ReactNode;
+  goalUpdate?: GoalUpdateJourney;
   onUploadSaved?: (receipt: { addedCount: number; skippedCount: number }) => void; onUploadFailed?: () => void;
 }) {
   const [params] = useSearchParams();
@@ -79,17 +88,8 @@ export function WashingPageContent({ onUploadSaved, onUploadFailed }: {
       />
       <div className={styles.pageHeading}>
         <h2>이용내역 관리</h2>
-        <Button
-          component={Link}
-          to={`/washing/rules${goalContext}`}
-          variant="subtle"
-          color="teal"
-          size="xs"
-          rightSection={<IconArrowRight size={15} aria-hidden="true" />}
-        >
-          자동 분류 규칙
-        </Button>
       </div>
+      {goalContextBand && <Stack mb="xl">{goalContextBand}</Stack>}
       {isError && <div role="alert" className={styles.staleNotice}>최신 내역을 확인하지 못했어요. 마지막으로 확인한 기록을 보여드립니다. <button type="button" onClick={() => queryClient.invalidateQueries({ queryKey: washingKeys.all })}>다시 불러오기</button></div>}
       {isFetching && !isError && <span role="status" className="mantine-visually-hidden">내역 업데이트 중</span>}
       <FirstExperienceHero
@@ -97,6 +97,12 @@ export function WashingPageContent({ onUploadSaved, onUploadFailed }: {
         onUpload={openUpload}
         onOrganize={() => moveToWork("pending")}
         onSeeRecords={() => moveToWork(empty ? "help" : "all")}
+        primaryAction={goalUpdate ? {
+          label: goalUpdate.state === "ready" ? "변화 확인하기" : goalUpdate.state === "checking" ? "내역 확인 중" : goalUpdate.state === "error" ? "반영 상태 다시 확인하기" : goalUpdate.state === "needs-organization" ? "목표 내역 정리하기" : "새 이용내역 추가하기",
+          onClick: goalUpdate.state === "ready" ? goalUpdate.onReview : goalUpdate.state === "error" ? goalUpdate.onRetry : goalUpdate.state === "needs-organization" ? () => moveToWork("all") : openUpload,
+          disabled: goalUpdate.state === "checking",
+        } : undefined}
+        supportingContext={goalUpdate?.supportingContext}
       />
 
       <div className={styles.workspace}>
@@ -108,7 +114,11 @@ export function WashingPageContent({ onUploadSaved, onUploadFailed }: {
                 ready ? "분류한 내역을 살펴보고 필요하면 수정할 수 있어요." :
                   "같은 카테고리의 내역을 골라 한 번에 분류하세요."}</p>
             </div>
-            {!empty && <button type="button" className={styles.uploadSecondary} onClick={openUpload}>＋ Excel 추가</button>}
+            <Group gap="xs">
+              {!empty && <button type="button" className={styles.uploadSecondary} onClick={openUpload}>＋ Excel 추가</button>}
+              <Button component={Link} to={`/washing/rules${goalContext}`} variant="subtle" color="teal" size="xs"
+                rightSection={<IconArrowRight size={15} aria-hidden="true" />}>자동 분류 규칙</Button>
+            </Group>
           </div>
           <div className={styles.tabs} role="tablist" aria-label="이용내역 보기">
             <button type="button" role="tab" id="tab-primary" aria-controls="work-primary" aria-selected={activeView !== "all"} onClick={() => setView(empty ? "help" : ready ? "summary" : "pending")}>{empty ? "시작 안내" : ready ? "분류 한눈에" : <>분류할 내역 <span>{remaining}</span></>}</button>
@@ -143,7 +153,6 @@ export function WashingPageContent({ onUploadSaved, onUploadFailed }: {
             <li><span className={`${styles.step} ${ready ? styles.doneStep : empty ? styles.futureStep : ""}`}>{ready ? "✓" : "2"}</span><div><strong>카테고리 분류하기</strong><p>같은 성격의 내역을 모아 소비의 윤곽을 만들어요.</p></div></li>
             <li><span className={`${styles.step} ${ready ? "" : styles.futureStep}`}>3</span><div><strong>소비 패턴 살펴보기</strong><p>정리한 기록을 바탕으로 나의 소비를 이해해요.</p></div></li>
           </ol>
-          <div className={styles.asideFooter}><Link to="/washing/rules">반복되는 분류는 규칙으로 ↗</Link>자주 반복되는 분류를 규칙으로 정리해요.</div>
         </aside>
       </div>
     </main>

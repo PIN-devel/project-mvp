@@ -1,4 +1,4 @@
-import { Alert, Button, Container, Group, NativeSelect, Paper, SimpleGrid, Stack, Text, Title } from "@mantine/core";
+import { Accordion, Alert, Button, Container, Group, NativeSelect, Paper, SimpleGrid, Stack, Text, Title } from "@mantine/core";
 import { IconAlertTriangle, IconRefresh } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
@@ -54,8 +54,8 @@ export function AiInsightsPageContent({ userScope }: { userScope: string | null 
   const categoryLabel = query.categoryIds.length
     ? categories.find((c) => c.id === query.categoryIds[0])?.name ?? run?.snapshot.categories.find((c) => c.categoryId === query.categoryIds[0])?.categoryLabel ?? "선택한 카테고리"
     : "전체 카테고리";
-  const count = current?.transactionCount ?? 0;
-  const aiEligible = count >= MIN_ANALYSIS_TRANSACTION_COUNT;
+  const count = current?.transactionCount;
+  const aiEligible = count !== undefined && count >= MIN_ANALYSIS_TRANSACTION_COUNT;
   const unresolved = (current?.quality.unclassifiedCount ?? 0) + (current?.quality.inconsistentCount ?? 0);
 
   const changeQuery = (next: AnalyticsQuery) => {
@@ -85,8 +85,7 @@ export function AiInsightsPageContent({ userScope }: { userScope: string | null 
     <Paper className={styles.scopeContext}><Stack gap="md">
       <Group justify="space-between" align="start" gap="md">
         <Stack gap={3}><Title order={3} fz="md">지금 살펴보는 소비</Title><Text size="xs" c="dimmed">시각화와 AI가 같은 서버 집계를 사용해요. 최근 기간은 마지막 거래일 기준입니다.</Text></Stack>
-        <Stack gap={3}><Text size="sm" fw={700}>{count}건 · {getPeriodLabel(query.period)} · {categoryLabel}</Text>
-          <Text size="xs" c="dimmed">소비 집계 대상 · 미분류 {current?.quality.unclassifiedCount ?? 0}건 · 분류 확인 필요 {current?.quality.inconsistentCount ?? 0}건</Text></Stack>
+        <Stack gap={3}><Text size="sm" fw={700}>{count === undefined ? analytics.isError || restored.isError ? "대상 건수 미확인" : "대상 건수 확인 중" : `${count}건`} · {getPeriodLabel(query.period)} · {categoryLabel}</Text></Stack>
       </Group>
       <Group align="end" gap="md">
         <NativeSelect w={{ base: "100%", sm: 190 }} label="조회 기간" ref={analysisScopeRef} value={query.period} disabled={analysis.isPending}
@@ -97,10 +96,17 @@ export function AiInsightsPageContent({ userScope }: { userScope: string | null 
             ...query.categoryIds.filter((id) => !categories.some((c) => c.id === id)).map((id) => ({ value: String(id), label: "이전 카테고리 · 현재 사용 불가" }))]} />
       </Group>
       {query.start && <Text size="xs" c="dimmed">지정 기간 {query.start} ~ {query.endExclusive} 직전까지</Text>}
-      {current && <Text size="xs" c="dimmed">{current.sourceScope.kind === "ALL_CARDS" ? "등록된 전체 카드 내역" : "선택한 카드 내역"} · {current.sourceScope.cardNames.map((name) => name || "카드 정보 없음").join(", ") || "등록된 카드 없음"}</Text>}
-      {unresolved > 0 && <Group gap="sm"><Text size="xs" c="dimmed">미분류·분류 확인 필요 내역도 합계에 포함되며 카테고리 해석은 제한됩니다.</Text><Button variant="subtle" color="teal" size="xs" onClick={() => navigate("/washing")}>이용내역 정리하기</Button></Group>}
+      {current && unresolved > 0 && <Group gap="sm"><Text size="xs" c="dimmed">미분류 {current.quality.unclassifiedCount}건 · 분류 확인 필요 {current.quality.inconsistentCount}건도 합계에 포함되며 카테고리 해석은 제한됩니다.</Text><Button variant="subtle" color="teal" size="xs" onClick={() => navigate("/washing")}>이용내역 정리하기</Button></Group>}
       {!aiEligible && current && <Text size="sm" role="status" c="dimmed">실제 소비는 살펴볼 수 있어요. AI 해석은 소비 집계 대상 {MIN_ANALYSIS_TRANSACTION_COUNT}건부터 제공됩니다. 현재 {count}건이에요.</Text>}
-      <Text size="xs" c="dimmed">취소·상태 미확인·잘못된 날짜/금액은 소비에서 제외됩니다. 카드 자료의 기간 완결성은 미확인입니다.</Text>
+      <Accordion variant="default">
+        <Accordion.Item value="scope-details">
+          <Accordion.Control>분석 범위와 집계 기준 확인하기</Accordion.Control>
+          <Accordion.Panel><Stack gap="xs">
+            {current && <Text size="xs" c="dimmed">{current.sourceScope.kind === "ALL_CARDS" ? "등록된 전체 카드 내역" : "선택한 카드 내역"} · {current.sourceScope.cardNames.map((name) => name || "카드 정보 없음").join(", ") || "등록된 카드 없음"}</Text>}
+            <Text size="xs" c="dimmed">취소·상태 미확인·잘못된 날짜/금액은 소비에서 제외됩니다. 카드 자료의 기간 완결성은 미확인입니다.</Text>
+          </Stack></Accordion.Panel>
+        </Accordion.Item>
+      </Accordion>
     </Stack></Paper>
 
     {(analytics.isError || restored.isError) && <Alert color="red" icon={<IconAlertTriangle size={18} />} title="분석 데이터를 가져오지 못했어요"><Stack gap="sm"><Text size="sm">잠시 후 다시 시도해 주세요.</Text><Button variant="subtle" color="gray" onClick={() => { void restored.refetch(); void analytics.refetch(); }}>다시 확인하기</Button></Stack></Alert>}
@@ -114,11 +120,12 @@ export function AiInsightsPageContent({ userScope }: { userScope: string | null 
       <SpendingDiscovery key={snapshot.dataRevision} snapshot={snapshot} entryRequested={entryRequested} onEntryComplete={setEntryRequested} />
       <Stack gap="sm" className={styles.aiHeading}><Text size="xs" fw={700} c="teal.8" lts={1.5}>04 / MAKE SENSE OF IT</Text><Title order={2}>눈에 보인 흐름에, 해석을 더해요.</Title><Text size="sm" c="dimmed">위 시각화와 아래 해석은 같은 거래 집계를 근거로 합니다. AI 해석과 변화 후보는 사용자가 확인할 제안입니다.</Text></Stack>
       {analysis.isPending && <Paper className={styles.aiInterpretation}><Stack gap="sm" role="status"><Title order={3}>소비의 근거를 읽고 있어요</Title><Text c="dimmed">실제 소비의 모습은 먼저 살펴볼 수 있어요. AI가 계산된 근거에 해석을 더하고 있어요.</Text></Stack></Paper>}
-      {(analysis.isError || displayRun?.status === "AI_FAILED" || displayRun?.status === "PENDING") && <Alert color="orange" icon={<IconAlertTriangle size={18} />} title="AI 해석을 완료하지 못했어요"><Stack gap="sm"><Text size="sm">거래 집계와 시각화는 계속 볼 수 있어요. 같은 범위로 다시 시도할 수 있어요.</Text><Button variant="subtle" color="gray" leftSection={<IconRefresh size={16} />} onClick={requestAnalysis} disabled={checking || analysis.isPending}>AI 해석 다시 시도하기</Button></Stack></Alert>}
+      {!analysis.isPending && !analysis.isError && displayRun?.status === "PENDING" && <Paper className={styles.aiInterpretation}><Stack gap="sm" role="status"><Title order={3}>저장된 AI 해석의 완료 여부를 아직 확인하지 못했어요</Title><Text size="sm" c="dimmed">거래 집계와 시각화는 살펴볼 수 있어요. 저장된 결과의 현재 상태를 다시 확인해 주세요.</Text><Button variant="subtle" color="gray" w="fit-content" leftSection={<IconRefresh size={16} />} onClick={() => { analysis.reset(); void restored.refetch(); }} disabled={checking}>AI 해석 상태 확인하기</Button></Stack></Paper>}
+      {(analysis.isError || displayRun?.status === "AI_FAILED") && <Alert color="orange" icon={<IconAlertTriangle size={18} />} title="AI 해석을 완료하지 못했어요"><Stack gap="sm"><Text size="sm">거래 집계와 시각화는 계속 볼 수 있어요. 같은 범위로 다시 시도할 수 있어요.</Text><Button variant="subtle" color="gray" leftSection={<IconRefresh size={16} />} onClick={requestAnalysis} disabled={checking || analysis.isPending}>AI 해석 다시 시도하기</Button></Stack></Alert>}
       {(displayRun?.status === "INSUFFICIENT_DATA" || (!aiEligible && !analysis.isPending)) && <Text c="dimmed" size="sm">AI 해석에는 소비 집계 대상 {MIN_ANALYSIS_TRANSACTION_COUNT}건이 필요해요. 이용내역을 추가하면 다시 분석할 수 있어요.</Text>}
       {displayRun?.status === "SUCCEEDED" && !analysis.isPending && <>
         <Paper className={styles.aiInterpretation}><Stack gap="sm"><Text size="xs" c="teal.8" fw={700}>핵심 발견</Text><Title order={2}>{leadFinding ? renderEvidenceText(leadFinding.interpretation, snapshot) : "뚜렷한 해석을 더할 근거가 부족해요"}</Title><Text size="xs" c="dimmed">{snapshot.transactionCount}건 · {formatGeneratedAt(displayRun.generatedAt)} 생성</Text></Stack></Paper>
-        <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">{displayRun.findings.map((f) => <Paper key={f.id} withBorder p="xl" radius="lg" bg="white" className={styles.findingCard}><Stack gap="sm"><Text size="xs" c="teal.8" fw={700}>관측된 소비의 해석</Text><Title order={4}>{snapshot.observations.find((o) => o.id === f.observationId)?.kind === "OBSERVED_TIME_PEAK" ? "소비가 집중된 시간" : `${snapshot.evidence.find((e) => f.evidenceIds.includes(e.id))?.categoryLabel ?? "선택한 내역"}에서 보이는 흐름`}</Title><Text size="sm" lh={1.65}>{renderEvidenceText(f.interpretation, snapshot)}</Text>{f.limitations.map((limit, i) => <Text key={i} size="xs" c="dimmed">{renderEvidenceText(limit, snapshot)}</Text>)}<details className={styles.allTransactions}><summary>계산 근거 확인하기</summary><Stack gap="xs" mt="sm">{f.evidenceIds.map((id) => {
+        <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">{displayRun.findings.map((f) => <Paper key={f.id} withBorder p="xl" radius="lg" bg="white" className={styles.findingCard}><Stack gap="sm"><Text size="xs" c="teal.8" fw={700}>관측된 소비의 해석</Text><Title order={4}>{snapshot.observations.find((o) => o.id === f.observationId)?.kind === "OBSERVED_TIME_PEAK" ? "소비가 집중된 시간" : `${snapshot.evidence.find((e) => f.evidenceIds.includes(e.id))?.categoryLabel ?? "선택한 내역"}에서 보이는 흐름`}</Title>{f.id !== leadFinding?.id && <Text size="sm" lh={1.65}>{renderEvidenceText(f.interpretation, snapshot)}</Text>}{f.limitations.map((limit, i) => <Text key={i} size="xs" c="dimmed">{renderEvidenceText(limit, snapshot)}</Text>)}<details className={styles.allTransactions}><summary>계산 근거 확인하기</summary><Stack gap="xs" mt="sm">{f.evidenceIds.map((id) => {
           const e = snapshot.evidence.find((e) => e.id === id)!;
           return <Text key={id} size="xs" c="dimmed">{e.categoryLabel ?? (e.metric === "TIME_AMOUNT" ? e.scopeKey : "선택한 전체 내역")} · {evidenceMetricLabel(e.metric)} · {renderEvidenceText(`{{${id}}}`, snapshot)} · 연결 거래 {e.transactionIds.length}건</Text>;
         })}</Stack></details></Stack></Paper>)}</SimpleGrid>

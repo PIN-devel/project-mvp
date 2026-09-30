@@ -1,4 +1,4 @@
-import { Accordion, Alert, Badge, Button, Checkbox, Group, Modal, Paper, SimpleGrid, Stack, Text, Title } from "@mantine/core";
+import { Accordion, Alert, Badge, Button, Checkbox, Divider, Group, Modal, Paper, Stack, Text, Title } from "@mantine/core";
 import { IconArrowRight, IconPlus } from "@tabler/icons-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -9,7 +9,7 @@ import type { GoalView } from "../model/contract";
 
 const outcomeLabel = { MET: "선택한 소비 상한 안에서 마쳤어요", NOT_MET: "선택한 소비 상한을 넘었어요", UNDETERMINED: "아직 결과를 판단하기 어려워요" };
 
-export function GoalDetail({ goal }: { goal: GoalView }) {
+export function GoalDetail({ goal, observedAt, refreshing }: { goal: GoalView; observedAt: number; refreshing: boolean }) {
   const { cycle: c, tracking: t, evaluations, nextCycleId } = goal;
   const client = useQueryClient();
   const [confirmed, setConfirmed] = useState(false);
@@ -21,6 +21,7 @@ export function GoalDetail({ goal }: { goal: GoalView }) {
   const scheduled = c.start > new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
   const actual = result && evaluation ? evaluation.actualAmount : t.actualAmount;
   const change = result && evaluation ? evaluation.observedChange : t.observedChange;
+  const observation = result && evaluation ? evaluation.snapshot : t.snapshot;
   const washTo = `/washing?goalId=${encodeURIComponent(c.id)}&flow=goal-update`;
   const review = useMutation({ mutationFn: ({ confirm, key }: { confirm: boolean; key: string }) => evaluateGoal(c.id, t.snapshot.dataRevision, confirm, key),
     onSuccess: async () => { setConfirmed(false); await client.invalidateQueries({ queryKey: goalKeys.all }); },
@@ -37,11 +38,21 @@ export function GoalDetail({ goal }: { goal: GoalView }) {
         <Title order={2}>{stopped ? "잠시 멈춰도, 다음 변화는 시작할 수 있어요" : result ? evaluation ? outcomeLabel[evaluation.outcome] : "이번 변화를 돌아볼까요?" : ready ? "이번 변화를 돌아볼 준비가 되었나요?" : scheduled ? `${c.categoryLabelSnapshot} 소비, 바꿔볼 기준을 세웠어요` : `${c.categoryLabelSnapshot} 소비, 내 기준으로 바꾸고 있어요`}</Title>
         <Text c="dimmed" size="sm">{c.categoryLabelSnapshot} · {c.baseline.snapshot.sourceScope.cardNames.join(", ")}</Text>
       </Stack>
-      <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="xl">
-        <Amount label={`기준 소비 · ${c.baseline.snapshot.period.start?.slice(0, 7)}`} value={c.baseline.snapshot.totalAmount} />
-        <Amount label="내가 선택한 월 소비 상한" value={c.targetAmount} />
-        <Amount label={result && evaluation ? "결과에 기록한 관측 소비" : "현재 관측 소비"} value={actual} emphasized={!result} />
-      </SimpleGrid>
+      <Stack gap="lg">
+        <Group gap="xl" align="flex-end">
+          <Amount label={result && evaluation ? "Current · 결과에 기록한 관측 소비" : "Current · 현재까지 관측"} value={actual} emphasized />
+          <Stack gap={4}>
+            <Text size="sm" c="dimmed">관측 범위: {observation.period.start && observation.period.endExclusive ? `${observation.period.start} ~ ${endDate(observation.period.endExclusive)}` : "대상 기간의 내역 미확인"}</Text>
+            <Text size="xs" c="dimmed">{result && evaluation ? "기록 기준" : "조회 기준"} (KST): {new Date(result && evaluation ? evaluation.evaluatedAt : observedAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}{refreshing && " · 최신 내역 확인 중"}</Text>
+            <Text size="xs" c="dimmed">{result && evaluation ? "결과 확인 시점에 기록한 값" : "부분 기간 관측값 · 월 전체 소비가 아니에요"}</Text>
+          </Stack>
+        </Group>
+        <Divider />
+        <Group gap="xl" align="flex-start">
+          <Amount label={`Baseline · 기준 소비 · ${c.baseline.snapshot.period.start?.slice(0, 7) ?? "기간 미확인"}`} value={c.baseline.snapshot.totalAmount} />
+          <Amount label="Target · 내가 선택한 월 소비 상한" value={c.targetAmount} />
+        </Group>
+      </Stack>
       <Stack gap="xs">
         <Text fw={700} fz="lg">{changeText(change)}</Text>
         <Text size="sm" c="dimmed">{result ? "대상 카드에서 확인한 소비 차이예요. 업로드되지 않은 소비나 실제 절감액을 뜻하지 않습니다." : "아직 진행 중인 관측값이에요. 월 전체인 기준 소비와 현재까지 반영한 내역의 차이이며, 최종 결과는 아니에요."}</Text>
@@ -54,20 +65,20 @@ export function GoalDetail({ goal }: { goal: GoalView }) {
         <Button component={Link} to={nextCycleId ? `/goals?goalId=${nextCycleId}` : `/goals?continueFrom=${c.id}`} variant={canReview ? "subtle" : "filled"} color={canReview ? "gray" : "brandMint.8"} rightSection={<IconArrowRight size={17} />}>{nextCycleId ? "이어가는 목표 확인하기" : "이 목표 이어가기"}</Button>
         <Button component={Link} to="/insights" variant="subtle" color="gray">다시 분석하기</Button>
       </Group>}
+      {canReview && <Stack gap="md">
+        <Title order={3}>{t.resultChanged ? "새로 반영된 내역으로 결과를 다시 확인할까요?" : ready ? "대상 기간의 내역을 모두 반영했나요?" : "내역을 확인하고 결과를 다시 볼까요?"}</Title>
+        <Text size="sm" c="dimmed">기간이 끝나도 자동으로 성공 처리하지 않아요. {c.start} ~ {endDate(c.endExclusive)}의 대상 카드 내역을 확인해 주세요.{t.resultChanged && " 이전 결과는 보존하고 새 확인 기록을 추가합니다."}</Text>
+        <Checkbox color="teal" checked={confirmed} disabled={review.isPending} onChange={(e) => setConfirmed(e.currentTarget.checked)} label="대상 카드·기간의 이용내역을 모두 반영했어요. 소비 내역이 없는 경우도 확인했어요." />
+        {review.isError && <Text c="red" size="sm" role="alert">결과를 확인하지 못했어요. 최신 내역을 불러온 뒤 다시 확인해 주세요.</Text>}
+        <Group>
+          <Button color="brandMint.8" disabled={!confirmed} loading={review.isPending} onClick={() => review.mutate({ confirm: true, key: crypto.randomUUID() })}>확인한 내역으로 결과 보기</Button>
+          <Button component={Link} to={washTo} variant="subtle" color="gray">새 이용내역 추가하기</Button>
+          {ready && <Button variant="subtle" color="gray" disabled={review.isPending} onClick={() => review.mutate({ confirm: false, key: crypto.randomUUID() })}>자료가 부족한 상태로 기록하기</Button>}
+        </Group>
+      </Stack>}
     </Stack></Paper>
     {t.baselineChanged && <Alert color="orange" title="기준 내역이 변경되었어요">시작할 때 확인한 기준 소비는 보존했어요. 수정된 내역과 같은 기준이라고 확정할 수 없어 이번 결과의 달성 여부는 판단하지 않습니다. 새 분석에서 다음 기준을 선택해 주세요.</Alert>}
     {t.sourceRisk && <Alert color="orange" title="정리가 필요한 내역이 있어요"><Stack gap="sm"><Text size="sm">대상 카드의 미분류 내역이나 상태, 소비 영역을 먼저 확인해 주세요. 정리 전에는 결과를 확정하지 않아요.</Text><Button component={Link} to={washTo} variant="subtle" color="gray" w="fit-content">이용내역 정리하기</Button></Stack></Alert>}
-    {canReview && <Paper withBorder radius="lg" p="xl"><Stack gap="md">
-      <Title order={3}>{t.resultChanged ? "새로 반영된 내역으로 결과를 다시 확인할까요?" : ready ? "대상 기간의 내역을 모두 반영했나요?" : "내역을 확인하고 결과를 다시 볼까요?"}</Title>
-      <Text size="sm" c="dimmed">기간이 끝나도 자동으로 성공 처리하지 않아요. {c.start} ~ {endDate(c.endExclusive)}의 대상 카드 내역을 확인해 주세요.{t.resultChanged && " 이전 결과는 보존하고 새 확인 기록을 추가합니다."}</Text>
-      <Checkbox color="teal" checked={confirmed} disabled={review.isPending} onChange={(e) => setConfirmed(e.currentTarget.checked)} label="대상 카드·기간의 이용내역을 모두 반영했어요. 소비 내역이 없는 경우도 확인했어요." />
-      {review.isError && <Text c="red" size="sm" role="alert">결과를 확인하지 못했어요. 최신 내역을 불러온 뒤 다시 확인해 주세요.</Text>}
-      <Group>
-        <Button color="brandMint.8" disabled={!confirmed} loading={review.isPending} onClick={() => review.mutate({ confirm: true, key: crypto.randomUUID() })}>확인한 내역으로 결과 보기</Button>
-        <Button component={Link} to={washTo} variant="subtle" color="gray">새 이용내역 추가하기</Button>
-        {ready && <Button variant="subtle" color="gray" disabled={review.isPending} onClick={() => review.mutate({ confirm: false, key: crypto.randomUUID() })}>자료가 부족한 상태로 기록하기</Button>}
-      </Group>
-    </Stack></Paper>}
     <Accordion variant="separated" radius="lg">
       <Accordion.Item value="basis"><Accordion.Control>선택한 변화와 기준 내역</Accordion.Control><Accordion.Panel><Stack gap="sm">
         <Text size="sm">{c.rationale}</Text><Text size="sm" c="dimmed">기준 기간 {c.baseline.snapshot.period.start} ~ {endDate(c.baseline.snapshot.period.endExclusive!)} · {c.baseline.snapshot.transactionCount}건</Text>
@@ -82,5 +93,5 @@ export function GoalDetail({ goal }: { goal: GoalView }) {
 }
 
 function Amount({ label, value, emphasized = false }: { label: string; value: number | null; emphasized?: boolean }) {
-  return <Stack gap={6}><Text size="xs" c="dimmed">{label}</Text><Text fz={{ base: 25, md: 30 }} fw={800} c={emphasized ? "brandMint.8" : undefined}>{value === null ? "아직 내역 없음" : won(value)}</Text></Stack>;
+  return <Stack gap={6}><Text size="xs" c="dimmed">{label}</Text><Text fz={emphasized ? { base: 32, md: 42 } : { base: 23, md: 27 }} fw={800}>{value === null ? "아직 내역 없음" : won(value)}</Text></Stack>;
 }
