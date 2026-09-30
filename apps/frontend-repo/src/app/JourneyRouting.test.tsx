@@ -56,7 +56,7 @@ describe("첫 경험과 인증 경계", () => {
     expect(screen.getByRole("tab", { name: "이용내역" })).toHaveAttribute("aria-selected", "true");
     expect(screen.queryByRole("tab", { name: "자동 분류 규칙" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("자동 태그")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("link", { name: "← 이용내역으로 돌아가기" }));
+    fireEvent.click(screen.getByRole("link", { name: "이용내역으로 돌아가기" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/washing"));
     router.dispose();
   });
