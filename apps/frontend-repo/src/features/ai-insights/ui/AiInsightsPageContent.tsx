@@ -140,6 +140,7 @@ export function AiInsightsPageContent({ userScope }: { userScope: string | null 
     useState<SelectedGoalPlan | null>(null);
   const [goalFeedback, setGoalFeedback] = useState<GoalFeedback | null>(null);
   const [showGoalChoices, setShowGoalChoices] = useState(false);
+  const [entryRequested, setEntryRequested] = useState(false);
   const analysisScopeRef = useRef<HTMLSelectElement>(null);
   const goalSectionRef = useRef<HTMLElement>(null);
   const resultRevealRef = useRef<HTMLDivElement>(null);
@@ -195,6 +196,7 @@ export function AiInsightsPageContent({ userScope }: { userScope: string | null 
         version: 1, userScope: userScope ?? "uncached", succeededAt: new Date().toISOString(),
         result, scope: variables.scope,
       };
+      setEntryRequested(true);
       setAnalysis(success);
       if (userScope) writeAnalysisCache(success);
       setRequestErrorMessage(null);
@@ -337,6 +339,7 @@ export function AiInsightsPageContent({ userScope }: { userScope: string | null 
   const checkingCachedAnalysis = Boolean(analysis && !isStaleInsight && transactionsQuery.isFetching);
   const showResults = Boolean(insight && resultScope && !isStaleInsight && canAnalyze && !requestInProgress && !checkingCachedAnalysis);
   const changeFilters = (next: InsightFilters) => {
+    setEntryRequested(false);
     setFilters(next);
     setRequestErrorMessage(null);
     setSelectedGoalPlan(null);
@@ -454,8 +457,8 @@ export function AiInsightsPageContent({ userScope }: { userScope: string | null 
           </Alert>
         )}
 
-        {showResults && insight && resultScope && <Stack ref={resultRevealRef} gap="xl" className={styles.resultReveal}>
-          <SpendingDiscovery key={currentSignature} transactions={filteredTransactions} categories={categories} />
+        {showResults && insight && resultScope && <Stack ref={resultRevealRef} gap="xl">
+          <SpendingDiscovery key={currentSignature} transactions={filteredTransactions} categories={categories} entryRequested={entryRequested} onEntryComplete={setEntryRequested} />
           <Stack gap="sm" className={styles.aiHeading}>
             <Text size="xs" fw={700} c="teal.8" lts={1.5}>04 / MAKE SENSE OF IT</Text>
             <Title order={2}>눈에 보인 흐름에, 해석을 더해요.</Title>

@@ -1,5 +1,5 @@
 import { Box, Button, Group, NativeSelect, SimpleGrid, Stack, Text, Title, UnstyledButton } from "@mantine/core";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { formatAmount } from "../model/core";
 import { buildSpendingModel, categoryKey, packMerchants } from "../model/spending";
@@ -13,7 +13,25 @@ function activate(event: KeyboardEvent<SVGGElement>, action: () => void) {
   if (event.key === "Enter" || event.key === " ") { event.preventDefault(); action(); }
 }
 
-export function SpendingDiscovery({ transactions, categories }: { transactions: TransactionDto[]; categories: CategoryDto[] }) {
+// CSS variables have no Mantine equivalent; geometry is read only at preparation / activation.
+function prepareSignalAperture(scene: HTMLElement, orbit: SVGSVGElement) {
+  const sceneBounds = scene.getBoundingClientRect();
+  const orbitBounds = orbit.getBoundingClientRect();
+  const x = orbitBounds.left + orbitBounds.width / 2 - sceneBounds.left;
+  const y = orbitBounds.top + orbitBounds.height / 2 - sceneBounds.top;
+  scene.style.setProperty("--signal-x", `${x}px`);
+  scene.style.setProperty("--signal-y", `${y}px`);
+  scene.style.setProperty("--signal-core", `${orbitBounds.width * 0.4}px`);
+  scene.style.setProperty("--signal-diameter", `${orbitBounds.width * 464 / 520}px`);
+  scene.style.setProperty("--signal-extent", `${Math.hypot(Math.max(x, sceneBounds.width - x), Math.max(y, sceneBounds.height - y)) + 2}px`);
+}
+
+export function SpendingDiscovery({ transactions, categories, entryRequested = false, onEntryComplete }: {
+  transactions: TransactionDto[];
+  categories: CategoryDto[];
+  entryRequested?: boolean;
+  onEntryComplete?: (requested: false) => void;
+}) {
   const model = useMemo(() => buildSpendingModel(transactions, categories), [transactions, categories]);
   const nodes = useMemo(() => packMerchants(model.merchants), [model.merchants]);
   const [category, setCategory] = useState<string | null>(null);
@@ -21,9 +39,22 @@ export function SpendingDiscovery({ transactions, categories }: { transactions: 
   const [interval, setInterval] = useState<string | null>(null);
   const [merchant, setMerchant] = useState<string | null>(null);
   const sceneRef = useRef<HTMLDivElement>(null);
+  const orbitRef = useRef<SVGSVGElement>(null);
+  const entryConsumed = useRef(false);
+  const [entryStarted, setEntryStarted] = useState(false);
   const [activeScene, setActiveScene] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    if (!entryRequested) return;
+    const firstScene = sceneRef.current?.querySelector<HTMLElement>("[data-scene='0']");
+    if (firstScene && orbitRef.current) prepareSignalAperture(firstScene, orbitRef.current);
+  }, [entryRequested]);
   useEffect(() => {
-    if (!sceneRef.current || typeof IntersectionObserver === "undefined") return;
+    if (!sceneRef.current || typeof IntersectionObserver === "undefined") {
+      // No scene / observer support: render the final surface without an intro.
+      if (!entryRequested) return;
+      const frame = requestAnimationFrame(() => onEntryComplete?.(false));
+      return () => cancelAnimationFrame(frame);
+    }
     const scenes = [...sceneRef.current.querySelectorAll<HTMLElement>("section[data-scene]")];
     const revealObserver = new IntersectionObserver((entries) => {
       for (const entry of entries) if (entry.isIntersecting) {
@@ -35,14 +66,36 @@ export function SpendingDiscovery({ transactions, categories }: { transactions: 
     const visible = new Set<number>();
     const positionObserver = new IntersectionObserver((entries) => {
       for (const entry of entries) {
-        const index = Number((entry.target as HTMLElement).dataset.scene);
+        const target = entry.target as HTMLElement;
+        const index = Number(target.dataset.scene ?? target.dataset.sceneFrame);
         if (entry.isIntersecting) visible.add(index); else visible.delete(index);
       }
       setActiveScene(visible.size ? Math.min(...visible) : null);
+      if (!entryRequested || entryConsumed.current || !visible.size) return;
+      entryConsumed.current = true;
+      if (!visible.has(0) || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        onEntryComplete?.(false);
+        return;
+      }
+      const firstScene = scenes[0];
+      const orbit = orbitRef.current;
+      if (!firstScene || !orbit) { onEntryComplete?.(false); return; }
+      prepareSignalAperture(firstScene, orbit);
+      setEntryStarted(true);
     }, { rootMargin: "-40% 0px -40% 0px", threshold: 0 });
-    scenes.forEach((scene) => { revealObserver.observe(scene); positionObserver.observe(scene); });
+    scenes.forEach((scene, index) => {
+      revealObserver.observe(scene);
+      // The aperture must not clip its own visibility trigger or header/navigation lifecycle.
+      positionObserver.observe(index === 0 ? scene.parentElement! : scene);
+    });
     return () => { revealObserver.disconnect(); positionObserver.disconnect(); };
-  }, [model.records.length]);
+  }, [model.records.length, entryRequested, onEntryComplete]);
+  useEffect(() => {
+    if (!entryRequested || !entryStarted) return;
+    // Also settle if CSS animation is interrupted, unsupported or paused in a background tab.
+    const timeout = window.setTimeout(() => onEntryComplete?.(false), 600);
+    return () => window.clearTimeout(timeout);
+  }, [entryRequested, entryStarted, onEntryComplete]);
   const goToScene = (index: number) => {
     const scene = sceneRef.current?.querySelector<HTMLElement>(`[data-scene="${index}"]`);
     scene?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" });
@@ -76,11 +129,14 @@ export function SpendingDiscovery({ transactions, categories }: { transactions: 
   const activeTransactions = [...(activeMerchant?.records ?? [])].sort((a, b) => b.amount - a.amount || a.id - b.id);
 
   return (
-    <Stack ref={sceneRef} gap={0} aria-label="실제 소비 시각화" className={styles.analysisStage} data-analysis-stage-active={activeScene !== null ? "true" : "false"}>
+    <Stack ref={sceneRef} gap={0} aria-label="실제 소비 시각화" className={styles.analysisStage} data-entry={entryRequested ? entryStarted ? "running" : "pending" : "idle"} data-analysis-stage-active={activeScene !== null ? "true" : "false"}>
       <nav aria-label="소비 시각화 장면" className={styles.sceneNavigator} data-active={activeScene !== null ? "true" : "false"}>
         <Stack gap={12}>{["소비 구조", "소비 흐름", "거래 패턴"].map((label, index) => <button type="button" key={label} className={styles.sceneLink} aria-label={`0${index + 1} ${label} 장면으로 이동`} aria-current={activeScene === index ? "step" : undefined} onClick={() => goToScene(index)}><span>0{index + 1}</span><span className={styles.sceneLabel}>{label}</span></button>)}</Stack>
       </nav>
-      <Stack component="section" justify="center" gap="xl" data-scene={0} tabIndex={-1} className={styles.structureScene} aria-labelledby="structure-heading">
+      <Box className={styles.apertureViewport} data-scene-frame={0}>
+      <Stack component="section" justify="center" gap="xl" data-scene={0} tabIndex={-1} className={styles.structureScene} aria-labelledby="structure-heading" onAnimationEnd={(event) => {
+        if (event.target === event.currentTarget && event.animationName.includes("signal-aperture") && entryRequested) onEntryComplete?.(false);
+      }}>
         <Stack gap={8}>
           <Group justify="space-between" gap="xs">
             <Text size="xs" fw={700} c="gray.4" lts={1.5}>01 / SPENDING STRUCTURE</Text>
@@ -91,7 +147,7 @@ export function SpendingDiscovery({ transactions, categories }: { transactions: 
         </Stack>
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing={{ base: "md", md: 48 }} verticalSpacing="sm">
           <Box className={styles.orbitCanvas}>
-            <svg viewBox="0 0 520 520" className={styles.orbitSvg} role="group" aria-label={`카테고리별 소비 구조, 총 ${won(model.total)}, ${model.records.length}건. 고리 또는 목록에서 카테고리를 선택할 수 있습니다.`}>
+            <svg ref={orbitRef} viewBox="0 0 520 520" className={styles.orbitSvg} role="group" aria-label={`카테고리별 소비 구조, 총 ${won(model.total)}, ${model.records.length}건. 고리 또는 목록에서 카테고리를 선택할 수 있습니다.`}>
               <circle cx="260" cy="260" r="232" fill="none" stroke="#ffffff" strokeOpacity="0.08" />
               {[0, 90, 180, 270].map((angle) => <path key={angle} d="M260 20v12" transform={`rotate(${angle} 260 260)`} stroke="#9daec1" strokeOpacity="0.6" />)}
               <circle cx="260" cy="260" r="185" fill="none" stroke="#26344a" strokeWidth="34" />
@@ -135,6 +191,7 @@ export function SpendingDiscovery({ transactions, categories }: { transactions: 
           </Stack>
         </SimpleGrid>
       </Stack>
+      </Box>
 
       <Group justify="space-between" align="start" className={styles.dataBasis} gap="lg">
         <Stack gap={5}><Text size="sm" fw={700}>실제 기록이 있는 구간만 그렸어요.</Text><Text size="xs" c="#a8bac7">{model.start} ~ {model.end} · 취소가 아닌 양수 금액 {model.records.length}건 기준. 기록이 없는 구간의 집계 금액은 0원입니다.</Text></Stack>
@@ -204,6 +261,7 @@ export function SpendingDiscovery({ transactions, categories }: { transactions: 
           </SimpleGrid>
         </Stack>
       </section>
+      <Box aria-hidden="true" className={styles.stageRecovery} />
     </Stack>
   );
 }
