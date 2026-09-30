@@ -1,6 +1,7 @@
 import { MantineProvider } from "@mantine/core";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ComponentProps } from "react";
 import { theme } from "@/app/theme";
 import type { TransactionDto } from "../model/types";
 import { SpendingDiscovery } from "./SpendingDiscovery";
@@ -9,9 +10,25 @@ const data: TransactionDto[] = [
   { id: 1, userId: 1, transactionDate: "2026-09-01", merchant: "식당", categoryId: 1, categoryName: "식비", amount: 8000, cardName: "카드", installment: 0, status: "승인", isClassified: true },
   { id: 2, userId: 1, transactionDate: "2026-09-03", merchant: "버스", categoryId: 2, categoryName: "교통", amount: 2000, cardName: "카드", installment: 0, status: "승인", isClassified: true },
 ];
-const show = (transactions = data) => render(<MantineProvider theme={theme}><SpendingDiscovery transactions={transactions} categories={[]} /></MantineProvider>);
+const show = (transactions = data, transition: Pick<ComponentProps<typeof SpendingDiscovery>, "entryRequested" | "onEntryComplete"> = {}) => render(<MantineProvider theme={theme}><SpendingDiscovery transactions={transactions} categories={[]} {...transition} /></MantineProvider>);
 
-afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+function observeScenes() {
+  const callbacks: IntersectionObserverCallback[] = [];
+  vi.stubGlobal("IntersectionObserver", class {
+    constructor(callback: IntersectionObserverCallback) { callbacks.push(callback); }
+    observe = vi.fn();
+    unobserve = vi.fn();
+    disconnect = vi.fn();
+  });
+  return (index: number, visible = true) => act(() => {
+    const stage = screen.getByLabelText("실제 소비 시각화");
+    const scene = stage.querySelector<HTMLElement>(index === 0 ? "[data-scene-frame='0']" : `[data-scene="${index}"]`)!;
+    const bounds = scene.getBoundingClientRect();
+    callbacks.at(-1)!([{ target: scene, isIntersecting: visible, boundingClientRect: bounds, intersectionRect: bounds, intersectionRatio: visible ? 1 : 0, rootBounds: null, time: 0 }], {} as IntersectionObserver);
+  });
+}
+
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("spending discovery interaction", () => {
   it("shows three different questions before AI with exact source totals", () => {
@@ -83,6 +100,61 @@ describe("spending discovery interaction", () => {
     expect(navigator).toHaveAttribute("data-active", "false");
     view.unmount();
     expect(disconnect).toHaveBeenCalledTimes(2);
+  });
+
+  it("opens a fresh success from the real radial centre and does not replay restored results", () => {
+    const enter = observeScenes();
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      if (this.getAttribute("data-scene") === "0") return new DOMRect(100, 200, 1000, 800);
+      if (this.getAttribute("viewBox") === "0 0 520 520") return new DOMRect(180, 400, 400, 400);
+      return new DOMRect();
+    });
+    const complete = vi.fn();
+    const view = show(data, { entryRequested: true, onEntryComplete: complete });
+    const stage = screen.getByLabelText("실제 소비 시각화");
+    const first = stage.querySelector<HTMLElement>("[data-scene='0']")!;
+    expect(stage).toHaveAttribute("data-entry", "pending");
+    expect(first.style.getPropertyValue("--signal-x")).toBe("280px");
+    expect(first.style.getPropertyValue("--signal-y")).toBe("400px");
+    expect(first.style.getPropertyValue("--signal-core")).toBe("160px");
+    enter(0);
+    expect(stage).toHaveAttribute("data-entry", "running");
+    expect(stage).toHaveAttribute("data-analysis-stage-active", "true");
+    fireEvent.animationEnd(first, { animationName: "signal-propagation" });
+    expect(complete).not.toHaveBeenCalled();
+    fireEvent.animationEnd(first, { animationName: "signal-aperture" });
+    expect(complete).toHaveBeenCalledExactlyOnceWith(false);
+    view.rerender(<MantineProvider theme={theme}><SpendingDiscovery transactions={data} categories={[]} entryRequested={false} onEntryComplete={complete} /></MantineProvider>);
+    enter(0, false);
+    enter(0);
+    expect(stage).toHaveAttribute("data-entry", "idle");
+    expect(complete).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips the aperture for reduced motion while keeping the scene and data available", () => {
+    const enter = observeScenes();
+    const complete = vi.fn();
+    show(data, { entryRequested: true, onEntryComplete: complete });
+    vi.spyOn(window, "matchMedia").mockReturnValue({ matches: true } as MediaQueryList);
+    enter(0);
+    expect(complete).toHaveBeenCalledExactlyOnceWith(false);
+    expect(screen.getByLabelText("실제 소비 시각화")).not.toHaveAttribute("data-entry", "running");
+    expect(screen.getByRole("group", { name: /총 10,000원, 2건/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "01 소비 구조 장면으로 이동" })).toHaveAttribute("aria-current", "step");
+  });
+
+  it("settles interrupted animation and keeps keyboard selection functional during entry", () => {
+    const enter = observeScenes();
+    const complete = vi.fn();
+    show(data, { entryRequested: true, onEntryComplete: complete });
+    vi.useFakeTimers();
+    enter(0);
+    const ring = screen.getByRole("button", { name: /교통 고리/ });
+    fireEvent.keyDown(ring, { key: "Enter" });
+    expect(ring).toHaveAttribute("aria-pressed", "true");
+    act(() => vi.advanceTimersByTime(600));
+    expect(complete).toHaveBeenCalledExactlyOnceWith(false);
+    expect(screen.getByRole("group", { name: /총 10,000원, 2건/ })).toBeInTheDocument();
   });
 
 });

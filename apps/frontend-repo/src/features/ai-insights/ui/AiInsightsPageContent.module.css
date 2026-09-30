@@ -318,8 +318,7 @@
 .gateway { padding: clamp(28px, 5vw, 64px); background: #fff; border: 1px solid #dce7e8; border-radius: 24px; }
 .gateway h2 { max-width: 700px; font-size: clamp(28px, 3vw, 40px); letter-spacing: -.045em; line-height: 1.35; word-break: keep-all; }
 .gatewayPreview { padding-top: 28px; border-top: 1px solid #e4eceb; }
-.resultReveal { animation: scene-arrive 450ms ease-out; }
-.analysisStage { position: relative; isolation: isolate; margin-inline: calc(50% - 50vw + 10px); padding-inline: max(48px, calc((100vw - 1100px) / 2)); background: #0d1730; color: #f0f5f8; }
+.analysisStage { position: relative; isolation: isolate; margin-inline: calc(50% - 50vw + 10px); --stage-gutter: max(48px, calc((100vw - 1100px) / 2)); padding-inline: var(--stage-gutter); background: #0d1730; color: #f0f5f8; }
 .analysisStage section { scroll-margin-top: 24px; border-radius: 0; background: transparent; padding: 56px 0; min-height: 88svh; }
 .analysisStage section:focus { outline: none; }
 .analysisStage section:focus-visible { outline: 2px solid #31e6b8; outline-offset: 6px; }
@@ -350,11 +349,81 @@
 }
 @media (max-width: 62em) {
   .sceneNavigator { display: none; }
-  .analysisStage { margin-inline: -12px; padding-inline: 24px; }
+  .analysisStage { margin-inline: -12px; --stage-gutter: 24px; padding-inline: var(--stage-gutter); }
   .analysisStage section { min-height: auto; padding-block: 48px; scroll-margin-top: calc(var(--app-shell-header-height, 60px) + 16px); }
   .analysisStage .pulseScene > :first-child, .analysisStage .explorationScene > :first-child { min-height: auto; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .resultReveal { animation: none; }
   .sceneNavigator, .sceneLabel, :global([data-product-header]) { transition: none; }
+}
+
+/* Signal Aperture: one short entry, centred on the actual radial chart. */
+.apertureViewport { margin-inline: calc(-1 * var(--stage-gutter)); background: #f4f8f8; }
+.analysisStage .structureScene { position: relative; padding: 64px var(--stage-gutter) 56px; background: #0d1730; }
+.analysisStage .structureScene[data-revealed] { animation: none; }
+.analysisStage[data-entry="pending"] .structureScene {
+  animation: none;
+  clip-path: circle(var(--signal-core) at var(--signal-x) var(--signal-y));
+}
+.analysisStage[data-entry="running"] .structureScene {
+  animation: signal-aperture 440ms cubic-bezier(.2, .65, .25, 1) both;
+}
+.analysisStage[data-entry="running"] .structureScene::before {
+  content: "";
+  position: absolute;
+  left: var(--signal-x);
+  top: var(--signal-y);
+  width: 6px;
+  height: 6px;
+  background: #31e6b8;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: signal-trigger 120ms ease-out both;
+}
+.analysisStage[data-entry="running"] .structureScene::after {
+  content: "";
+  position: absolute;
+  left: var(--signal-x);
+  top: var(--signal-y);
+  width: var(--signal-diameter);
+  height: var(--signal-diameter);
+  border: 1.5px solid #31e6b8;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: signal-propagation 420ms cubic-bezier(.2, .65, .25, 1) both;
+}
+.analysisStage[data-entry="running"] .structureScene > :first-child { animation: signal-title 340ms 60ms ease-out backwards; }
+.analysisStage[data-entry="running"] .orbitSvg { animation: signal-settle 400ms ease-out; }
+.analysisStage[data-entry="running"] .sceneNavigator { transition-delay: 100ms; }
+.stageRecovery {
+  margin-inline: calc(-1 * var(--stage-gutter));
+  height: clamp(100px, 16svh, 160px);
+  background: linear-gradient(180deg, #0d1730 0%, #293c51 24%, #788997 52%, #c5d2d7 76%, #f4f8f8 100%);
+  pointer-events: none;
+}
+@keyframes signal-aperture {
+  from { clip-path: circle(var(--signal-core) at var(--signal-x) var(--signal-y)); }
+  to { clip-path: circle(var(--signal-extent) at var(--signal-x) var(--signal-y)); }
+}
+@keyframes signal-trigger { from { transform: translate(-50%, -50%) scale(.6); opacity: 1; } to { transform: translate(-50%, -50%) scale(1); opacity: 0; } }
+@keyframes signal-propagation {
+  0% { transform: translate(-50%, -50%) scale(.025); opacity: 1; }
+  65% { opacity: .65; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+@keyframes signal-title { from { transform: translateY(6px); opacity: .92; } to { transform: none; opacity: 1; } }
+@keyframes signal-settle { from { transform: scale(.97); } to { transform: none; } }
+@media (max-width: 62em) {
+  .analysisStage .structureScene { padding-block: 48px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .analysisStage[data-entry="pending"] .structureScene,
+  .analysisStage[data-entry="running"] .structureScene,
+  .analysisStage[data-entry="running"] .structureScene::before,
+  .analysisStage[data-entry="running"] .structureScene::after,
+  .analysisStage[data-entry="running"] .structureScene > :first-child,
+  .analysisStage[data-entry="running"] .orbitSvg { animation: none; clip-path: none; }
+  .analysisStage[data-entry="running"] .structureScene::before,
+  .analysisStage[data-entry="running"] .structureScene::after { content: none; }
+  .analysisStage[data-entry="running"] .sceneNavigator { transition-delay: 0ms; }
 }
