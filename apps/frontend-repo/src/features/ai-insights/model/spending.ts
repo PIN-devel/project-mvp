@@ -72,12 +72,12 @@ export type SpendingMerchant = SpendingModel["merchants"][number];
 
 // Exact area encoding (r² ∝ amount), deterministic collision-free placement.
 // A remainder cluster keeps every won represented while bounding SVG and layout cost.
-export function packMerchants(merchants: SpendingMerchant[]) {
+export function packMerchants<T extends { id: number; amount: number }>(merchants: Array<{ key: string; name: string; categoryKey: string; amount: number; records: T[]; color: string }>) {
   const visible = merchants.slice(0, 35);
   const remaining = merchants.slice(35);
   if (remaining.length) visible.push({ key: "remainder", name: `그 외 ${remaining.length}개 가맹점 그룹`, categoryKey: "remainder", color: "#9daec1", amount: remaining.reduce((s, m) => s + m.amount, 0), records: remaining.flatMap((m) => m.records) });
   const total = visible.reduce((s, m) => s + m.amount, 0);
-  const placed: Array<SpendingMerchant & { x: number; y: number; r: number }> = [];
+  const placed: Array<(typeof merchants)[number] & { x: number; y: number; r: number }> = [];
   for (const merchant of visible.sort((a, b) => b.amount - a.amount)) {
     const r = Math.sqrt(merchant.amount / total) * 150;
     let x = 0, y = 0;

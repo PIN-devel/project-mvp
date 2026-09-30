@@ -2,8 +2,9 @@ import { Box, Button, Group, NativeSelect, SimpleGrid, Stack, Text, Title, Unsty
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { formatAmount } from "../model/core";
-import { buildSpendingModel, categoryKey, packMerchants } from "../model/spending";
-import type { CategoryDto, TransactionDto } from "../model/types";
+import { packMerchants } from "../model/spending";
+import { toSpendingSceneModel } from "../model/snapshotScene";
+import type { AnalyticsSnapshot } from "../model/analytics";
 import styles from "./AiInsightsPageContent.module.css";
 
 const won = (amount: number) => `${formatAmount(amount)}원`;
@@ -26,13 +27,12 @@ function prepareSignalAperture(scene: HTMLElement, orbit: SVGSVGElement) {
   scene.style.setProperty("--signal-extent", `${Math.hypot(Math.max(x, sceneBounds.width - x), Math.max(y, sceneBounds.height - y)) + 2}px`);
 }
 
-export function SpendingDiscovery({ transactions, categories, entryRequested = false, onEntryComplete }: {
-  transactions: TransactionDto[];
-  categories: CategoryDto[];
+export function SpendingDiscovery({ snapshot, entryRequested = false, onEntryComplete }: {
+  snapshot: AnalyticsSnapshot;
   entryRequested?: boolean;
   onEntryComplete?: (requested: false) => void;
 }) {
-  const model = useMemo(() => buildSpendingModel(transactions, categories), [transactions, categories]);
+  const model = useMemo(() => toSpendingSceneModel(snapshot), [snapshot]);
   const nodes = useMemo(() => packMerchants(model.merchants), [model.merchants]);
   const [category, setCategory] = useState<string | null>(null);
   const [previewCategory, setPreviewCategory] = useState<string | null>(null);
@@ -106,14 +106,15 @@ export function SpendingDiscovery({ transactions, categories, entryRequested = f
   const activeInterval = model.pulse.find((p) => p.date === interval) ?? model.peak;
   const categoryMerchants = category ? model.merchants.filter((m) => m.categoryKey === category) : model.merchants;
   const activeMerchant = model.merchants.find((m) => m.key === merchant) ?? nodes.find((m) => m.key === merchant) ?? categoryMerchants[0];
-  const excludedCount = model.excluded.cancelled + model.excluded.nonPositive + model.excluded.invalid + model.excluded.unknown;
+  const excludedCount = snapshot.quality.excludedCount;
+  const reasons = snapshot.quality.exclusionReasons;
 
   if (!model.records.length) return (
     <Stack gap="sm" py="xl" className={styles.discoveryEmpty}>
-      <Text size="xs" fw={700} c="#a8bac7">01 / 실제 소비의 모습</Text>
+      <Text size="xs" fw={700} c="dimmed">01 / 실제 소비의 모습</Text>
       <Title order={2}>아직 그릴 수 있는 소비 내역이 없어요</Title>
-      <Text c="#a8bac7">현재 범위에 승인 상태인 양수 금액의 유효한 거래가 있으면 소비 구조와 흐름을 볼 수 있어요.</Text>
-      {excludedCount > 0 && <Text size="sm" c="#a8bac7">금액 집계 제외: 취소 {model.excluded.cancelled}건 · 0원·음수 {model.excluded.nonPositive}건 · 날짜·금액 오류 {model.excluded.invalid}건 · 확인 필요 {model.excluded.unknown}건</Text>}
+      <Text c="dimmed">현재 범위에 승인 상태인 양수 금액의 유효한 거래가 있으면 소비 구조와 흐름을 볼 수 있어요.</Text>
+      {excludedCount > 0 && <Text size="sm" c="dimmed">금액 집계 제외: 취소 {reasons.CANCELLED ?? 0}건 · 0원·음수 {reasons.NON_POSITIVE_AMOUNT ?? 0}건 · 날짜·금액 오류 {(reasons.INVALID_DATE ?? 0) + (reasons.INVALID_AMOUNT ?? 0)}건 · 확인 필요 {reasons.UNKNOWN_STATUS ?? 0}건</Text>}
     </Stack>
   );
 
@@ -121,10 +122,19 @@ export function SpendingDiscovery({ transactions, categories, entryRequested = f
   const countCircumference = 2 * Math.PI * 151;
   const pulseMax = Math.max(...model.pulse.map((p) => p.amount), 1);
   const plotLeft = 64, plotWidth = 952, plotTop = 38, plotHeight = 230;
-  const step = plotWidth / model.pulse.length;
-  const pointX = (index: number) => plotLeft + step * (index + 0.5);
+  const ordinal = (date: string) => model.unit === "month"
+    ? Number(date.slice(0, 4)) * 12 + Number(date.slice(5, 7))
+    : Date.parse(date) / 86_400_000;
+  const first = ordinal(model.pulse[0].date);
+  const span = ordinal(model.pulse.at(-1)!.date) - first + 1;
+  const step = plotWidth / span;
+  const pointX = (index: number) => plotLeft + step * (ordinal(model.pulse[index].date) - first + 0.5);
   const pointY = (amount: number) => plotTop + plotHeight * (1 - amount / pulseMax);
-  const points = model.pulse.map((p, i) => `${pointX(i)},${pointY(p.amount)}`).join(" ");
+  const segments: string[][] = [];
+  model.pulse.forEach((p, i) => {
+    if (i === 0 || ordinal(p.date) - ordinal(model.pulse[i - 1].date) > 1) segments.push([]);
+    segments.at(-1)!.push(`${pointX(i)},${pointY(p.amount)}`);
+  });
   const activeIndex = model.pulse.findIndex((p) => p.date === activeInterval?.date);
   const activeTransactions = [...(activeMerchant?.records ?? [])].sort((a, b) => b.amount - a.amount || a.id - b.id);
 
@@ -159,15 +169,15 @@ export function SpendingDiscovery({ transactions, categories, entryRequested = f
                 const countStart = countCircumference * model.structure.slice(0, index).reduce((sum, item) => sum + item.count, 0) / model.records.length;
                 const opacity = activeCategory && activeCategory !== c.key ? 0.2 : 1;
                 const select = () => { setCategory(category === c.key ? null : c.key); setMerchant(null); };
-                return <g key={c.key} opacity={opacity} className={styles.orbitSegment} role="button" tabIndex={0} aria-label={`${c.name} 고리, ${won(c.amount)}, ${percent(c.amount, model.total)}`} aria-pressed={category === c.key} onMouseEnter={() => setPreviewCategory(c.key)} onMouseLeave={() => setPreviewCategory(null)} onFocus={() => setPreviewCategory(c.key)} onBlur={() => setPreviewCategory(null)} onClick={select} onKeyDown={(e) => activate(e, select)}>
-                  <title>{c.name}: {won(c.amount)} · {percent(c.amount, model.total)} · {c.count}건</title>
+                return <g key={c.key} opacity={opacity} className={styles.orbitSegment} role="button" tabIndex={0} aria-label={`${c.name} 고리, ${won(c.amount)}, ${c.amountShare}%`} aria-pressed={category === c.key} onMouseEnter={() => setPreviewCategory(c.key)} onMouseLeave={() => setPreviewCategory(null)} onFocus={() => setPreviewCategory(c.key)} onBlur={() => setPreviewCategory(null)} onClick={select} onKeyDown={(e) => activate(e, select)}>
+                  <title>{c.name}: {won(c.amount)} · {`${c.amountShare}%`} · {c.count}건</title>
                   <circle cx="260" cy="260" r="185" fill="none" stroke={c.color} strokeWidth="34" strokeDasharray={`${amountLength} ${circumference - amountLength}`} strokeDashoffset={-amountStart} transform="rotate(-90 260 260)" />
                   <circle cx="260" cy="260" r="151" fill="none" stroke={c.color} strokeWidth="5" strokeDasharray={`${countLength} ${countCircumference - countLength}`} strokeDashoffset={-countStart} transform="rotate(-90 260 260)" />
                 </g>;
               })}
               <text x="260" y="226" textAnchor="middle" fill="#a8bac7" fontSize="14">집계 소비 금액</text>
               <text x="260" y="273" textAnchor="middle" fill="white" fontWeight="800" fontSize={model.total >= 1e9 ? 28 : 38} letterSpacing="-1.5">{formatAmount(model.total)}<tspan fontSize="16" letterSpacing="0"> 원</tspan></text>
-              <text x="260" y="306" textAnchor="middle" fill="#a8bac7" fontSize="14">{model.records.length}건 · {model.structure.length}개 카테고리</text>
+              <text x="260" y="306" textAnchor="middle" fill="#a8bac7" fontSize="14">{model.records.length}건 · {model.structure.length}개 소비 영역</text>
               <text x="260" y="497" textAnchor="middle" fill="#a8bac7" fontSize="11">금액 비중 / 거래 수 비중</text>
             </svg>
           </Box>
@@ -175,14 +185,14 @@ export function SpendingDiscovery({ transactions, categories, entryRequested = f
             <Stack gap={6} aria-live="polite" aria-atomic="true">
               <Text size="xs" c="gray.4">{activeCategory ? "살펴보는 카테고리" : "가장 큰 소비 영역"}</Text>
               <Title order={3} c="white" className={styles.structureCategory}>{activeStructure.name}</Title>
-              <Group align="baseline" gap="sm"><Text className={styles.bigRatio} c="white">{percent(activeStructure.amount, model.total)}</Text><Text size="sm" c="gray.4">전체 소비 금액 중</Text></Group>
-              <Text c="gray.3" size="sm">{won(activeStructure.amount)} · {activeStructure.count}건 · 거래 수 비중 {percent(activeStructure.count, model.records.length)}</Text>
+              <Group align="baseline" gap="sm"><Text className={styles.bigRatio} c="white">{`${activeStructure.amountShare}%`}</Text><Text size="sm" c="gray.4">전체 소비 금액 중</Text></Group>
+              <Text c="gray.3" size="sm">{won(activeStructure.amount)} · {activeStructure.count}건 · 거래 수 비중 {`${activeStructure.countShare}%`}</Text>
             </Stack>
             <Stack gap={0} className={styles.categoryList}>
-              {model.structure.map((c, index) => <UnstyledButton key={c.key} className={styles.categoryRow} data-selected={category === c.key || undefined} aria-pressed={category === c.key} aria-label={`${c.name} 강조, ${won(c.amount)}, ${percent(c.amount, model.total)}, ${c.count}건`} onMouseEnter={() => setPreviewCategory(c.key)} onMouseLeave={() => setPreviewCategory(null)} onFocus={() => setPreviewCategory(c.key)} onBlur={() => setPreviewCategory(null)} onClick={() => { setCategory(category === c.key ? null : c.key); setMerchant(null); }}>
+              {model.structure.map((c, index) => <UnstyledButton key={c.key} className={styles.categoryRow} data-selected={category === c.key || undefined} aria-pressed={category === c.key} aria-label={`${c.name} 강조, ${won(c.amount)}, ${c.amountShare}%, ${c.count}건`} onMouseEnter={() => setPreviewCategory(c.key)} onMouseLeave={() => setPreviewCategory(null)} onFocus={() => setPreviewCategory(c.key)} onBlur={() => setPreviewCategory(null)} onClick={() => { setCategory(category === c.key ? null : c.key); setMerchant(null); }}>
                 <Group justify="space-between" gap="sm" wrap="nowrap">
                   <Group gap="sm" wrap="nowrap"><svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill={c.color} /></svg><Text size="sm" c="gray.1">{String(index + 1).padStart(2, "0")} / {c.name}</Text></Group>
-                  <Text size="sm" fw={700} c="white">{percent(c.amount, model.total)}</Text>
+                  <Text size="sm" fw={700} c="white">{`${c.amountShare}%`}</Text>
                 </Group>
               </UnstyledButton>)}
             </Stack>
@@ -194,8 +204,8 @@ export function SpendingDiscovery({ transactions, categories, entryRequested = f
       </Box>
 
       <Group justify="space-between" align="start" className={styles.dataBasis} gap="lg">
-        <Stack gap={5}><Text size="sm" fw={700}>실제 기록이 있는 구간만 그렸어요.</Text><Text size="xs" c="#a8bac7">{model.start} ~ {model.end} · 승인 상태인 양수 금액 {model.records.length}건 기준. 기록이 없는 구간의 집계 금액은 0원입니다.</Text></Stack>
-        <Stack gap={5}><Text size="xs" c="#a8bac7">조회 내역 {transactions.length}건 중 금액 집계 제외 {excludedCount}건</Text><Text size="xs" c="#a8bac7">취소 {model.excluded.cancelled} · 0원·음수 {model.excluded.nonPositive} · 날짜·금액 오류 {model.excluded.invalid} · 확인 필요 {model.excluded.unknown}</Text></Stack>
+        <Stack gap={5}><Text size="sm" fw={700}>실제 기록이 있는 구간만 그렸어요.</Text><Text size="xs" c="#a8bac7">{model.start} ~ {model.end} · 승인 상태인 양수 금액 {model.records.length}건 기준. 자료의 기간 완결성은 미확인입니다. 기록 없는 구간의 소비는 알 수 없어요.</Text></Stack>
+        <Stack gap={5}><Text size="xs" c="#a8bac7">조회 내역 {snapshot.quality.selectedTransactionCount}건 중 금액 집계 제외 {excludedCount}건</Text><Text size="xs" c="#a8bac7">제외 사유는 중복될 수 있어요. 취소 {reasons.CANCELLED ?? 0} · 0원·음수 {reasons.NON_POSITIVE_AMOUNT ?? 0} · 날짜·금액 오류 {(reasons.INVALID_DATE ?? 0) + (reasons.INVALID_AMOUNT ?? 0)} · 확인 필요 {reasons.UNKNOWN_STATUS ?? 0}</Text></Stack>
       </Group>
 
       <section data-scene={1} tabIndex={-1} aria-labelledby="pulse-heading" className={styles.pulseScene}>
@@ -209,22 +219,22 @@ export function SpendingDiscovery({ transactions, categories, entryRequested = f
               {[0, 0.5, 1].map((ratio) => <g key={ratio}><line x1={plotLeft} x2="1016" y1={pointY(pulseMax * ratio)} y2={pointY(pulseMax * ratio)} stroke="#304057" strokeDasharray={ratio === 0 ? undefined : "3 6"} /><text x="52" y={pointY(pulseMax * ratio) + 4} textAnchor="end" fill="#a8bac7" fontSize="11">{new Intl.NumberFormat("ko-KR", { notation: "compact", maximumFractionDigits: 1 }).format(pulseMax * ratio)}</text></g>)}
               {model.pulse.map((p, i) => {
                 const selected = activeInterval?.date === p.date;
-                const emphasized = activeCategory ? p.records.filter((t) => categoryKey(t) === activeCategory).reduce((s, t) => s + t.amount, 0) : null;
+                const emphasized = activeCategory ? p.categoryAmounts[activeCategory] ?? 0 : null;
                 return <g key={p.date} className={styles.pulseBar} onMouseEnter={() => setInterval(p.date)} onClick={() => setInterval(p.date)}>
                   <title>{p.date} · {won(p.amount)} · {p.count}건</title>
-                  <rect x={plotLeft + i * step} y={plotTop} width={step} height={plotHeight} fill="transparent" />
-                  <rect x={plotLeft + i * step + step * 0.15} y={pointY(p.amount)} width={step * 0.7} height={plotHeight * p.amount / pulseMax} rx={Math.min(step * 0.12, 3)} fill={selected ? "#31e6b8" : "#96acc2"} fillOpacity={emphasized != null ? 0.15 : selected ? 1 : 0.32} />
-                  {emphasized != null && <rect x={plotLeft + i * step + step * 0.15} y={pointY(emphasized)} width={step * 0.7} height={plotHeight * emphasized / pulseMax} rx={Math.min(step * 0.12, 3)} fill="#31e6b8" />}
+                  <rect x={pointX(i) - step / 2} y={plotTop} width={step} height={plotHeight} fill="transparent" />
+                  <rect x={pointX(i) - step * 0.35} y={pointY(p.amount)} width={step * 0.7} height={plotHeight * p.amount / pulseMax} rx={Math.min(step * 0.12, 3)} fill={selected ? "#31e6b8" : "#96acc2"} fillOpacity={emphasized != null ? 0.15 : selected ? 1 : 0.32} />
+                  {emphasized != null && <rect x={pointX(i) - step * 0.35} y={pointY(emphasized)} width={step * 0.7} height={plotHeight * emphasized / pulseMax} rx={Math.min(step * 0.12, 3)} fill="#31e6b8" />}
                 </g>;
               })}
-              <polyline points={points} fill="none" stroke="#9ab1c5" strokeWidth="1.5" strokeLinejoin="round" pointerEvents="none" className={styles.pulseLine} />
+              {segments.map((segment, i) => <polyline key={i} points={segment.join(" ")} fill="none" stroke="#9ab1c5" strokeWidth="1.5" strokeLinejoin="round" pointerEvents="none" className={styles.pulseLine} />)}
               {activeIndex >= 0 && <g pointerEvents="none"><line x1={pointX(activeIndex)} x2={pointX(activeIndex)} y1={plotTop - 10} y2={plotTop + plotHeight + 10} stroke="#31e6b8" strokeDasharray="3 5" /><circle cx={pointX(activeIndex)} cy={pointY(activeInterval?.amount ?? 0)} r="5" fill="#31e6b8" stroke="#31e6b8" strokeWidth="2" /></g>}
               {[...new Set([0, Math.floor((model.pulse.length - 1) / 2), model.pulse.length - 1])].map((i) => <text key={i} x={pointX(i)} y="303" textAnchor="middle" fill="#a8bac7" fontSize="12">{shortDate(model.pulse[i].date)}</text>)}
             </svg>
           </Box>
           <Group justify="space-between" align="end" className={styles.pulseDetail} gap="lg">
             <NativeSelect label="시간 흐름 상세 구간" value={activeInterval?.date} onChange={(e) => setInterval(e.currentTarget.value)} data={model.pulse.map((p) => ({ value: p.date, label: p.date }))} w={{ base: "100%", sm: 190 }} />
-            <Stack gap={4} aria-live="polite" aria-atomic="true"><Text fw={800}>{activeInterval?.date} · {won(activeInterval?.amount ?? 0)} · {activeInterval?.count}건</Text><Text size="sm" c="#a8bac7">{activeCategory ? `${activeStructure.name} ${won(activeInterval?.records.filter((t) => categoryKey(t) === activeCategory).reduce((s, t) => s + t.amount, 0) ?? 0)}` : activeInterval?.records.length ? `가장 큰 거래: ${[...activeInterval.records].sort((a, b) => b.amount - a.amount)[0].merchant} · ${won(Math.max(...activeInterval.records.map((t) => t.amount)))}` : "이 구간에는 집계 대상 거래가 없어요."}</Text></Stack>
+            <Stack gap={4} aria-live="polite" aria-atomic="true"><Text fw={800}>{activeInterval?.date} · {won(activeInterval?.amount ?? 0)} · {activeInterval?.count}건</Text><Text size="sm" c="#a8bac7">{activeCategory ? `${activeStructure.name} ${won(activeInterval?.categoryAmounts[activeCategory] ?? 0)}` : activeInterval?.records.length ? `가장 큰 거래: ${[...activeInterval.records].sort((a, b) => b.amount - a.amount)[0].merchant} · ${won(Math.max(...activeInterval.records.map((t) => t.amount)))}` : "이 구간에는 집계 대상 거래가 없어요."}</Text></Stack>
           </Group>
           {activeCategory && <Text size="xs" c="#a8bac7">회색 막대와 연결선은 전체 소비, 민트 막대는 {activeStructure.name} 소비 금액이에요. 세로축은 동일한 금액 기준입니다.</Text>}
           {model.unit === "month" && <Text size="xs" c="#a8bac7">첫 달과 마지막 달은 일부 날짜만 포함될 수 있어요. 거래가 관측된 범위의 합계이며, 완결된 월 간 성과 비교가 아닙니다.</Text>}

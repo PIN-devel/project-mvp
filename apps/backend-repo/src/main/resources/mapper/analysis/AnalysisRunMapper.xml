@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cop.kbds.agilemvp.analysis.repository.AnalysisRunMapper">
+    <insert id="insert">
+        INSERT INTO analysis_runs(id, user_id, data_revision, basis_version, status, run_json)
+        VALUES(#{id}, #{userId}, #{revision}, #{basis}, #{status}, #{json})
+    </insert>
+    <update id="update">
+        UPDATE analysis_runs SET status = #{status}, run_json = #{json}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND user_id = #{userId}
+    </update>
+    <select id="find" resultType="java.lang.String">
+        SELECT run_json FROM analysis_runs WHERE id = #{id} AND user_id = #{userId}
+    </select>
+    <select id="latest" resultType="java.lang.String">
+        SELECT run_json FROM analysis_runs WHERE user_id = #{userId} ORDER BY created_at DESC, id DESC LIMIT 1
+    </select>
+</mapper>

@@ -3,6 +3,8 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ComponentProps } from "react";
 import { theme } from "@/app/theme";
+import type { AnalyticsSnapshot } from "../model/analytics";
+import { buildSpendingModel } from "../model/spending";
 import type { TransactionDto } from "../model/types";
 import { SpendingDiscovery } from "./SpendingDiscovery";
 
@@ -10,7 +12,34 @@ const data: TransactionDto[] = [
   { id: 1, userId: 1, transactionDate: "2026-09-01", merchant: "식당", categoryId: 1, categoryName: "식비", amount: 8000, cardName: "카드", installment: 0, status: "승인", isClassified: true },
   { id: 2, userId: 1, transactionDate: "2026-09-03", merchant: "버스", categoryId: 2, categoryName: "교통", amount: 2000, cardName: "카드", installment: 0, status: "승인", isClassified: true },
 ];
-const show = (transactions = data, transition: Pick<ComponentProps<typeof SpendingDiscovery>, "entryRequested" | "onEntryComplete"> = {}) => render(<MantineProvider theme={theme}><SpendingDiscovery transactions={transactions} categories={[]} {...transition} /></MantineProvider>);
+// Adapt the existing interaction fixture to the new server Snapshot prop.
+function snapshotFor(transactions: TransactionDto[]): AnalyticsSnapshot {
+  const rows = transactions.map((t) => ({ ...t, foundation: {
+    transactionId: t.id, occurredOn: t.transactionDate, amount: t.amount, rawStatus: t.status,
+    canonicalStatus: t.status === "취소" ? "CANCELLED" as const : "APPROVED" as const,
+    categoryId: t.categoryId ?? null, categoryLabel: t.categoryName ?? null, merchantRawName: t.merchant,
+    classification: "CLASSIFIED" as const, appliedRuleId: null, persisted: true, basisVersion: "spending-v1" as const,
+    spendingEligible: t.status !== "취소", spendingExclusionReasons: t.status === "취소" ? ["CANCELLED" as const] : [],
+  } }));
+  const model = buildSpendingModel(rows, []);
+  const aggregate = (key: string, categoryId: number | null, label: string, merchant: string | null, amount: number, ids: number[]) => ({
+    key, categoryId, categoryLabel: label, merchantRawName: merchant, amount, count: ids.length,
+    amountShare: amount / model.total * 100, countShare: ids.length / model.records.length * 100, transactionIds: ids,
+  });
+  return { query: { period: "ALL", start: null, endExclusive: null, categoryIds: [], cardNames: [] },
+    period: { start: model.start, endExclusive: "2026-09-04" }, sourceScope: { kind: "ALL_CARDS", cardNames: ["카드"] },
+    basisVersion: "spending-v1", dataRevision: "test-revision", totalAmount: model.total, transactionCount: model.records.length,
+    records: model.records.map((t) => ({ foundation: t.foundation!, cardName: t.cardName, categoryKey: `id:${t.categoryId}` })),
+    categories: model.structure.map((c) => aggregate(c.key, Number(c.key.slice(3)), c.name, null, c.amount, model.records.filter((t) => `id:${t.categoryId}` === c.key).map((t) => t.id))),
+    merchants: model.merchants.map((m) => aggregate(m.key, m.records[0].categoryId ?? null, m.records[0].categoryName ?? "", m.name, m.amount, m.records.map((t) => t.id))),
+    timeUnit: model.unit as "day" | "month", timeBuckets: model.pulse.filter((p) => p.count > 0).map((p) => ({ date: p.date, amount: p.amount, count: p.count, transactionIds: p.records.map((t) => t.id), categoryAmounts: Object.fromEntries(p.records.map((t) => [`id:${t.categoryId}`, t.amount])) })),
+    quality: { sourceTransactionCount: rows.length, selectedTransactionCount: rows.length, excludedCount: rows.length - model.records.length,
+      exclusionReasons: { CANCELLED: model.excluded.cancelled }, unclassifiedCount: 0, unclassifiedAmount: 0, inconsistentCount: 0, inconsistentAmount: 0,
+      sourceUnclassifiedCount: 0, sourceInconsistentCount: 0, unresolvedSourceCount: 0, coverage: "UNKNOWN", comparability: "NOT_CONFIRMED", limitations: [] },
+    evidence: [], observations: [],
+  };
+}
+const show = (transactions = data, transition: Pick<ComponentProps<typeof SpendingDiscovery>, "entryRequested" | "onEntryComplete"> = {}) => render(<MantineProvider theme={theme}><SpendingDiscovery snapshot={snapshotFor(transactions)} {...transition} /></MantineProvider>);
 
 function observeScenes() {
   const callbacks: IntersectionObserverCallback[] = [];
@@ -44,8 +73,9 @@ describe("spending discovery interaction", () => {
     fireEvent.keyDown(ring, { key: "Enter" });
     expect(ring).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("group", { name: /총 10,000원, 2건/ })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("시간 흐름 상세 구간"), { target: { value: "2026-09-02" } });
-    expect(screen.getByText("2026-09-02 · 0원 · 0건", { selector: "p" })).toBeInTheDocument();
+    expect(within(screen.getByLabelText("시간 흐름 상세 구간")).queryByRole("option", { name: "2026-09-02" })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("시간 흐름 상세 구간"), { target: { value: "2026-09-03" } });
+    expect(screen.getByText("2026-09-03 · 2,000원 · 1건", { selector: "p" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "카테고리 강조 해제" }));
     expect(ring).toHaveAttribute("aria-pressed", "false");
   });
@@ -124,7 +154,7 @@ describe("spending discovery interaction", () => {
     expect(complete).not.toHaveBeenCalled();
     fireEvent.animationEnd(first, { animationName: "signal-aperture" });
     expect(complete).toHaveBeenCalledExactlyOnceWith(false);
-    view.rerender(<MantineProvider theme={theme}><SpendingDiscovery transactions={data} categories={[]} entryRequested={false} onEntryComplete={complete} /></MantineProvider>);
+    view.rerender(<MantineProvider theme={theme}><SpendingDiscovery snapshot={snapshotFor(data)} entryRequested={false} onEntryComplete={complete} /></MantineProvider>);
     enter(0, false);
     enter(0);
     expect(stage).toHaveAttribute("data-entry", "idle");
