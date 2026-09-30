@@ -1,9 +1,10 @@
+import { transactionResponse } from "@/mocks/transactionResponse";
 import { describe, expect, it } from "vitest";
 import { filterTransactionsForInsight } from "./core";
 import { buildSpendingModel, packMerchants } from "./spending";
 import type { TransactionDto } from "./types";
 
-const transaction = (id: number, overrides: Partial<TransactionDto> = {}): TransactionDto => ({ id, userId: 1, transactionDate: "2026-09-10", merchant: `가맹점 ${id}`, categoryId: 1, categoryName: "식비", amount: 10000, cardName: "카드", installment: 0, status: "승인", isClassified: true, ...overrides });
+const transaction = (id: number, overrides: Partial<TransactionDto> = {}): TransactionDto => transactionResponse({ id, userId: 1, transactionDate: "2026-09-10", merchant: `가맹점 ${id}`, categoryId: 1, categoryName: "식비", amount: 10000, cardName: "카드", installment: 0, status: "승인", isClassified: true, ...overrides });
 
 describe("spending data integrity", () => {
   it("does not invent data for empty or excluded-only input", () => {
@@ -17,7 +18,7 @@ describe("spending data integrity", () => {
       transaction(3, { amount: -3000 }), transaction(4, { amount: 0 }),
       transaction(5, { transactionDate: "2026-02-30" }), transaction(6, { amount: Infinity }),
     ], []);
-    expect(excluded.excluded).toEqual({ cancelled: 2, nonPositive: 2, invalid: 2 });
+    expect(excluded.excluded).toEqual({ cancelled: 2, nonPositive: 2, invalid: 2, unknown: 0 });
     expect(excluded.total).toBe(0);
     expect(excluded.pulse).toEqual([]);
   });

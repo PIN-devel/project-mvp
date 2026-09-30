@@ -1,9 +1,10 @@
+import { isTransactionClassified, isSpendingEligible } from "@/shared/model/transaction";
+export { isTransactionClassified } from "@/shared/model/transaction";
 import type {
   BulkWashRequest,
   WashingFilters,
   WashingOverview,
   WashingTransaction,
-  TransactionDto,
 } from "@/features/washing/model/types";
 
 export type WashingCommand =
@@ -13,7 +14,6 @@ export type WashingCommand =
       id: number;
       categoryId: number | null;
       categoryName: string | null;
-      tag: string | null;
     }
   | { type: "delete_transaction"; id: number }
   | { type: "unknown" };
@@ -47,7 +47,6 @@ export const parseWashingCommand = (formData: FormData): WashingCommand => {
         id: extractNumber(formData, "id"),
         categoryId: category.id,
         categoryName: category.name,
-        tag: normalizeCategory(formData.get("tag")),
       };
     }
     case "delete_transaction":
@@ -60,13 +59,7 @@ export const parseWashingCommand = (formData: FormData): WashingCommand => {
 export const getUnclassifiedTransactions = (
   transactions: WashingTransaction[],
 ): WashingTransaction[] =>
-  transactions.filter((transaction) => !transaction.isClassified);
-
-// 서버의 명시적 판정을 우선하고, 이전 응답에는 카테고리로 보완합니다.
-export const isTransactionClassified = (
-  transaction: Pick<TransactionDto, "isClassified" | "categoryId" | "categoryName">,
-) => transaction.isClassified ??
-  (transaction.categoryId != null || !!transaction.categoryName);
+  transactions.filter((transaction) => !isTransactionClassified(transaction));
 
 export const filterTransactions = (
   transactions: WashingTransaction[],
@@ -85,13 +78,13 @@ export const filterTransactions = (
     const matchesCategory =
       filters.category === "all" ||
       (filters.category === "unclassified"
-        ? transaction.category === null
-        : transaction.category === filters.category);
+        ? !isTransactionClassified(transaction)
+        : String(transaction.foundation?.categoryId) === filters.category);
 
     const matchesStatus =
       filters.status === "all" ||
-      (filters.status === "classified" && transaction.isClassified) ||
-      (filters.status === "unclassified" && !transaction.isClassified);
+      (filters.status === "classified" && isTransactionClassified(transaction)) ||
+      (filters.status === "unclassified" && !isTransactionClassified(transaction));
 
     return matchesMerchant && matchesCategory && matchesStatus;
   });
@@ -103,7 +96,7 @@ export const getWashingMetrics = (overview: WashingOverview) => {
   ).length;
   const classifiedCount = totalCount - unclassifiedCount;
   const totalAmount = overview.transactions.reduce(
-    (sum, transaction) => sum + transaction.amount,
+    (sum, transaction) => sum + (isSpendingEligible(transaction) ? transaction.amount : 0),
     0,
   );
 
@@ -145,7 +138,8 @@ const parseCategoryValue = (value: string) => {
 
   const colonIndex = normalized.indexOf(":");
   if (colonIndex === -1) {
-    return { id: null, name: normalized };
+    const id = Number(normalized);
+    return { id: Number.isSafeInteger(id) && id > 0 ? id : null, name: null };
   }
 
   const parsedId = Number(normalized.slice(0, colonIndex));

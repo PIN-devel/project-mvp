@@ -1,3 +1,5 @@
+import { isTransactionClassified, isSpendingEligible } from "@/shared/model/transaction";
+export { isTransactionClassified } from "@/shared/model/transaction";
 import type {
   CategoryDto,
   InsightFilters,
@@ -17,10 +19,6 @@ export const formatGeneratedAt = (value: string) => {
     timeStyle: "short",
   }).format(date);
 };
-
-export const isTransactionClassified = (transaction: TransactionDto) =>
-  transaction.isClassified ??
-  (transaction.categoryId != null || !!transaction.categoryName);
 
 export const filterTransactionsForInsight = (
   transactions: TransactionDto[],
@@ -122,15 +120,9 @@ export const getGoalReferenceTransactions = (
   if (!goalMonth) return [];
 
   return transactions.filter((transaction) => {
-    const normalizedStatus = transaction.status?.trim().toLocaleLowerCase();
-    const isCancelled =
-      normalizedStatus === "취소" ||
-      normalizedStatus === "canceled" ||
-      normalizedStatus === "cancelled";
-
     return (
       transaction.transactionDate.slice(0, 7) === goalMonth &&
-      !isCancelled &&
+      isSpendingEligible(transaction) &&
       isTransactionClassified(transaction) &&
       Boolean(transaction.categoryName)
     );

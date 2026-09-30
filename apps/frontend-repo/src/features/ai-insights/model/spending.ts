@@ -1,26 +1,25 @@
-import { isTransactionClassified } from "./core";
+import { isTransactionClassified, isSpendingEligible } from "@/shared/model/transaction";
 import type { CategoryDto, TransactionDto } from "./types";
 
 // A single, explicit basis for all three views. This is spending, not net cash flow.
 export const spendingPalette = ["#31e6b8", "#7ca9da", "#b3a0d3", "#d4b88c", "#7fb9b6", "#9daec1"];
 
 export function categoryKey(transaction: TransactionDto) {
+  if (!transaction.foundation || transaction.foundation.classification === "INCONSISTENT") return "inconsistent";
   if (!isTransactionClassified(transaction)) return "unclassified";
-  return transaction.categoryId != null ? `id:${transaction.categoryId}` : `name:${transaction.categoryName || "미분류"}`;
-}
-
-function validDate(value: string) {
-  const date = value.slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(Date.parse(`${date}T00:00:00Z`)) && new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) === date;
+  return `id:${transaction.foundation?.categoryId}`;
 }
 
 export function buildSpendingModel(transactions: TransactionDto[], categories: CategoryDto[]) {
-  let cancelled = 0, nonPositive = 0, invalid = 0;
+  let cancelled = 0, nonPositive = 0, invalid = 0, unknown = 0;
   const records = transactions.filter((t) => {
-    if (["취소", "canceled", "cancelled"].includes(t.status.trim().toLowerCase())) { cancelled++; return false; }
-    if (!Number.isFinite(t.amount) || !validDate(t.transactionDate)) { invalid++; return false; }
-    if (t.amount <= 0) { nonPositive++; return false; }
-    return true;
+    if (isSpendingEligible(t)) return true;
+    const reasons = t.foundation?.spendingExclusionReasons ?? [];
+    if (reasons.includes("CANCELLED")) cancelled++;
+    else if (reasons.includes("INVALID_DATE") || reasons.includes("INVALID_AMOUNT")) invalid++;
+    else if (reasons.includes("NON_POSITIVE_AMOUNT")) nonPositive++;
+    else unknown++;
+    return false;
   }).sort((a, b) => a.transactionDate.localeCompare(b.transactionDate) || a.id - b.id);
   const total = records.reduce((sum, t) => sum + t.amount, 0);
   const categoryMap = new Map<string, { key: string; name: string; amount: number; count: number; color: string }>();
@@ -28,7 +27,7 @@ export function buildSpendingModel(transactions: TransactionDto[], categories: C
   for (const t of records) {
     const key = categoryKey(t);
     const categoryIndex = orderedCategories.findIndex((c) => c.id === t.categoryId);
-    const value = categoryMap.get(key) ?? { key, name: key === "unclassified" ? "미분류" : categories.find((c) => c.id === t.categoryId)?.name || t.categoryName || "미분류", amount: 0, count: 0, color: key === "unclassified" ? "#9daec1" : spendingPalette[(categoryIndex >= 0 ? categoryIndex : categoryMap.size) % spendingPalette.length] };
+    const value = categoryMap.get(key) ?? { key, name: key === "inconsistent" ? "분류 확인 필요" : key === "unclassified" ? "미분류" : categories.find((c) => c.id === t.categoryId)?.name || t.categoryName || "미분류", amount: 0, count: 0, color: key === "unclassified" || key === "inconsistent" ? "#9daec1" : spendingPalette[(categoryIndex >= 0 ? categoryIndex : categoryMap.size) % spendingPalette.length] };
     value.amount += t.amount;
     value.count++;
     categoryMap.set(key, value);
@@ -65,7 +64,7 @@ export function buildSpendingModel(transactions: TransactionDto[], categories: C
     value.amount += t.amount; value.records.push(t); merchantMap.set(key, value);
   }
   const merchants = [...merchantMap.values()].sort((a, b) => b.amount - a.amount || a.key.localeCompare(b.key));
-  return { total, records, structure, pulse, peak, unit, start, end, merchants, excluded: { cancelled, nonPositive, invalid } };
+  return { total, records, structure, pulse, peak, unit, start, end, merchants, excluded: { cancelled, nonPositive, invalid, unknown } };
 }
 
 export type SpendingModel = ReturnType<typeof buildSpendingModel>;

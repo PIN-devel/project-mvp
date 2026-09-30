@@ -1,4 +1,5 @@
 import {
+  Button,
   Container,
   Group,
   Paper,
@@ -9,6 +10,7 @@ import {
 } from "@mantine/core";
 import { useQueryClient, useSuspenseQueries } from "@tanstack/react-query";
 import { Suspense } from "react";
+import { Link } from "react-router";
 import { RuleEngineBuilderPanel } from "@/features/rule-engine-builder/ui/RuleEngineBuilderPanel";
 import { washingKeys, washingQueries } from "@/features/washing/api/queries";
 
@@ -94,8 +96,11 @@ function RuleEngineBuilderContent() {
 
 export function RuleEngineBuilderPage() {
   return (
+    <Stack gap="md">
+      <Group><Button component={Link} to="/washing" variant="subtle" color="teal">← 이용내역으로 돌아가기</Button></Group>
     <Suspense fallback={<RuleEngineBuilderPageSkeleton />}>
       <RuleEngineBuilderContent />
     </Suspense>
+    </Stack>
   );
 }

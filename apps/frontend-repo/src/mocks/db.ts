@@ -405,6 +405,7 @@ export interface LedgerTransaction {
   status: "승인" | "취소";
   memo: string | null;
   tag?: string | null;
+  appliedRuleId?: number | null;
   isClassified?: boolean;
 }
 
@@ -540,7 +541,7 @@ export const dbLedger = {
     ledgerCategories.splice(index, 1);
     ledgerTransactions = ledgerTransactions.map((transaction) =>
       transaction.categoryId === id
-        ? { ...transaction, categoryId: null, categoryName: null }
+        ? { ...transaction, categoryId: null, categoryName: null, isClassified: false, appliedRuleId: null }
         : transaction,
     );
     syncWashingTransactionsFromLedger();
@@ -778,7 +779,7 @@ export const dbRuleEngine = {
     categoryId: number;
     tag?: string;
   }) => {
-    const category = LEDGER_CATEGORIES.find((item) => item.id === payload.categoryId);
+    const category = ledgerCategories.find((item) => item.id === payload.categoryId);
     if (!category) return false;
     const normalizedTag = payload.tag?.trim()
       ? payload.tag.trim().startsWith("#")
@@ -795,12 +796,13 @@ export const dbRuleEngine = {
     rules = [rule, ...rules];
 
     ledgerTransactions = ledgerTransactions.map((transaction) =>
-      transaction.merchant.toLowerCase().includes(payload.keyword.toLowerCase())
+      transaction.merchant.toLowerCase().includes(payload.keyword.toLowerCase()) && (transaction.isClassified === false || transaction.categoryId == null)
         ? {
             ...transaction,
             categoryId: rule.categoryId,
             categoryName: rule.categoryName,
-            tag: rule.tag,
+            tag: rule.tag ?? transaction.tag,
+            appliedRuleId: rule.id,
             isClassified: true,
           }
         : transaction,

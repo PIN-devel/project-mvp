@@ -1,4 +1,5 @@
 import { delay, http, HttpResponse } from "msw";
+import { transactionResponse } from "./transactionResponse";
 import { db, dbLedger, dbRuleEngine, dbUser, dbWashing } from "./db";
 
 const IS_TEST = import.meta.env.MODE === "test";
@@ -160,13 +161,14 @@ export const handlers = [
         categoryId: body.categoryId ?? null,
         categoryName: nextCategory,
         isClassified: body.categoryId != null,
+        appliedRuleId: null,
       });
 
       if (!updated) {
         return new HttpResponse(null, { status: 404 });
       }
 
-      return HttpResponse.json(updated);
+      return HttpResponse.json(transactionResponse(updated));
     },
   ),
 
@@ -186,7 +188,7 @@ export const handlers = [
       return new HttpResponse(null, { status: 404 });
     }
 
-    return HttpResponse.json(updated);
+    return HttpResponse.json(transactionResponse(updated));
   }),
 
   http.post("/api/transactions/import-mock", async () => {
@@ -213,12 +215,12 @@ export const handlers = [
 
   http.get("/api/transactions", async () => {
     if (!IS_TEST) await delay();
-    return HttpResponse.json(dbLedger.getAll());
+    return HttpResponse.json(dbLedger.getAll().map((tx) => transactionResponse(tx)));
   }),
 
   http.post("/api/transactions/reset", async () => {
     if (!IS_TEST) await delay();
-    return HttpResponse.json(dbLedger.reset());
+    return HttpResponse.json(dbLedger.reset().map((tx) => transactionResponse(tx)));
   }),
 
   http.get("/api/transactions/:id", async ({ params }) => {
@@ -226,7 +228,7 @@ export const handlers = [
     const id = Number(params.id);
     const tx = dbLedger.getById(id);
     if (!tx) return new HttpResponse(null, { status: 404 });
-    return HttpResponse.json(tx);
+    return HttpResponse.json(transactionResponse(tx));
   }),
 
   http.delete("/api/transactions/:id", async ({ params }) => {
@@ -243,7 +245,7 @@ export const handlers = [
     const body = (await request.json()) as Record<string, unknown>;
     const updated = dbLedger.update(id, body as Parameters<typeof dbLedger.update>[1]);
     if (!updated) return new HttpResponse(null, { status: 404 });
-    return HttpResponse.json(updated);
+    return HttpResponse.json(transactionResponse(updated));
   }),
 
   http.get("/api/categories", async () => {
@@ -545,7 +547,7 @@ export const handlers = [
       },
     ];
     const withTempId = parsed.map((item, idx) => ({ ...item, id: 9000 + idx + 1 }));
-    return HttpResponse.json(withTempId);
+    return HttpResponse.json(withTempId.map((tx) => transactionResponse(tx, false)));
   }),
 
   http.post("/api/transactions/bulk", async ({ request }) => {
@@ -555,7 +557,7 @@ export const handlers = [
     added
       .filter((tx) => tx.categoryId == null)
       .forEach((tx) => dbWashing.addFromLedger(tx));
-    return HttpResponse.json({ added, skippedCount: body.length - added.length }, { status: 200 });
+    return HttpResponse.json({ added: added.map((tx) => transactionResponse(tx)), skippedCount: body.length - added.length }, { status: 200 });
   }),
 
   http.post("/api/auth/register", async ({ request }) => {

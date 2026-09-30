@@ -46,14 +46,16 @@ export function WashingPageContent() {
     });
   };
 
-  const categoryCounts = new Map<string, number>();
+  const categoryCounts = new Map<number, { label: string; count: number }>();
   if (ready) {
     for (const transaction of overview.transactions) {
-      const category = transaction.category || "이름 미확인";
-      categoryCounts.set(category, (categoryCounts.get(category) ?? 0) + 1);
+      const categoryId = transaction.foundation?.categoryId;
+      if (categoryId == null) continue;
+      const current = categoryCounts.get(categoryId);
+      categoryCounts.set(categoryId, { label: transaction.category || "이름 미확인", count: (current?.count ?? 0) + 1 });
     }
   }
-  const sortedCategories: [string, number][] = [...categoryCounts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"));
+  const sortedCategories: [string, number][] = [...categoryCounts.values()].map(({ label, count }) => [label, count] as [string, number]).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"));
   const categoryRows: [string, number][] = sortedCategories.length > 4 ? [
     ...sortedCategories.slice(0, 3),
     ["그 외 카테고리", sortedCategories.slice(3).reduce((sum, [, count]) => sum + count, 0)] as [string, number],
@@ -68,7 +70,7 @@ export function WashingPageContent() {
         onSuccess={() => setUploadVersion((current) => current + 1)}
       />
       <div className={styles.pageHeading}>
-        <h2>나의 소비 기록</h2><span>MY SPENDING, IN FOCUS</span>
+        <h2>이용내역 관리</h2><Link to="/washing/rules">자동 분류 규칙 →</Link>
       </div>
       {isError && <div role="alert" className={styles.staleNotice}>최신 내역을 확인하지 못했어요. 마지막으로 확인한 기록을 보여드립니다. <button type="button" onClick={() => queryClient.invalidateQueries({ queryKey: washingKeys.all })}>다시 불러오기</button></div>}
       {isFetching && !isError && <span role="status" className="mantine-visually-hidden">내역 업데이트 중</span>}
@@ -123,7 +125,7 @@ export function WashingPageContent() {
             <li><span className={`${styles.step} ${ready ? styles.doneStep : empty ? styles.futureStep : ""}`}>{ready ? "✓" : "2"}</span><div><strong>카테고리 분류하기</strong><p>같은 성격의 내역을 모아 소비의 윤곽을 만들어요.</p></div></li>
             <li><span className={`${styles.step} ${ready ? "" : styles.futureStep}`}>3</span><div><strong>소비 패턴 살펴보기</strong><p>정리한 기록을 바탕으로 나의 소비를 이해해요.</p></div></li>
           </ol>
-          <div className={styles.asideFooter}><Link to="/rules">반복되는 분류는 규칙으로 ↗</Link>자주 반복되는 분류를 규칙으로 정리해요.</div>
+          <div className={styles.asideFooter}><Link to="/washing/rules">반복되는 분류는 규칙으로 ↗</Link>자주 반복되는 분류를 규칙으로 정리해요.</div>
         </aside>
       </div>
     </main>

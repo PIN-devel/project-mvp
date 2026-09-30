@@ -22,7 +22,6 @@ import {
   IconChevronDown,
   IconLogout,
   IconReceipt,
-  IconSettingsAutomation,
   IconSparkles,
   IconUser,
 } from "@tabler/icons-react";
@@ -40,7 +39,6 @@ interface NavTab {
 const navTabs: NavTab[] = [
   { label: "이용내역", value: "/washing", icon: IconReceipt },
   { label: "소비 분석", value: "/insights", icon: IconChartBar },
-  { label: "자동 분류 규칙", value: "/rules", icon: IconSettingsAutomation },
   ...(import.meta.env.DEV
     ? [{ label: "샘플", value: "/sample", icon: IconSparkles }]
     : []),

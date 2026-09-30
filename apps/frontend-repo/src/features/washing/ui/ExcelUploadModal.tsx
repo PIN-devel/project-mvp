@@ -46,9 +46,10 @@ export function ExcelUploadModal({ opened, onClose, onSuccess }: ExcelUploadModa
     onSuccess: async ({ added, skippedCount }) => {
       await queryClient.invalidateQueries({ queryKey: washingKeys.all });
       const msg = skippedCount > 0
-        ? `${added.length}건 저장 완료 (${skippedCount}건 중복된 내역 제외)`
+        ? `${added.length === 0 ? "새 내역 없음" : `${added.length}건 저장 완료`} · ${skippedCount}건 제외 (중복 또는 저장 조건에 맞지 않는 내역)`
         : `${added.length}건 저장 완료`;
-      toast.success(msg);
+      if (added.length === 0) toast.info(msg);
+      else toast.success(msg);
       handleClose();
       onSuccess?.();
     },
@@ -75,7 +76,7 @@ export function ExcelUploadModal({ opened, onClose, onSuccess }: ExcelUploadModa
   return (
     <Modal
       opened={opened}
-      onClose={handleClose}
+      onClose={() => { if (!parseMutation.isPending && !saveMutation.isPending) handleClose(); }}
       title={
         <Group gap="xs">
           <IconFileSpreadsheet size={20} />
@@ -107,6 +108,7 @@ export function ExcelUploadModal({ opened, onClose, onSuccess }: ExcelUploadModa
           maxSize={MAX_EXCEL_FILE_SIZE}
           maxFiles={1}
           loading={parseMutation.isPending}
+          disabled={saveMutation.isPending}
         >
           <Group justify="center" gap="xl" mih={100} style={{ pointerEvents: "none" }}>
             <Dropzone.Accept>
@@ -152,10 +154,11 @@ export function ExcelUploadModal({ opened, onClose, onSuccess }: ExcelUploadModa
                 </Text>
               </Text>
               <Badge color="orange" variant="light">
-                저장 전 미리보기
+                미리보기 완료 · 저장 전
               </Badge>
             </Group>
 
+            <Text size="xs" c="dimmed">아직 이용내역에 반영되지 않았어요. 저장하면 기존 규칙으로 분류하고, 남은 내역은 직접 정리할 수 있어요.</Text>
             <ScrollArea>
               <Table highlightOnHover verticalSpacing="xs" horizontalSpacing="md" fz="sm">
                 <Table.Thead>
@@ -179,11 +182,11 @@ export function ExcelUploadModal({ opened, onClose, onSuccess }: ExcelUploadModa
                       </Table.Td>
                       <Table.Td>
                         <Badge
-                          color={tx.status === "승인" ? "green" : "red"}
+                          color={tx.foundation?.canonicalStatus === "APPROVED" ? "green" : tx.foundation?.canonicalStatus === "CANCELLED" ? "red" : "orange"}
                           variant="light"
                           size="sm"
                         >
-                          {tx.status}
+                          {(tx.foundation?.canonicalStatus ?? "UNKNOWN") === "UNKNOWN" ? `확인 필요 (${tx.status || "값 없음"})` : tx.status}
                         </Badge>
                       </Table.Td>
                       <Table.Td>
@@ -198,11 +201,12 @@ export function ExcelUploadModal({ opened, onClose, onSuccess }: ExcelUploadModa
             </ScrollArea>
 
             <Group justify="flex-end" pt="sm">
-              <Button variant="light" color="gray" onClick={handleClose}>
+              <Button variant="light" color="gray" onClick={handleClose} disabled={saveMutation.isPending}>
                 취소
               </Button>
               <Button
                 loading={saveMutation.isPending}
+                disabled={preview.length === 0}
                 onClick={() => saveMutation.mutate(preview)}
               >
                 {preview.length}건 저장

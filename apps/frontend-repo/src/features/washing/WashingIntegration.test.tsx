@@ -1,5 +1,6 @@
 ﻿import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { transactionResponse } from "@/mocks/transactionResponse";
 import { MantineProvider } from "@mantine/core";
 import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -39,7 +40,7 @@ describe("Washing feature integration flow", () => {
           action: action(queryClient),
         },
         { path: "/insights", element: <h1>소비 분석 화면</h1> },
-        { path: "/rules", element: <h1>자동 분류 규칙 화면</h1> },
+        { path: "/washing/rules", element: <h1>자동 분류 규칙 화면</h1> },
       ],
       { initialEntries: ["/"] },
     );
@@ -60,7 +61,8 @@ describe("Washing feature integration flow", () => {
     expect(screen.getByRole("button", { name: /남은 9건 분류하기/ })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "분류할 내역" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: /전체 내역/ }));
-    expect(screen.getByText("태그")).toBeInTheDocument();
+    expect(screen.queryByText("태그")).not.toBeInTheDocument();
+    expect(screen.getByText("정리 상태")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /현재 내역으로 소비 분석 보기/ }));
     expect(await screen.findByRole("heading", { name: "소비 분석 화면" })).toBeInTheDocument();
   });
@@ -114,7 +116,7 @@ describe("Washing feature integration flow", () => {
 
     const dialog = await screen.findByRole("dialog");
     const modalCategorySelect = within(dialog).getByRole("combobox");
-    fireEvent.change(modalCategorySelect, { target: { value: "1:식음료" } });
+    fireEvent.change(modalCategorySelect, { target: { value: "1" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "저장" }));
 
     await waitFor(() => {
@@ -139,7 +141,8 @@ describe("Washing feature integration flow", () => {
     expect(remainingSourceRows?.length).toBe(remainingBulkRows?.length);
   });
 
-  it("saves both category and mapping rule tag from the source data table", async () => {
+  it("hides tag inputs and preserves the existing tag during a category update", async () => {
+    dbLedger.getAll().forEach(({ id }) => dbLedger.update(id, { tag: "legacy-hidden-tag" }));
     renderFeature();
 
     await screen.findByRole("heading", { name: "분류할 내역" }, { timeout: 3000 });
@@ -160,16 +163,11 @@ describe("Washing feature integration flow", () => {
     expect(selectableOptions.length).toBeGreaterThan(0);
     fireEvent.change(categorySelect, { target: { value: selectableOptions[0]?.value } });
 
-    const memoInput = within(firstDataRow).getByRole("textbox");
-    expect(memoInput).toHaveAttribute("readonly");
-    fireEvent.focus(memoInput);
-    fireEvent.change(memoInput, { target: { value: "rule-tag-test" } });
-
+    expect(within(firstDataRow).queryByRole("textbox")).not.toBeInTheDocument();
     fireEvent.click(within(firstDataRow).getByRole("button", { name: "저장" }));
-
-    await waitFor(() => {
-      expect(within(firstDataRow).getByDisplayValue("rule-tag-test")).toBeInTheDocument();
-    });
+    const transactionId = Number(firstDataRow.querySelector<HTMLInputElement>('input[name="id"]')?.value);
+    await waitFor(() => expect(dbLedger.getById(transactionId)?.categoryId).toBe(Number(selectableOptions[0]?.value)));
+    expect(dbLedger.getById(transactionId)?.tag).toBe("legacy-hidden-tag");
   });
 
   it("distinguishes an empty account and opens the shared Excel modal", async () => {
@@ -210,6 +208,7 @@ describe("Washing feature integration flow", () => {
     const transactions: WashingOverview["transactions"] = Array.from({ length: 201 }, (_, index) => ({
       id: index + 1, occurredAt: "2026-09-29", merchantName: "가맹점", description: "",
       cardLabel: "카드", amount: 1000, category: index === 200 ? null : "식비",
+      foundation: transactionResponse({ id: index + 1, userId: 1, transactionDate: "2026-09-29", merchant: "가맹점", amount: 1000, cardName: "카드", installment: 1, status: "승인", categoryId: index === 200 ? null : 1, categoryName: index === 200 ? null : "식비", isClassified: index !== 200 }).foundation,
       isClassified: index !== 200, matchedRuleLabel: null, tag: "", source: "CARD",
     }));
     render(<MemoryRouter><FirstExperienceHero overview={{ transactions, categories: ["식비"], lastImportedAt: "" }} onUpload={() => {}} onOrganize={() => {}} onSeeRecords={() => {}} /></MemoryRouter>);
@@ -256,7 +255,7 @@ describe("Washing feature integration flow", () => {
     const submit = screen.getByRole("button", { name: "선택한 내역 분류하기" });
     expect(submit).toBeDisabled();
     expect(screen.getByLabelText("분류할 카테고리")).toHaveValue("");
-    fireEvent.change(screen.getByLabelText("분류할 카테고리"), { target: { value: "1:식음료" } });
+    fireEvent.change(screen.getByLabelText("분류할 카테고리"), { target: { value: "1" } });
     fireEvent.click(submit);
     await screen.findByRole("button", { name: "남은 8건 분류하기" });
     expect(screen.getByRole("button", { name: "선택한 내역 분류하기" })).toBeDisabled();
@@ -272,10 +271,10 @@ describe("Washing feature integration flow", () => {
     const select = within(dialog).getByRole("combobox");
     expect(select).toHaveValue("");
     expect(within(dialog).getByRole("button", { name: "저장" })).toBeDisabled();
-    fireEvent.change(select, { target: { value: "1:식음료" } });
+    fireEvent.change(select, { target: { value: "1" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "저장" }));
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("선택한 카테고리는 그대로예요");
-    expect(select).toHaveValue("1:식음료");
+    expect(select).toHaveValue("1");
     server.resetHandlers();
     fireEvent.click(within(dialog).getByRole("button", { name: "저장" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -293,7 +292,7 @@ describe("Washing feature integration flow", () => {
     fireEvent.click(screen.getByRole("tab", { name: /분류할 내역/ }));
     fireEvent.click(screen.getByRole("button", { name: "GS25 역삼점 분류" }));
     const dialog = await screen.findByRole("dialog");
-    fireEvent.change(within(dialog).getByRole("combobox"), { target: { value: "6:편의점" } });
+    fireEvent.change(within(dialog).getByRole("combobox"), { target: { value: "6" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "저장" }));
     await screen.findByRole("button", { name: /남은 9건 분류하기/ });
     expect(dbLedger.getAll().find(({ id }) => id === 1)?.isClassified).toBe(true);

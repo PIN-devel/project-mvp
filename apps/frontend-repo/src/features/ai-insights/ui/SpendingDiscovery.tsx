@@ -106,14 +106,14 @@ export function SpendingDiscovery({ transactions, categories, entryRequested = f
   const activeInterval = model.pulse.find((p) => p.date === interval) ?? model.peak;
   const categoryMerchants = category ? model.merchants.filter((m) => m.categoryKey === category) : model.merchants;
   const activeMerchant = model.merchants.find((m) => m.key === merchant) ?? nodes.find((m) => m.key === merchant) ?? categoryMerchants[0];
-  const excludedCount = model.excluded.cancelled + model.excluded.nonPositive + model.excluded.invalid;
+  const excludedCount = model.excluded.cancelled + model.excluded.nonPositive + model.excluded.invalid + model.excluded.unknown;
 
   if (!model.records.length) return (
     <Stack gap="sm" py="xl" className={styles.discoveryEmpty}>
       <Text size="xs" fw={700} c="#a8bac7">01 / 실제 소비의 모습</Text>
       <Title order={2}>아직 그릴 수 있는 소비 내역이 없어요</Title>
-      <Text c="#a8bac7">현재 범위에 취소가 아닌 양수 금액의 유효한 거래가 있으면 소비 구조와 흐름을 볼 수 있어요.</Text>
-      {excludedCount > 0 && <Text size="sm" c="#a8bac7">금액 집계 제외: 취소 {model.excluded.cancelled}건 · 0원·음수 {model.excluded.nonPositive}건 · 날짜·금액 오류 {model.excluded.invalid}건</Text>}
+      <Text c="#a8bac7">현재 범위에 승인 상태인 양수 금액의 유효한 거래가 있으면 소비 구조와 흐름을 볼 수 있어요.</Text>
+      {excludedCount > 0 && <Text size="sm" c="#a8bac7">금액 집계 제외: 취소 {model.excluded.cancelled}건 · 0원·음수 {model.excluded.nonPositive}건 · 날짜·금액 오류 {model.excluded.invalid}건 · 확인 필요 {model.excluded.unknown}건</Text>}
     </Stack>
   );
 
@@ -194,8 +194,8 @@ export function SpendingDiscovery({ transactions, categories, entryRequested = f
       </Box>
 
       <Group justify="space-between" align="start" className={styles.dataBasis} gap="lg">
-        <Stack gap={5}><Text size="sm" fw={700}>실제 기록이 있는 구간만 그렸어요.</Text><Text size="xs" c="#a8bac7">{model.start} ~ {model.end} · 취소가 아닌 양수 금액 {model.records.length}건 기준. 기록이 없는 구간의 집계 금액은 0원입니다.</Text></Stack>
-        <Stack gap={5}><Text size="xs" c="#a8bac7">조회 내역 {transactions.length}건 중 금액 집계 제외 {excludedCount}건</Text><Text size="xs" c="#a8bac7">취소 {model.excluded.cancelled} · 0원·음수 {model.excluded.nonPositive} · 날짜·금액 오류 {model.excluded.invalid}</Text></Stack>
+        <Stack gap={5}><Text size="sm" fw={700}>실제 기록이 있는 구간만 그렸어요.</Text><Text size="xs" c="#a8bac7">{model.start} ~ {model.end} · 승인 상태인 양수 금액 {model.records.length}건 기준. 기록이 없는 구간의 집계 금액은 0원입니다.</Text></Stack>
+        <Stack gap={5}><Text size="xs" c="#a8bac7">조회 내역 {transactions.length}건 중 금액 집계 제외 {excludedCount}건</Text><Text size="xs" c="#a8bac7">취소 {model.excluded.cancelled} · 0원·음수 {model.excluded.nonPositive} · 날짜·금액 오류 {model.excluded.invalid} · 확인 필요 {model.excluded.unknown}</Text></Stack>
       </Group>
 
       <section data-scene={1} tabIndex={-1} aria-labelledby="pulse-heading" className={styles.pulseScene}>

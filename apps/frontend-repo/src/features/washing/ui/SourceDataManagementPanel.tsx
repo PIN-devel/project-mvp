@@ -1,4 +1,5 @@
 import {
+  Badge,
   Button,
   Group,
   NativeSelect,
@@ -14,7 +15,7 @@ import {
 import { modals } from "@mantine/modals";
 import { IconArrowsSort, IconSortAscending, IconSortDescending, IconFileSpreadsheet, IconSearch } from "@tabler/icons-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Form, useActionData, useNavigation, useSubmit } from "react-router";
+import { Form, Link, useActionData, useNavigation, useSubmit } from "react-router";
 import { toast } from "@/shared/ui/toast";
 import type { ActionResult } from "@/features/washing/model/types";
 import { useSuspenseQueries } from "@tanstack/react-query";
@@ -34,26 +35,18 @@ import type {
 const categorySelectData = (categories: CategoryDto[]) => [
   { value: "all", label: "전체 카테고리" },
   { value: "unclassified", label: "미분류" },
-  ...categories.map((cat) => ({ value: cat.name, label: cat.name })),
+  ...categories.map((cat) => ({ value: String(cat.id), label: `${cat.name} (${cat.isDefault ? "기본" : "내 카테고리"})` })),
 ];
 
 const buildCategoryValue = (tx: TransactionDto, categories: CategoryDto[]) => {
-  if (tx.categoryId != null) return `${tx.categoryId}:${tx.categoryName ?? ""}`;
-  if (!tx.categoryName) return "";
-  const matched = categories.find((c) => c.name === tx.categoryName);
-  return matched ? `${matched.id}:${matched.name}` : `0:${tx.categoryName}`;
+  const categoryId = tx.foundation?.categoryId;
+  return categoryId != null && categories.some((category) => category.id === categoryId) ? String(categoryId) : "";
 };
 
-const buildCategoryOptions = (tx: TransactionDto, categories: CategoryDto[]) => {
-  const opts = [
-    { value: "", label: "미분류" },
-    ...categories.map((cat) => ({ value: `${cat.id}:${cat.name}`, label: cat.name })),
-  ];
-  if (tx.categoryName && tx.categoryId == null && !categories.some((c) => c.name === tx.categoryName)) {
-    opts.push({ value: `0:${tx.categoryName}`, label: tx.categoryName });
-  }
-  return opts;
-};
+const buildCategoryOptions = (_tx: TransactionDto, categories: CategoryDto[]) => [
+  { value: "", label: "미분류" },
+  ...categories.map((cat) => ({ value: String(cat.id), label: `${cat.name} (${cat.isDefault ? "기본" : "내 카테고리"})` })),
+];
 
 const filterLedgerTransactions = (
   transactions: TransactionDto[],
@@ -70,7 +63,7 @@ const filterLedgerTransactions = (
       filters.category === "all" ||
       (filters.category === "unclassified"
         ? !classified
-        : tx.categoryName === filters.category);
+        : String(tx.foundation?.categoryId) === filters.category);
 
     const matchesStatus =
       filters.status === "all" ||
@@ -97,7 +90,6 @@ export function SourceDataManagementPanel({ onOpenUpload }: SourceDataManagement
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<SortField | null>("transactionDate");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [focusedMemoId, setFocusedMemoId] = useState<number | null>(null);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -273,7 +265,7 @@ export function SourceDataManagementPanel({ onOpenUpload }: SourceDataManagement
                       금액
                     </Group>
                   </Table.Th>
-                  <Table.Th w={160}>태그</Table.Th>
+                  <Table.Th w={160}>정리 상태</Table.Th>
                   <Table.Th w={150}>동작</Table.Th>
                 </Table.Tr>
               </Table.Thead>
@@ -310,20 +302,13 @@ export function SourceDataManagementPanel({ onOpenUpload }: SourceDataManagement
                         {formatAmount(tx.amount)}원
                       </Table.Td>
                       <Table.Td>
-                        <TextInput
-                          form={`category-form-${tx.id}`}
-                          name="tag"
-                          aria-label={`${tx.merchant} 태그`}
-                          title={tx.tag || undefined}
-                          styles={{ input: { textOverflow: "ellipsis" } }}
-                          defaultValue={tx.tag ?? ""}
-                          placeholder="태그 입력"
-                          readOnly={focusedMemoId !== tx.id}
-                          onFocus={() => setFocusedMemoId(tx.id)}
-                          onBlur={() =>
-                            setFocusedMemoId((current) => (current === tx.id ? null : current))
-                          }
-                        />
+                        <Stack gap={4}>
+                          <Badge color={isTransactionClassified(tx) ? "teal" : "orange"} variant="light">
+                            {(!tx.foundation || tx.foundation.classification === "INCONSISTENT") ? "분류 확인 필요" : isTransactionClassified(tx) ? "분류 완료" : "미분류"}
+                          </Badge>
+                          {tx.foundation?.appliedRuleId != null && <Text component={Link} to="/washing/rules" size="xs" c="teal.8">규칙 #{tx.foundation.appliedRuleId}</Text>}
+                          <Text size="xs" c="dimmed">{(tx.foundation?.canonicalStatus ?? "UNKNOWN") === "UNKNOWN" ? `승인 상태 확인 필요 (${tx.status || "값 없음"})` : tx.status}</Text>
+                        </Stack>
                       </Table.Td>
                       <Table.Td>
                         <Group wrap="nowrap" gap="xs">

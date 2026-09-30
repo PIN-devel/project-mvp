@@ -31,19 +31,33 @@ describe("첫 경험과 인증 경계", () => {
     await screen.findByRole("button", { name: "Excel 이용내역 업로드" });
     expect(router.state.location.pathname).toBe("/washing");
     expect(read).not.toHaveBeenCalled();
-    expect(screen.getAllByRole("tab").slice(0, 3).map((tab) => tab.textContent)).toEqual(["이용내역", "소비 분석", "자동 분류 규칙"]);
+    expect(screen.getAllByRole("tab").slice(0, 2).map((tab) => tab.textContent)).toEqual(["이용내역", "소비 분석"]);
     fireEvent.click(screen.getByRole("button", { name: "Excel 이용내역 업로드" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/login"));
     expect(read).not.toHaveBeenCalled();
     router.dispose();
   });
 
-  it.each(["/insights", "/rules", "/sample"])("비로그인 %s 진입은 데이터 조회 전에 차단한다", async (path) => {
+  it.each(["/insights", "/rules", "/washing/rules", "/sample"])("비로그인 %s 진입은 데이터 조회 전에 차단한다", async (path) => {
     const read = vi.fn(() => HttpResponse.json([]));
     server.use(http.get("/api/transactions", read), http.get("/api/categories", read), http.get("/api/sample", read));
     const router = renderRoute(path);
     await waitFor(() => expect(router.state.location.pathname).toBe("/login"));
     expect(read).not.toHaveBeenCalled();
+    router.dispose();
+  });
+
+  it("기존 Rules URL은 하위 경로로 redirect하고 이용내역 탭과 복귀 링크를 제공한다", async () => {
+    useAppStore.getState().setSession("test-token", "사용자");
+    const router = renderRoute("/rules?from=legacy");
+    await screen.findByRole("heading", { name: "반복되는 내역을 내 기준으로 정리해요" });
+    expect(router.state.location.pathname).toBe("/washing/rules");
+    expect(router.state.location.search).toBe("?from=legacy");
+    expect(screen.getByRole("tab", { name: "이용내역" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByRole("tab", { name: "자동 분류 규칙" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("자동 태그")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("link", { name: "← 이용내역으로 돌아가기" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/washing"));
     router.dispose();
   });
 

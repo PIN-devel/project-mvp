@@ -50,6 +50,13 @@ const ruleEngineLoader = () => async () => {
 };
 
 export const routes: RouteObject[] = [
+  {
+    path: "/rules",
+    loader: ({ request }) => {
+      const url = new URL(request.url);
+      return redirect(`/washing/rules${url.search}${url.hash}`);
+    },
+  },
   // 1. 공통 헤더 쉘 레이아웃에서 탈출한 단독 풀스크린 라우트
   {
     path: "/login",
@@ -92,7 +99,7 @@ export const routes: RouteObject[] = [
         action: protectedAction(washingAction(queryClient)),
       },
       {
-        path: "rules",
+        path: "washing/rules",
         element: <RuleEngineBuilderPage />,
         loader: protectedLoader(ruleEngineLoader()),
         action: protectedAction(washingAction(queryClient)),

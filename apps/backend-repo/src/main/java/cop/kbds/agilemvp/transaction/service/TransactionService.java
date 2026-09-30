@@ -72,7 +72,7 @@ public class TransactionService {
         dto.setTag(TagUtil.normalize(dto.getTag()));
         syncClassifiedFlag(dto);
         transactionRepository.insert(dto);
-        return dto;
+        return transactionRepository.findById(dto.getId());
     }
 
     @Transactional
@@ -113,10 +113,17 @@ public class TransactionService {
         dto.setId(id);
         dto.setUserId(userId);
         resolveCategoryId(dto, userId);
-        dto.setTag(TagUtil.normalize(dto.getTag()));
+        // A hidden/unchanged tag must survive an unrelated PUT, including legacy formatting.
+        if ((!dto.isTagSpecified() && dto.getTag() == null) || java.util.Objects.equals(dto.getTag(), existing.getTag())) {
+            dto.setTag(existing.getTag());
+        } else {
+            dto.setTag(TagUtil.normalize(dto.getTag()));
+        }
+        dto.setAppliedRuleId(java.util.Objects.equals(dto.getCategoryId(), existing.getCategoryId())
+                ? existing.getAppliedRuleId() : null);
         syncClassifiedFlag(dto);
         transactionRepository.update(dto);
-        return dto;
+        return transactionRepository.findById(id);
     }
 
     public TransactionDto patchCategory(Long id, Long categoryId, Long userId) {
@@ -126,7 +133,7 @@ public class TransactionService {
         if (categoryRepository.findByIdAvailable(categoryId, userId) == null) {
             throw new BusinessException(CommonErrorCode.ENTITY_NOT_FOUND);
         }
-        transactionRepository.updateCategory(id, categoryId, MANUAL_CATEGORY_TAG);
+        transactionRepository.updateCategory(id, categoryId, existing.getTag());
         return transactionRepository.findById(id);
     }
 

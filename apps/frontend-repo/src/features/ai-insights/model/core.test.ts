@@ -1,3 +1,4 @@
+import { transactionResponse } from "@/mocks/transactionResponse";
 import { describe, expect, it } from "vitest";
 import type { TransactionDto } from "@/features/ai-insights/model/types";
 import { buildRecommendedGoals } from "@/features/ai-insights/model/core";
@@ -8,7 +9,7 @@ const transaction = (
   amount: number,
   status = "승인",
   categoryName: string | null = "식음료",
-): TransactionDto => ({
+): TransactionDto => transactionResponse({
   id,
   userId: 1,
   transactionDate,

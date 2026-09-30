@@ -1,6 +1,7 @@
 package cop.kbds.agilemvp.washing.controller;
 
 import cop.kbds.agilemvp.transaction.controller.TransactionDto;
+import cop.kbds.agilemvp.transaction.service.TransactionFoundation;
 
 public record WashingTransactionResponse(
         Long id,
@@ -13,7 +14,8 @@ public record WashingTransactionResponse(
         Boolean isClassified,
         String matchedRuleLabel,
         String tag,
-        String source
+        String source,
+        TransactionFoundation foundation
 ) {
     public static WashingTransactionResponse from(TransactionDto transaction) {
         String tag = transaction.getTag() == null ? "" : transaction.getTag();
@@ -26,9 +28,10 @@ public record WashingTransactionResponse(
                 transaction.getAmount(),
                 transaction.getCategoryName(),
                 Boolean.TRUE.equals(transaction.getIsClassified()),
-                tag.isBlank() ? null : tag,
+                transaction.getAppliedRuleId() == null ? null : "규칙 #" + transaction.getAppliedRuleId(),
                 tag,
-                "CARD"
+                "CARD",
+                transaction.getFoundation()
         );
     }
 }
