@@ -61,7 +61,7 @@ export function FirstExperienceHero({
           </p>
           <div className={styles.actions}>
             <button className={styles.primary} type="button" onClick={empty || needsMore ? onUpload : ready ? () => navigate("/insights") : onOrganize}>
-              {empty ? "Excel 이용내역 업로드" : needsMore ? "이용내역 더 추가하기" : ready ? "소비 분석으로 이어가기" : `남은 ${remaining}건 분류하기`}
+              {empty ? "Excel 이용내역 업로드" : needsMore ? "이용내역 더 추가하기" : ready ? "소비 분석으로 이어가기" : completed === 0 ? "소비 내역 분류 시작하기" : `남은 ${remaining}건 분류하기`}
               <IconArrowRight size={19} aria-hidden="true" />
             </button>
             <button className={styles.secondary} type="button" onClick={empty || ready ? onSeeRecords : needsMore ? onOrganize : () => navigate("/insights")}>

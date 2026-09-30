@@ -218,13 +218,16 @@ describe("Washing feature integration flow", () => {
     expect(screen.queryByText("✓ 분류 완료")).not.toBeInTheDocument();
   });
 
-  it.each([1, 9])("%i건은 분류 완료 여부와 관계없이 추가 업로드가 Primary다", async (count) => {
+  it.each([1, 7, 9])("%i건 모두 분류하면 추가 업로드와 내역 다시 보기를 제공한다", async (count) => {
     dbLedger.getAll().slice(count).forEach(({ id }) => dbLedger.delete(id));
     dbLedger.getAll().forEach(({ id }) => dbLedger.update(id, { categoryId: 1, categoryName: "식음료", isClassified: true }));
     renderFeature();
     const primary = await screen.findByRole("button", { name: "이용내역 더 추가하기" });
     expect(screen.getByText(`현재 ${count}건 · ${10 - count}건 더 필요해요.`)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /소비 분석으로 이어가기|현재 내역으로 소비 분석 보기/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "남은 0건 분류하기" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /내역 다시 보기/ }));
+    expect(screen.getByRole("tab", { name: /전체 내역/ })).toHaveAttribute("aria-selected", "true");
     fireEvent.click(primary);
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
   });
@@ -233,8 +236,9 @@ describe("Washing feature integration flow", () => {
     dbLedger.getAll().slice(10).forEach(({ id }) => dbLedger.delete(id));
     dbLedger.getAll().forEach(({ id }) => dbLedger.update(id, { categoryId: classified ? 1 : null, categoryName: classified ? "식음료" : null, isClassified: classified }));
     renderFeature();
-    const primary = await screen.findByRole("button", { name: classified ? "소비 분석으로 이어가기" : "남은 10건 분류하기" });
+    const primary = await screen.findByRole("button", { name: classified ? "소비 분석으로 이어가기" : "소비 내역 분류 시작하기" });
     if (!classified) {
+      expect(screen.queryByRole("button", { name: "남은 10건 분류하기" })).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "현재 내역으로 소비 분석 보기" })).toBeInTheDocument();
       fireEvent.click(primary);
       expect(screen.getByRole("tab", { name: /분류할 내역/ })).toHaveAttribute("aria-selected", "true");
