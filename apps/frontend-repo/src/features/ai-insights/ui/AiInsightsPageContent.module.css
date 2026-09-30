@@ -16,6 +16,67 @@
   word-break: keep-all;
 }
 
+/* MVP-381: one narrative, three data scenes. Layout remains Mantine-owned. */
+.scopeContext { padding: 22px 28px; border: 1px solid #dce7e8; border-radius: 18px; background: white; }
+.scopeContext > :first-child { gap: 14px; }
+.structureScene { padding: 32px 42px 20px; background: #0d1730; border-radius: 26px; overflow: hidden; }
+.structureScene h2, .pulseScene h2, .explorationScene h2, .aiHeading h2 { font-size: clamp(25px, 2.5vw, 34px); letter-spacing: -0.045em; line-height: 1.3; word-break: keep-all; }
+.orbitCanvas { min-width: 0; }
+.orbitSvg { width: 100%; max-height: 520px; overflow: visible; }
+.orbitSegment { cursor: pointer; transition: opacity 200ms ease; }
+.orbitSegment:focus { outline: none; }
+.orbitSegment:focus-visible > circle:first-of-type { stroke-width: 42px; }
+.structureReading { padding-block: 28px; min-width: 0; }
+.structureCategory { font-size: 28px; letter-spacing: -0.04em; }
+.bigRatio { font-size: clamp(46px, 4.5vw, 66px); font-weight: 800; letter-spacing: -0.06em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.categoryList { max-height: 244px; overflow-y: auto; padding: 3px; }
+.categoryRow { padding: 12px 10px; border-top: 1px solid rgb(255 255 255 / 12%); border-radius: 6px; transition: background 160ms ease; }
+.categoryRow:hover, .categoryRow[data-selected] { background: rgb(255 255 255 / 8%); }
+.categoryRow:focus-visible { outline: 2px solid #31e6b8; outline-offset: 1px; }
+.dataBasis { padding-inline: 4px; }
+.pulseScene { padding: 22px 4px 28px; }
+.pulseCanvas { min-width: 0; }
+.pulseCanvas svg { display: block; width: 100%; overflow: visible; }
+.pulseBar { cursor: pointer; }
+.pulseLine { stroke-dasharray: 2200; stroke-dashoffset: 0; }
+.pulseScene[data-revealed] .pulseLine { animation: trace-spending 900ms ease-out; }
+.structureScene[data-revealed], .explorationScene[data-revealed] { animation: scene-arrive 550ms ease-out; }
+.pulseDetail { border-top: 1px solid #dce7e8; padding-top: 18px; }
+.explorationScene { padding: 32px; background: #edf3f3; border-radius: 24px; }
+.constellationCanvas svg { display: block; width: 100%; overflow: visible; }
+.merchantNode { cursor: pointer; transition: opacity 180ms ease; }
+.merchantNode circle { transition: fill-opacity 160ms ease, stroke 160ms ease; }
+.merchantNode:hover circle { fill-opacity: 0.45; }
+.merchantNode:focus { outline: none; }
+.merchantNode:focus-visible circle { stroke: #006b56; stroke-width: 3px; }
+.merchantDetail { min-width: 0; padding: 24px; background: white; border-radius: 16px; }
+.merchantDetail h3 { overflow-wrap: anywhere; }
+.transactionList { max-height: 260px; overflow-y: auto; }
+.transactionRow { padding-block: 12px; border-top: 1px solid #e4eceb; }
+.allTransactions summary { cursor: pointer; font-size: 13px; color: #006b56; }
+.allTransactions > :last-child { max-height: 260px; overflow-y: auto; }
+.aiHeading { margin-top: 12px; }
+.aiInterpretation { padding: 32px 36px; background: #24354a; border-radius: 21px; }
+.aiInterpretation h2 { font-size: clamp(24px, 2.5vw, 34px); line-height: 1.4; letter-spacing: -0.04em; word-break: keep-all; }
+.discoveryEmpty { padding-inline: 28px; border: 1px dashed #c4d5d3; border-radius: 22px; }
+@keyframes trace-spending { from { stroke-dashoffset: 2200; } to { stroke-dashoffset: 0; } }
+@keyframes scene-arrive { from { transform: translateY(12px); } to { transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .pulseScene[data-revealed] .pulseLine, .structureScene[data-revealed], .explorationScene[data-revealed] { animation: none; }
+  .orbitSegment, .merchantNode, .merchantNode circle, .categoryRow { transition: none; }
+}
+@media (max-width: 48em) {
+  .structureScene { padding: 24px 20px; }
+  .scopeContext, .aiInterpretation, .explorationScene { padding: 24px 20px; }
+  .structureReading { padding-block: 0; }
+  .orbitSvg { max-height: 380px; }
+  .categoryList { max-height: 208px; }
+  .pulseCanvas { overflow-x: auto; padding-bottom: 6px; }
+  .pulseCanvas svg { min-width: 660px; }
+  .merchantDetail { padding: 20px; }
+  .page { gap: 30px; }
+}
+
 .analysisGrid {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(340px, 0.7fr);

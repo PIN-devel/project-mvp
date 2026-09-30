@@ -55,6 +55,7 @@ import type {
 } from "@/features/ai-insights/model/types";
 import { toast } from "@/shared/ui/toast";
 import { canAnalyzeTransactions, MIN_ANALYSIS_TRANSACTION_COUNT } from "@/shared/model/analysisEligibility";
+import { SpendingDiscovery } from "./SpendingDiscovery";
 import styles from "./AiInsightsPageContent.module.css";
 
 const periodOptions = [
@@ -338,9 +339,90 @@ export function AiInsightsPageContent() {
           </Text>
         </Stack>
 
-        <div className={styles.analysisGrid}>
+        <Paper className={styles.scopeContext}>
+          <Stack gap="md">
+            <Group justify="space-between" align="start" gap="md">
+              <Stack gap={3}>
+                <Title order={3} fz="md">지금 살펴보는 소비</Title>
+                <Text size="xs" c="dimmed">시각화와 AI 분석에 함께 적용돼요. 최근 기간은 마지막 거래일 기준입니다.</Text>
+              </Stack>
+              <Stack gap={3}>
+                <Text size="sm" fw={700}>{filteredTransactions.length}건 · {getPeriodLabel(filters.period)} · {categoryLabel}</Text>
+                <Text size="xs" c="dimmed">분류 {filteredTransactions.length - unclassifiedCount}건 · 미분류 {unclassifiedCount}건</Text>
+              </Stack>
+            </Group>
+            <Group align="end" gap="md">
+              <NativeSelect
+                w={{ base: "100%", sm: 190 }}
+                label="조회 기간"
+                ref={analysisScopeRef}
+                value={filters.period}
+                disabled={requestInProgress}
+                onChange={(event) => {
+                  const period = event.currentTarget.value as InsightFilters["period"];
+                  setFilters((current) => ({
+                    ...current,
+                    period,
+                  }));
+                }}
+                data={periodOptions}
+              />
+              <NativeSelect
+                w={{ base: "100%", sm: 190 }}
+                label="카테고리"
+                value={String(filters.categoryId ?? "all")}
+                disabled={requestInProgress}
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  setFilters((current) => ({
+                    ...current,
+                    categoryId: value === "all" ? null : Number(value),
+                  }));
+                }}
+                data={[
+                  { value: "all", label: "전체 카테고리" },
+                  ...categories.map((category) => ({
+                    value: String(category.id),
+                    label: category.name,
+                  })),
+                ]}
+              />
+
+              {!requestInProgress && (!insight || isStaleInsight) && (
+                <Button
+                  color="brandMint"
+                  onClick={needsMoreRecords ? () => navigate("/washing") : requestInsight}
+                  disabled={!needsMoreRecords && !canAnalyze}
+                  aria-describedby={!canAnalyze ? "analysis-eligibility" : undefined}
+                  w="fit-content"
+                  size="md"
+                >
+                  {needsMoreRecords ? "이용내역 더 추가하기" : isStaleInsight ? "다시 분석하기" : requestErrorMessage ? "같은 조건으로 다시 시도하기" : "내 소비 분석하기"}
+                </Button>
+              )}
+            </Group>
+            {requestInProgress && <Text size="sm" role="status" c="dimmed">선택한 내역을 분석하고 있어요. 아래에서 진행 상태를 확인할 수 있어요.</Text>}
+            {unclassifiedCount > 0 && <Group gap="sm">
+              <Text size="xs" c="dimmed">미분류 내역도 분석에 포함돼요. 카테고리별 해석은 제한될 수 있어요.</Text>
+              <Button variant="subtle" color="teal" size="xs" disabled={requestInProgress} onClick={() => navigate("/washing")}>남은 {unclassifiedCount}건 분류하기</Button>
+            </Group>}
+            {!canAnalyze && <Text size="sm" id="analysis-eligibility" role="status" c="dimmed">
+              {needsMoreRecords ? `현재 ${transactions.length}건 · ${MIN_ANALYSIS_TRANSACTION_COUNT - transactions.length}건 더 추가하면 분석할 수 있어요.` : `현재 조건에서는 ${filteredTransactions.length}건이에요. 기간이나 카테고리 범위를 넓혀 최소 ${MIN_ANALYSIS_TRANSACTION_COUNT}건을 선택해 주세요.`}
+            </Text>}
+          </Stack>
+        </Paper>
+
+        <SpendingDiscovery key={currentSignature} transactions={filteredTransactions} categories={categories} />
+
+        <Stack gap="sm" className={styles.aiHeading}>
+          <Text size="xs" fw={700} c="teal.8" lts={1.5}>04 / MAKE SENSE OF IT</Text>
+          <Title order={2}>눈에 보인 흐름에, 해석을 더해요.</Title>
+          <Text size="sm" c="dimmed">위 시각화는 실제 거래의 집계, 아래 내용은 선택한 내역에 대한 AI 해석이에요. 목표 후보는 별도로 실제 분류 내역에서 계산합니다.</Text>
+        </Stack>
+
+        <Stack gap="lg">
           <Paper
-            className={styles.analysisStory}
+            className={styles.aiInterpretation}
             c="white"
           >
             <Stack justify="space-between" h="100%" gap="xl">
@@ -391,88 +473,13 @@ export function AiInsightsPageContent() {
                     정리한 내역에서 나의 소비를 읽어볼까요?
                   </Title>
                   <Text c="gray.3" maw={520}>
-                    실제 이용내역에서 눈여겨볼 소비 흐름을 찾아요. 원하면 오른쪽에서 분석 범위를 조정할 수 있어요.
+                    실제 이용내역에서 눈여겨볼 소비 흐름을 찾아요. 원하면 위에서 조회 범위를 조정할 수 있어요.
                   </Text>
                 </Stack>
               )}
-              {!requestInProgress && (!insight || isStaleInsight) && (
-                <Button
-                  color="brandMint"
-                  onClick={needsMoreRecords ? () => navigate("/washing") : requestInsight}
-                  disabled={!needsMoreRecords && !canAnalyze}
-                  aria-describedby={!canAnalyze ? "analysis-eligibility" : undefined}
-                  w="fit-content"
-                  size="md"
-                >
-                  {needsMoreRecords ? "이용내역 더 추가하기" : isStaleInsight ? "다시 분석하기" : requestErrorMessage ? "같은 조건으로 다시 시도하기" : "내 소비 분석하기"}
-                </Button>
-              )}
             </Stack>
           </Paper>
-
-          <Paper className={styles.analysisEvidence}>
-            <Stack gap="lg" h="100%">
-              <Stack gap={3}>
-                <Title order={3}>분석 범위</Title>
-                <Text size="sm" c="dimmed">
-                  선택한 기간과 카테고리에 해당하는 이용내역을 분석합니다.
-                </Text>
-              </Stack>
-              <div className={styles.scopeCount}>
-                <Text size="xs" c="dimmed">현재 분석 대상 이용내역</Text>
-                <strong>{filteredTransactions.length}<small>건</small></strong>
-                <Text size="sm" fw={700}>{getPeriodLabel(filters.period)} · {categoryLabel}</Text>
-                <Text size="sm" c="dimmed" mt="xs">분류 {filteredTransactions.length - unclassifiedCount}건 · 미분류 {unclassifiedCount}건</Text>
-              </div>
-              {unclassifiedCount > 0 && <Stack gap={6}>
-                <Text size="xs" c="dimmed">미분류 내역도 분석에 포함돼요. 카테고리별 해석은 제한될 수 있어요.</Text>
-                <Button variant="subtle" color="teal" size="xs" w="fit-content" disabled={requestInProgress} onClick={() => navigate("/washing")}>
-                  남은 {unclassifiedCount}건 분류하기
-                </Button>
-              </Stack>}
-              {!canAnalyze && <Text size="sm" id="analysis-eligibility" role="status" c="dimmed">
-                {needsMoreRecords
-                  ? `현재 ${transactions.length}건 · ${MIN_ANALYSIS_TRANSACTION_COUNT - transactions.length}건 더 추가하면 분석할 수 있어요.`
-                  : `현재 조건에서는 ${filteredTransactions.length}건이에요. 기간이나 카테고리 범위를 넓혀 최소 ${MIN_ANALYSIS_TRANSACTION_COUNT}건을 선택해 주세요.`}
-              </Text>}
-              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-                <NativeSelect
-                  label="조회 기간"
-                  ref={analysisScopeRef}
-                  value={filters.period}
-                  disabled={requestInProgress}
-                  onChange={(event) => {
-                    const period = event.currentTarget.value as InsightFilters["period"];
-                    setFilters((current) => ({
-                      ...current,
-                      period,
-                    }));
-                  }}
-                  data={periodOptions}
-                />
-                <NativeSelect
-                  label="카테고리"
-                  value={String(filters.categoryId ?? "all")}
-                  disabled={requestInProgress}
-                  onChange={(event) => {
-                    const value = event.currentTarget.value;
-                    setFilters((current) => ({
-                      ...current,
-                      categoryId: value === "all" ? null : Number(value),
-                    }));
-                  }}
-                  data={[
-                    { value: "all", label: "전체 카테고리" },
-                    ...categories.map((category) => ({
-                      value: String(category.id),
-                      label: category.name,
-                    })),
-                  ]}
-                />
-              </SimpleGrid>
-            </Stack>
-          </Paper>
-        </div>
+        </Stack>
 
         {requestErrorMessage && (
           <Alert
