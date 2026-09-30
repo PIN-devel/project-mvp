@@ -37,7 +37,16 @@ public class AnalysisService {
         if (!enough) return pending;
         AnalysisRun completed;
         try {
-            var result = validator.validate(snapshot, interpreter.interpret(snapshot));
+            var draft = interpreter.interpret(snapshot);
+            AnalysisResultValidator.Result result;
+            try {
+                result = validator.validate(snapshot, draft);
+            } catch (AnalysisResultValidator.RejectedDraftException rejected) {
+                if (!"LITERAL_NUMBER".equals(rejected.reason())) throw rejected;
+                log.info("Analysis interpretation correction: runId={}, reason=LITERAL_NUMBER", pending.id());
+                // One model correction only. The same full evidence validation remains authoritative.
+                result = validator.validate(snapshot, interpreter.correctNumericProse(snapshot, draft));
+            }
             completed = finish(pending, "SUCCEEDED", null, result.findings(), result.opportunities());
         } catch (BusinessException e) {
             // Model timeout, availability or invalid evidence leave the Snapshot fully restorable.

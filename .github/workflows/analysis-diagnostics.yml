@@ -2,12 +2,6 @@ name: AI Analysis Diagnostics
 
 'on':
   workflow_dispatch:
-  # Allows the initial diagnostic to run before a main deployment replaces app.log.
-  push:
-    branches:
-      - hotfix/analysis-safe-diagnostics
-    paths:
-      - .github/workflows/analysis-diagnostics.yml
 
 permissions:
   contents: read
@@ -19,7 +13,7 @@ jobs:
     timeout-minutes: 3
     steps:
       - name: Read only allowlisted diagnostic fields
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@c4f70287fc37c43b14b30b407224bbbc8e8c6327
         with:
           host: ${{ secrets.LIGHTSAIL_IP }}
           username: ubuntu
@@ -30,5 +24,5 @@ jobs:
             test -r /opt/backend-app/app.log
             # Match only fixed diagnostic messages, never whole lines or response bodies.
             tail -n 2000 /opt/backend-app/app.log |
-              grep -oE 'Bedrock analysis response: modelId=[[:alnum:].:_/-]+, stopReason=[a-z_]+, outputTokens=([0-9]+|null)|Bedrock analysis response rejected: reason=[A-Z_]+|Analysis evidence validation rejected: reason=[A-Z_]+|Analysis interpretation failed: runId=[a-f0-9-]+, code=INS[0-9]+' |
+              grep -oE 'Bedrock analysis response: modelId=[[:alnum:].:_/-]+, stopReason=[a-z_]+, outputTokens=([0-9]+|null)|Bedrock analysis response rejected: reason=[A-Z_]+|Analysis evidence validation rejected: reason=[A-Z_]+|Analysis interpretation correction: runId=[a-f0-9-]+, reason=LITERAL_NUMBER|Analysis interpretation failed: runId=[a-f0-9-]+, code=INS[0-9]+' |
               tail -n 30

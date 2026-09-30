@@ -65,6 +65,20 @@ class BedrockAnalysisInterpreterTest {
         assertThat(request.getValue().inferenceConfig().maxTokens()).isEqualTo(8192);
     }
 
+    @Test void numericCorrectionSuppliesTheRejectedDraftAndKeepsTheEvidenceContract() throws Exception {
+        var rejected = json.readValue(VALID.replace("관측 소비 {{category.id:1.amount}}", "관측 소비 1000원"), AnalysisInterpreter.Draft.class);
+        given(client.converse(any(ConverseRequest.class))).willReturn(response(VALID, StopReason.END_TURN));
+        var corrected = interpreter.correctNumericProse(snapshot(), rejected);
+        assertThat(new AnalysisResultValidator().validate(snapshot(), corrected).opportunities()).hasSize(1);
+        var request = ArgumentCaptor.forClass(ConverseRequest.class);
+        verify(client, times(1)).converse(request.capture());
+        var messages = request.getValue().messages();
+        assertThat(messages).extracting(Message::role)
+                .containsExactly(ConversationRole.USER, ConversationRole.ASSISTANT, ConversationRole.USER);
+        assertThat(json.readValue(messages.get(1).content().getFirst().text(), AnalysisInterpreter.Draft.class)).isEqualTo(rejected);
+        assertThat(messages.getLast().content().getFirst().text()).contains("LITERAL_NUMBER", "{{evidenceId}}");
+    }
+
     @Test void tokenLimitRejectsEvenParseablePartialResultsWithoutAnotherModelCall() {
         given(client.converse(any(ConverseRequest.class))).willReturn(response(VALID, StopReason.MAX_TOKENS));
         assertFailure(InsightErrorCode.INVALID_MODEL_RESPONSE);
