@@ -1,6 +1,7 @@
 package cop.kbds.agilemvp.analysis;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -9,11 +10,13 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import cop.kbds.agilemvp.analysis.client.AnalysisInterpreter.*;
+import cop.kbds.agilemvp.analysis.client.AnalysisInterpreter;
 import cop.kbds.agilemvp.analysis.repository.AnalysisRunRepository;
 import cop.kbds.agilemvp.analysis.service.*;
 import cop.kbds.agilemvp.common.exception.BusinessException;
+import cop.kbds.agilemvp.insight.exception.InsightErrorCode;
 
-/** Three critical boundaries that compilation cannot establish. No model calls or mocked AI scenarios. */
+/** Real data boundaries and bounded model-correction orchestration. No external model calls. */
 @SpringBootTest(properties = {"bedrock.enabled=false", "spring.datasource.url=jdbc:h2:mem:analysis-contract;MODE=PostgreSQL;DB_CLOSE_DELAY=-1", "logging.level.cop.kbds.agilemvp=INFO"})
 @Transactional
 class AnalysisContractTest {
@@ -79,6 +82,75 @@ class AnalysisContractTest {
         session.clearCache(); // JDBC changes bypass MyBatis cache inside this test transaction.
         assertThat(analyses.handoff(owner, run.id(), run.opportunities().getFirst().id()).stale()).isTrue();
         assertThatThrownBy(() -> analyses.create(owner, all, run.snapshot().dataRevision())).isInstanceOf(BusinessException.class);
+    }
+
+    @Test void literalNumberCorrectionIsValidatedAndSavedAsTheSameRun() {
+        long owner = user(); long category = category(owner);
+        var snapshot = enoughSnapshot(owner, category);
+        var observation = snapshot.observations().getFirst();
+        var bad = draft(observation, observation.evidenceIds().getFirst(), category, "관측 소비 1000원");
+        var good = draft(observation, observation.evidenceIds().getFirst(), category,
+                "관측 소비 {{" + observation.evidenceIds().getFirst() + "}}를 확인해 보세요.");
+        var model = mock(AnalysisInterpreter.class);
+        when(model.interpret(snapshot)).thenReturn(bad);
+        when(model.correctNumericProse(snapshot, bad)).thenReturn(good);
+        var service = new AnalysisService(analytics, repository, model, validator);
+        var run = service.create(owner, all, null);
+        assertThat(run.status()).isEqualTo("SUCCEEDED");
+        assertThat(run.failureCode()).isNull();
+        assertThat(repository.find(owner, run.id()).findings()).isEqualTo(run.findings());
+        assertThat(repository.find(owner, run.id()).snapshot()).isEqualTo(snapshot);
+        verify(model, times(1)).interpret(snapshot);
+        verify(model, times(1)).correctNumericProse(snapshot, bad);
+    }
+
+    @Test void repeatedLiteralNumberFailureDoesNotLoopOrPublishInvalidProse() {
+        long owner = user(); long category = category(owner);
+        var snapshot = enoughSnapshot(owner, category);
+        var observation = snapshot.observations().getFirst();
+        var bad = draft(observation, observation.evidenceIds().getFirst(), category, "기간 2026년");
+        var model = mock(AnalysisInterpreter.class);
+        when(model.interpret(snapshot)).thenReturn(bad);
+        when(model.correctNumericProse(snapshot, bad)).thenReturn(bad);
+        var run = new AnalysisService(analytics, repository, model, validator).create(owner, all, null);
+        assertThat(run.status()).isEqualTo("AI_FAILED");
+        assertThat(run.failureCode()).isEqualTo("INS003");
+        assertThat(run.findings()).isEmpty();
+        assertThat(run.opportunities()).isEmpty();
+        assertThat(repository.find(owner, run.id()).snapshot()).isEqualTo(snapshot);
+        verify(model, times(1)).interpret(snapshot);
+        verify(model, times(1)).correctNumericProse(snapshot, bad);
+    }
+
+    @Test void otherEvidenceFailuresNeverTriggerNumericCorrection() {
+        long owner = user(); long category = category(owner);
+        var snapshot = enoughSnapshot(owner, category);
+        var observation = snapshot.observations().getFirst();
+        var model = mock(AnalysisInterpreter.class);
+        when(model.interpret(snapshot)).thenReturn(draft(observation, "invented", category, "근거 확인"));
+        var run = new AnalysisService(analytics, repository, model, validator).create(owner, all, null);
+        assertThat(run.failureCode()).isEqualTo("INS003");
+        verify(model, never()).correctNumericProse(any(), any());
+    }
+
+    @Test void correctionTimeoutPreservesTheSnapshotAndTimeoutCode() {
+        long owner = user(); long category = category(owner);
+        var snapshot = enoughSnapshot(owner, category);
+        var observation = snapshot.observations().getFirst();
+        var bad = draft(observation, observation.evidenceIds().getFirst(), category, "소비 1000원");
+        var model = mock(AnalysisInterpreter.class);
+        when(model.interpret(snapshot)).thenReturn(bad);
+        when(model.correctNumericProse(snapshot, bad)).thenThrow(new BusinessException(InsightErrorCode.GENERATION_TIMEOUT));
+        var run = new AnalysisService(analytics, repository, model, validator).create(owner, all, null);
+        assertThat(run.status()).isEqualTo("AI_FAILED");
+        assertThat(run.failureCode()).isEqualTo("INS001");
+        assertThat(repository.find(owner, run.id()).snapshot()).isEqualTo(snapshot);
+        verify(model, times(1)).correctNumericProse(snapshot, bad);
+    }
+
+    private AnalyticsSnapshot enoughSnapshot(long owner, long category) {
+        for (int day = 1; day <= 10; day++) transaction(owner, category, "2026-08-" + String.format("%02d", day), 100, "승인", true);
+        return analytics.query(owner, all);
     }
 
     private Draft draft(AnalyticsSnapshot.Observation obs, String ref, long category, String text) {

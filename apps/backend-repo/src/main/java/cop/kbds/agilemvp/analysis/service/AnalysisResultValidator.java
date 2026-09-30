@@ -21,6 +21,14 @@ import cop.kbds.agilemvp.insight.exception.InsightErrorCode;
 public class AnalysisResultValidator {
     private static final Pattern TOKEN = Pattern.compile("\\{\\{([^{}]+)}}");
     public record Result(List<Finding> findings, List<Opportunity> opportunities) {}
+    public static final class RejectedDraftException extends BusinessException {
+        private final String reason;
+        private RejectedDraftException(String reason) {
+            super(InsightErrorCode.INVALID_MODEL_RESPONSE);
+            this.reason = reason;
+        }
+        public String reason() { return reason; }
+    }
 
     public Result validate(AnalyticsSnapshot snapshot, Draft draft) {
         require(draft != null && draft.findings() != null && draft.opportunities() != null, "MISSING_ARRAYS");
@@ -80,7 +88,7 @@ public class AnalysisResultValidator {
         if (!condition) {
             // No merchant labels, transaction details, model text or evidence IDs enter diagnostics.
             log.warn("Analysis evidence validation rejected: reason={}", reason);
-            throw invalid();
+            throw new RejectedDraftException(reason);
         }
     }
     private BusinessException invalid() { return new BusinessException(InsightErrorCode.INVALID_MODEL_RESPONSE); }
