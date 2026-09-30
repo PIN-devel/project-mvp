@@ -18,6 +18,11 @@ let monthlyGoals: Array<{
 }> = [];
 let nextMonthlyGoalId = 1;
 
+export const resetMonthlyGoalsMock = () => {
+  monthlyGoals = [];
+  nextMonthlyGoalId = 1;
+};
+
 export const handlers = [
   http.get("/api/sample", async () => {
     if (!IS_TEST) await delay();

@@ -86,12 +86,12 @@ export function WashingPageContent() {
               <h2 id="work-title">내역 작업실</h2>
               <p>{empty ? "카드사에서 받은 파일 하나로 시작할 수 있어요." :
                 ready ? "분류한 내역을 살펴보고 필요하면 수정할 수 있어요." :
-                  "같은 카테고리의 내역을 골라 한 번에 정리하세요."}</p>
+                  "같은 카테고리의 내역을 골라 한 번에 분류하세요."}</p>
             </div>
             {!empty && <button type="button" className={styles.uploadSecondary} onClick={openUpload}>＋ Excel 추가</button>}
           </div>
           <div className={styles.tabs} role="tablist" aria-label="이용내역 보기">
-            <button type="button" role="tab" id="tab-primary" aria-controls="work-primary" aria-selected={activeView !== "all"} onClick={() => setView(empty ? "help" : ready ? "summary" : "pending")}>{empty ? "시작 안내" : ready ? "분류 한눈에" : <>정리할 내역 <span>{remaining}</span></>}</button>
+            <button type="button" role="tab" id="tab-primary" aria-controls="work-primary" aria-selected={activeView !== "all"} onClick={() => setView(empty ? "help" : ready ? "summary" : "pending")}>{empty ? "시작 안내" : ready ? "분류 한눈에" : <>분류할 내역 <span>{remaining}</span></>}</button>
             <button type="button" role="tab" id="tab-all" aria-controls="work-all" aria-selected={activeView === "all"} onClick={() => setView("all")}>전체 내역 <span>{total}</span></button>
           </div>
           <div className={styles.view} id="work-primary" role="tabpanel" aria-labelledby="tab-primary" hidden={activeView === "all"}>
@@ -120,7 +120,7 @@ export function WashingPageContent() {
           <h3>정리에서 이해로,<br />이해에서 변화로.</h3>
           <ol className={styles.journey}>
             <li><span className={`${styles.step} ${!empty ? styles.doneStep : ""}`}>{empty ? "1" : "✓"}</span><div><strong>내역 가져오기</strong><p>카드사 Excel 파일을 직접 업로드해요.</p></div></li>
-            <li><span className={`${styles.step} ${ready ? styles.doneStep : empty ? styles.futureStep : ""}`}>{ready ? "✓" : "2"}</span><div><strong>카테고리 정리하기</strong><p>같은 성격의 내역을 모아 소비의 윤곽을 만들어요.</p></div></li>
+            <li><span className={`${styles.step} ${ready ? styles.doneStep : empty ? styles.futureStep : ""}`}>{ready ? "✓" : "2"}</span><div><strong>카테고리 분류하기</strong><p>같은 성격의 내역을 모아 소비의 윤곽을 만들어요.</p></div></li>
             <li><span className={`${styles.step} ${ready ? "" : styles.futureStep}`}>3</span><div><strong>소비 패턴 살펴보기</strong><p>정리한 기록을 바탕으로 나의 소비를 이해해요.</p></div></li>
           </ol>
           <div className={styles.asideFooter}><Link to="/rules">반복되는 분류는 규칙으로 ↗</Link>자주 반복되는 분류를 규칙으로 정리해요.</div>

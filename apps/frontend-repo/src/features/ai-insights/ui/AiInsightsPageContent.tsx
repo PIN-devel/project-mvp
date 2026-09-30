@@ -1,6 +1,5 @@
 import {
   Alert,
-  Badge,
   Button,
   Container,
   Group,
@@ -11,17 +10,14 @@ import {
   Skeleton,
   Stack,
   Text,
-  ThemeIcon,
   Title,
 } from "@mantine/core";
 import {
   IconAlertTriangle,
   IconArrowDownRight,
-  IconBrain,
   IconCircleCheck,
   IconPlayerPause,
   IconRefresh,
-  IconSparkles,
   IconTargetArrow,
 } from "@tabler/icons-react";
 import {
@@ -30,7 +26,7 @@ import {
   useQueryClient,
   useSuspenseQueries,
 } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import {
   generateInsight,
@@ -58,6 +54,7 @@ import type {
   MonthlyGoalDraft,
 } from "@/features/ai-insights/model/types";
 import { toast } from "@/shared/ui/toast";
+import { canAnalyzeTransactions, MIN_ANALYSIS_TRANSACTION_COUNT } from "@/shared/model/analysisEligibility";
 import styles from "./AiInsightsPageContent.module.css";
 
 const periodOptions = [
@@ -150,6 +147,8 @@ export function AiInsightsPageContent() {
     useState<SelectedGoalPlan | null>(null);
   const [goalFeedback, setGoalFeedback] = useState<GoalFeedback | null>(null);
   const [showGoalChoices, setShowGoalChoices] = useState(false);
+  const analysisScopeRef = useRef<HTMLSelectElement>(null);
+  const goalSectionRef = useRef<HTMLElement>(null);
 
   const filteredTransactions = useMemo(
     () => filterTransactionsForInsight(transactions, filters),
@@ -162,6 +161,8 @@ export function AiInsightsPageContent() {
     (category) => category.id === filters.categoryId,
   );
   const categoryLabel = selectedCategory?.name ?? "전체 카테고리";
+  const canAnalyze = canAnalyzeTransactions(filteredTransactions.length);
+  const needsMoreRecords = !canAnalyzeTransactions(transactions.length);
   const currentSignature = `${filters.period}:${filters.categoryId ?? "all"}:${buildDataSignature(filteredTransactions)}`;
   const isStaleInsight =
     insight != null &&
@@ -259,7 +260,7 @@ export function AiInsightsPageContent() {
   });
 
   const requestInsight = () => {
-    if (insightMutation.isPending || filteredTransactions.length === 0) return;
+    if (insightMutation.isPending || !canAnalyze) return;
 
     const request = buildInsightRequest(filteredTransactions, filters);
     setInsight(null);
@@ -302,20 +303,27 @@ export function AiInsightsPageContent() {
   };
 
   const updateGoalStatus = (goalId: number, status: MonthlyGoal["status"]) => {
+    if (goalMutation.isPending) return;
     const goal = goals.find((item) => item.id === goalId);
     if (goal) goalMutation.mutate({ type: "status", goal, status });
   };
 
   const jumpToGoalSelection = () => {
     setShowGoalChoices(true);
-    document.getElementById("goal-selection")?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
+    requestAnimationFrame(() => {
+      goalSectionRef.current?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+        block: "start",
+      });
+      goalSectionRef.current?.focus({ preventScroll: true });
     });
   };
 
+  const changeAnalysisScope = () => {
+    analysisScopeRef.current?.focus();
+  };
+
   const requestInProgress = insightMutation.isPending;
-  const hasNoMatchingTransactions = filteredTransactions.length === 0;
 
   return (
     <Container size={1180}>
@@ -336,20 +344,11 @@ export function AiInsightsPageContent() {
             c="white"
           >
             <Stack justify="space-between" h="100%" gap="xl">
-              <Group justify="space-between" align="flex-start">
-                <Badge color="brandMint" variant="light" size="lg">
-                  {insight ? "발견한 소비 패턴" : "나의 소비 읽기"}
-                </Badge>
-                <ThemeIcon color="brandMint" variant="light" size={44} radius="xl">
-                  {requestInProgress ? (
-                    <IconRefresh size={22} />
-                  ) : (
-                    <IconBrain size={22} />
-                  )}
-                </ThemeIcon>
-              </Group>
+              <Text size="xs" c="gray.4" fw={600}>
+                {isStaleInsight ? "이전 분석 결과" : insight ? "발견한 소비 패턴" : "나의 소비 읽기"}
+              </Text>
               {requestInProgress ? (
-                <Stack gap="sm">
+                <Stack gap="sm" role="status" aria-live="polite">
                   <Title order={2} c="white">
                     선택한 내역을 읽고 있어요
                   </Title>
@@ -362,27 +361,28 @@ export function AiInsightsPageContent() {
               ) : insight ? (
                 <Stack gap="sm">
                   <Text size="xs" fw={700} c="brandMint.4" tt="uppercase">
-                    MOTIFIN INSIGHT
+                    핵심 발견
                   </Text>
                   <Title order={2} c="white" lh={1.35}>
                     {insight.summary}
                   </Title>
                   <Text size="xs" c="gray.4">
-                    {formatGeneratedAt(insight.generatedAt)} 생성
+                    {resultScope && `${getPeriodLabel(resultScope.filters.period)} · ${resultScope.categoryLabel} · ${resultScope.transactionCount}건 · `}{formatGeneratedAt(insight.generatedAt)} 생성
                   </Text>
+                  {isStaleInsight && <Text size="sm" c="gray.3">조회 조건이 바뀌었어요. 위 내용은 이전 범위의 결과예요.</Text>}
                 </Stack>
               ) : requestErrorMessage ? (
                 <Stack gap="sm">
                   <Title order={2} c="white">이번 분석을 마치지 못했어요</Title>
                   <Text c="gray.3" maw={520}>선택한 내역은 그대로예요. 아래 안내를 확인하고 같은 조건으로 다시 시도할 수 있어요.</Text>
                 </Stack>
-              ) : hasNoMatchingTransactions ? (
+              ) : !canAnalyze ? (
                 <Stack gap="sm">
                   <Title order={2} c="white">
-                    이 조건에 맞는 내역이 없어요
+                    {needsMoreRecords ? "소비를 이해할 기록을 조금 더 모아볼까요?" : "분석 범위를 조금 넓혀볼까요?"}
                   </Title>
                   <Text c="gray.3">
-                    기간이나 카테고리를 바꾸면 분석할 내역을 찾을 수 있어요.
+                    {needsMoreRecords ? `소비 패턴 분석은 ${MIN_ANALYSIS_TRANSACTION_COUNT}건부터 시작할 수 있어요.` : "현재 조건에 맞는 내역이 충분하지 않아요. 기간이나 카테고리 범위를 넓혀 주세요."}
                   </Text>
                 </Stack>
               ) : (
@@ -391,30 +391,20 @@ export function AiInsightsPageContent() {
                     정리한 내역에서 나의 소비를 읽어볼까요?
                   </Title>
                   <Text c="gray.3" maw={520}>
-                    조회 범위를 확인한 뒤 내 소비 분석하기를 선택하면, 실제 이용내역을 바탕으로 핵심 내용을 정리해요.
+                    실제 이용내역에서 눈여겨볼 소비 흐름을 찾아요. 원하면 오른쪽에서 분석 범위를 조정할 수 있어요.
                   </Text>
                 </Stack>
               )}
-              {!insight && !requestInProgress && !requestErrorMessage && (
+              {!requestInProgress && (!insight || isStaleInsight) && (
                 <Button
                   color="brandMint"
-                  leftSection={<IconSparkles size={17} />}
-                  onClick={requestInsight}
-                  disabled={hasNoMatchingTransactions}
+                  onClick={needsMoreRecords ? () => navigate("/washing") : requestInsight}
+                  disabled={!needsMoreRecords && !canAnalyze}
+                  aria-describedby={!canAnalyze ? "analysis-eligibility" : undefined}
                   w="fit-content"
                   size="md"
                 >
-                  내 소비 분석하기
-                </Button>
-              )}
-              {insight && !requestInProgress && !isStaleInsight && (
-                <Button
-                  color="brandMint"
-                  leftSection={<IconTargetArrow size={17} />}
-                  onClick={jumpToGoalSelection}
-                  w="fit-content"
-                >
-                  개선 목표 살펴보기
+                  {needsMoreRecords ? "이용내역 더 추가하기" : isStaleInsight ? "다시 분석하기" : requestErrorMessage ? "같은 조건으로 다시 시도하기" : "내 소비 분석하기"}
                 </Button>
               )}
             </Stack>
@@ -423,19 +413,32 @@ export function AiInsightsPageContent() {
           <Paper className={styles.analysisEvidence}>
             <Stack gap="lg" h="100%">
               <Stack gap={3}>
-                <Title order={3}>분석에 사용되는 정보</Title>
+                <Title order={3}>분석 범위</Title>
                 <Text size="sm" c="dimmed">
                   선택한 기간과 카테고리에 해당하는 이용내역을 분석합니다.
                 </Text>
               </Stack>
               <div className={styles.scopeCount}>
-                <Text size="xs" c="dimmed">조회 조건에 맞는 카드 이용내역</Text>
+                <Text size="xs" c="dimmed">현재 분석 대상 이용내역</Text>
                 <strong>{filteredTransactions.length}<small>건</small></strong>
                 <Text size="sm" fw={700}>{getPeriodLabel(filters.period)} · {categoryLabel}</Text>
+                <Text size="sm" c="dimmed" mt="xs">분류 {filteredTransactions.length - unclassifiedCount}건 · 미분류 {unclassifiedCount}건</Text>
               </div>
+              {unclassifiedCount > 0 && <Stack gap={6}>
+                <Text size="xs" c="dimmed">미분류 내역도 분석에 포함돼요. 카테고리별 해석은 제한될 수 있어요.</Text>
+                <Button variant="subtle" color="teal" size="xs" w="fit-content" disabled={requestInProgress} onClick={() => navigate("/washing")}>
+                  남은 {unclassifiedCount}건 분류하기
+                </Button>
+              </Stack>}
+              {!canAnalyze && <Text size="sm" id="analysis-eligibility" role="status" c="dimmed">
+                {needsMoreRecords
+                  ? `현재 ${transactions.length}건 · ${MIN_ANALYSIS_TRANSACTION_COUNT - transactions.length}건 더 추가하면 분석할 수 있어요.`
+                  : `현재 조건에서는 ${filteredTransactions.length}건이에요. 기간이나 카테고리 범위를 넓혀 최소 ${MIN_ANALYSIS_TRANSACTION_COUNT}건을 선택해 주세요.`}
+              </Text>}
               <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
                 <NativeSelect
                   label="조회 기간"
+                  ref={analysisScopeRef}
                   value={filters.period}
                   disabled={requestInProgress}
                   onChange={(event) => {
@@ -467,49 +470,9 @@ export function AiInsightsPageContent() {
                   ]}
                 />
               </SimpleGrid>
-              {insight && (
-                <Button
-                  color={isStaleInsight ? "brandMint" : "teal"}
-                  variant={isStaleInsight ? "filled" : "subtle"}
-                  leftSection={<IconRefresh size={17} />}
-                  onClick={requestInsight}
-                  loading={requestInProgress}
-                  disabled={hasNoMatchingTransactions}
-                  size="sm"
-                  w="fit-content"
-                  mt="auto"
-                >
-                  내 소비 분석하기
-                </Button>
-              )}
-              {hasNoMatchingTransactions && (
-                <Text size="xs" c="dimmed" ta="center">
-                  분석을 시작하려면 조회 조건을 다시 선택해 주세요.
-                </Text>
-              )}
             </Stack>
           </Paper>
         </div>
-
-        {unclassifiedCount > 0 && (
-          <Alert
-            color="orange"
-            variant="light"
-            icon={<IconAlertTriangle size={18} />}
-            title="분류가 필요한 내역이 있어요"
-          >
-            선택한 범위에 미분류 거래 {unclassifiedCount}건이 있어 카테고리별 해석은 제한될 수 있어요. 이 내역을 포함해 분석할 수 있습니다.
-            <Button
-              variant="subtle"
-              color="teal"
-              size="xs"
-              ml="xs"
-              onClick={() => navigate("/washing")}
-            >
-              이용내역 정리하기
-            </Button>
-          </Alert>
-        )}
 
         {requestErrorMessage && (
           <Alert
@@ -520,16 +483,6 @@ export function AiInsightsPageContent() {
           >
             <Stack gap="sm">
               <Text size="sm">{requestErrorMessage}</Text>
-              <Button
-                variant="light"
-                color="red"
-                leftSection={<IconRefresh size={16} />}
-                onClick={requestInsight}
-                loading={requestInProgress}
-                w="fit-content"
-              >
-                같은 조건으로 다시 시도하기
-              </Button>
             </Stack>
           </Alert>
         )}
@@ -541,7 +494,7 @@ export function AiInsightsPageContent() {
                 color="yellow"
                 variant="light"
                 icon={<IconRefresh size={16} />}
-                title="조회 조건이 바뀌었어요"
+                title="현재 범위와 다른 결과예요"
               >
                 아래 결과는 {getPeriodLabel(resultScope.filters.period)} · {resultScope.categoryLabel} · {resultScope.transactionCount}건 기준이에요. 현재 범위의 최신 결과를 보려면 다시 분석해 주세요.
               </Alert>
@@ -569,14 +522,6 @@ export function AiInsightsPageContent() {
                     className={styles.findingCard}
                   >
                     <Stack gap="sm">
-                      <Group justify="space-between">
-                        <Badge color="brandMint" variant="light">
-                          발견 {String(index + 1).padStart(2, "0")}
-                        </Badge>
-                        <ThemeIcon variant="light" color="brandMint" radius="xl">
-                          <IconSparkles size={17} />
-                        </ThemeIcon>
-                      </Group>
                       <Title order={4}>{card.title}</Title>
                       <Text size="sm" c="dimmed" lh={1.65}>
                         {card.description}
@@ -586,14 +531,23 @@ export function AiInsightsPageContent() {
                 ))}
               </SimpleGrid>
             </Stack>
+            {!isStaleInsight && <Stack gap="sm" pt="lg">
+              <Text size="sm" c="dimmed">발견한 소비 흐름을 바탕으로, 이번에 바꿔볼 한 가지를 골라보세요.</Text>
+              <Group gap="lg">
+                <Button color="brandMint.8" size="md" leftSection={<IconTargetArrow size={17} aria-hidden="true" />} onClick={jumpToGoalSelection}>
+                  개선 목표 살펴보기
+                </Button>
+                <Button variant="subtle" color="gray" onClick={changeAnalysisScope}>분석 범위 바꿔보기</Button>
+              </Group>
+            </Stack>}
           </Stack>
         )}
 
-        <section id="goal-selection" className={styles.goalSection}>
+        <section id="goal-selection" ref={goalSectionRef} tabIndex={-1} aria-labelledby="goal-heading" className={styles.goalSection}>
           <Stack gap="lg">
             <Stack gap={5} className={styles.goalHeading}>
               <Text size="sm" fw={800} c="teal.8" lts={1}>DISCOVERY → ACTION</Text>
-              <Title order={2}>발견을 나의 선택으로.</Title>
+              <Title order={2} id="goal-heading">발견을 나의 선택으로.</Title>
               <Text size="sm" c="dimmed">
                 정리한 이용내역에서 바꿔볼 한 가지를 고르세요. 저장된 목표는 소비 분석 결과와 관계없이 확인할 수 있어요.
               </Text>
@@ -606,13 +560,13 @@ export function AiInsightsPageContent() {
               >
                 <Stack gap="lg" h="100%" justify="space-between">
                   <Stack gap="md">
-                    <Badge color="brandMint" variant="light" w="fit-content">
+                    <Text size="xs" c="gray.4" fw={600}>
                       {selectedGoalPlan
                         ? "선택한 목표 계획"
                         : displayedSavedGoal
                           ? "저장된 목표"
                           : "목표 선택"}
-                    </Badge>
+                    </Text>
                     {selectedGoalPlan ? (
                       <>
                         <Stack gap={4}>
@@ -708,7 +662,7 @@ export function AiInsightsPageContent() {
                   <Stack gap={3}>
                     <Title order={4}>{goals.length > 0 && !showGoalChoices && !selectedGoalPlan ? "나의 목표" : "바꿔볼 목표 고르기"}</Title>
                     <Text size="xs" c="dimmed">
-                      목표 후보는 AI 추천이 아닌, 한 거래월의 실제 분류 내역에서 계산한 계획입니다.
+                      목표 후보는 분류된 이용내역을 기준으로 계산해요. 한 거래월의 실제 분류 내역을 사용합니다.
                     </Text>
                     {currentGoalMonth && <Text size="xs" c="dimmed">거래월 {currentGoalMonth} · 분류된 내역 {goalReferenceTransactions.length}건 · 취소 표시 내역 제외</Text>}
                   </Stack>
@@ -741,6 +695,7 @@ export function AiInsightsPageContent() {
 
                   {goalFeedback && (
                     <Alert
+                      role={goalFeedback.type === "success" ? "status" : "alert"}
                       color={goalFeedback.type === "success" ? "green" : "red"}
                       variant="light"
                       title={goalFeedback.type === "success" ? "저장 완료" : "저장 실패"}
@@ -836,7 +791,7 @@ export function AiInsightsPageContent() {
                                 <Button
                                   size="xs"
                                   variant={isSelected ? "filled" : "light"}
-                                  color="brandMint"
+                                  color="teal"
                                   disabled={goalMutation.isPending || isAlreadySaved}
                                   aria-pressed={isSelected}
                                   onClick={() => selectGoal(goal)}

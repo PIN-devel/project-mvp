@@ -22,17 +22,13 @@ import {
   IconChevronDown,
   IconLogout,
   IconReceipt,
-  IconSettings,
   IconSettingsAutomation,
   IconSparkles,
+  IconUser,
 } from "@tabler/icons-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
-import { useState } from "react";
 import type { IconProps } from "@tabler/icons-react";
 import { BrandLogo } from "@/shared/ui/BrandLogo";
-
-const userAvatarDefault =
-  "https://raw.githubusercontent.com/mantinedev/mantine/master/.demo/avatars/avatar-5.png";
 
 interface NavTab {
   label: string;
@@ -43,8 +39,8 @@ interface NavTab {
 
 const navTabs: NavTab[] = [
   { label: "이용내역", value: "/washing", icon: IconReceipt },
-  { label: "자동 분류 규칙", value: "/rules", icon: IconSettingsAutomation },
   { label: "소비 분석", value: "/insights", icon: IconChartBar },
+  { label: "자동 분류 규칙", value: "/rules", icon: IconSettingsAutomation },
   ...(import.meta.env.DEV
     ? [{ label: "샘플", value: "/sample", icon: IconSparkles }]
     : []),
@@ -70,7 +66,6 @@ export function AppHeader({
 }: AppHeaderProps) {
   const [drawerOpened, { toggle: toggleDrawer, close: closeDrawer }] =
     useDisclosure(false);
-  const [userMenuOpened, setUserMenuOpened] = useState(false);
   const resolvedActiveTab = getActiveTab(activeTab);
 
   return (
@@ -83,6 +78,7 @@ export function AppHeader({
               onClick={toggleDrawer}
               hiddenFrom="sm"
               size="sm"
+              aria-label="메뉴 열기"
             />
             <UnstyledButton
               onClick={() => onTabChange("/washing")}
@@ -93,43 +89,41 @@ export function AppHeader({
           </Group>
 
           <Group gap="sm">
+            <Text size="xs" c="dimmed" visibleFrom="md">
+              나의 소비를 이해하는 공간
+            </Text>
             {isAuthenticated ? (
               <Menu
-                width={260}
+                width={180}
                 position="bottom-end"
-                transitionProps={{ transition: "pop-top-right" }}
-                onClose={() => setUserMenuOpened(false)}
-                onOpen={() => setUserMenuOpened(true)}
+                transitionProps={{ duration: 0 }}
                 withinPortal
               >
                 <Menu.Target>
-                  <Button
-                    variant={userMenuOpened ? "light" : "subtle"}
-                    color="gray"
-                    px="xs"
-                    h={38}
+                  <UnstyledButton
+                    px={8}
+                    py={8}
+                    c="#0D1730"
+                    aria-label={`${nickname || "사용자"} 계정 메뉴`}
                   >
                     <Group gap={7}>
                       <Avatar
-                        src={userAvatarDefault}
-                        alt={nickname || "사용자"}
                         radius="xl"
-                        size={24}
-                      />
-                      <Text fw={500} size="sm" lh={1} mr={3} visibleFrom="xs">
-                        {nickname}
+                        size={22}
+                        color="gray"
+                        aria-hidden="true"
+                      >
+                        <IconUser size={16} stroke={1.5} />
+                      </Avatar>
+                      <Text fw={500} size="xs" lh={1} mr={3} visibleFrom="xs" maw={140} truncate>
+                        {nickname || "사용자"}
                       </Text>
                       <IconChevronDown size={12} stroke={1.5} />
                     </Group>
-                  </Button>
+                  </UnstyledButton>
                 </Menu.Target>
                 <Menu.Dropdown>
                   <Menu.Label>사용자</Menu.Label>
-                  <Menu.Item
-                    leftSection={<IconSettings size={16} stroke={1.5} />}
-                  >
-                    계정 설정
-                  </Menu.Item>
                   <Menu.Item
                     leftSection={<IconLogout size={16} stroke={1.5} />}
                     onClick={onLogout}
@@ -150,7 +144,8 @@ export function AppHeader({
                   로그인
                 </Button>
                 <Button
-                  color="brandMint"
+                  variant="subtle"
+                  color="gray"
                   radius="sm"
                   size="sm"
                   h={34}
@@ -197,7 +192,7 @@ export function AppHeader({
                   c={isActive ? "#0D1730" : "#64748B"}
                   fw={isActive ? 600 : 500}
                   style={{
-                    borderBottomColor: isActive ? "#31E6B8" : "transparent",
+                    borderBottomColor: isActive ? "#006B56" : "transparent",
                   }}
                 >
                   {tab.label}
@@ -213,7 +208,7 @@ export function AppHeader({
         onClose={closeDrawer}
         size="100%"
         padding="md"
-        title="Navigation"
+        title="메뉴"
         hiddenFrom="sm"
         zIndex={1000000}
       >

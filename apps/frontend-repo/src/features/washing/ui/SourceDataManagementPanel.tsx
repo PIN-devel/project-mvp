@@ -4,7 +4,6 @@ import {
   NativeSelect,
   Pagination,
   Paper,
-  ScrollArea,
   SimpleGrid,
   Stack,
   Table,
@@ -241,11 +240,17 @@ export function SourceDataManagementPanel({ onOpenUpload }: SourceDataManagement
             </Button>
           </Group>
 
-          <ScrollArea>
-            <Table highlightOnHover verticalSpacing="sm" horizontalSpacing="md">
+          <Table.ScrollContainer minWidth={1120}>
+            <Table
+              highlightOnHover
+              verticalSpacing="sm"
+              horizontalSpacing="md"
+              layout="fixed"
+              style={{ whiteSpace: "nowrap" }}
+            >
               <Table.Thead>
                 <Table.Tr>
-                  <Table.Th onClick={() => handleSort("transactionDate")}>
+                  <Table.Th w={130} onClick={() => handleSort("transactionDate")}>
                     <Group component="span" gap={4} align="center" wrap="nowrap">
                       일자
                       {sortField === "transactionDate" ? (
@@ -256,9 +261,9 @@ export function SourceDataManagementPanel({ onOpenUpload }: SourceDataManagement
                     </Group>
                   </Table.Th>
                   <Table.Th>가맹점명</Table.Th>
-                  <Table.Th>카드사</Table.Th>
-                  <Table.Th>카테고리</Table.Th>
-                  <Table.Th ta="right" onClick={() => handleSort("amount")}>
+                  <Table.Th w={120}>카드사</Table.Th>
+                  <Table.Th w={160}>카테고리</Table.Th>
+                  <Table.Th w={160} ta="right" onClick={() => handleSort("amount")}>
                     <Group component="span" w="100%" gap={4} align="center" justify="flex-end" wrap="nowrap">
                       {sortField === "amount" ? (
                         sortDir === "asc" ? <IconSortAscending size={14} /> : <IconSortDescending size={14} />
@@ -268,8 +273,8 @@ export function SourceDataManagementPanel({ onOpenUpload }: SourceDataManagement
                       금액
                     </Group>
                   </Table.Th>
-                  <Table.Th>태그</Table.Th>
-                  <Table.Th>동작</Table.Th>
+                  <Table.Th w={160}>태그</Table.Th>
+                  <Table.Th w={150}>동작</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
@@ -286,14 +291,17 @@ export function SourceDataManagementPanel({ onOpenUpload }: SourceDataManagement
                     <Table.Tr key={tx.id}>
                       <Table.Td>{tx.transactionDate}</Table.Td>
                       <Table.Td>
-                        <Text fw={600}>{tx.merchant}</Text>
+                        <Text fw={600} truncate title={tx.merchant}>{tx.merchant}</Text>
                       </Table.Td>
-                      <Table.Td>{tx.cardName}</Table.Td>
+                      <Table.Td>
+                        <Text truncate title={tx.cardName}>{tx.cardName}</Text>
+                      </Table.Td>
                       <Table.Td>
                         <NativeSelect
                           form={`category-form-${tx.id}`}
                           key={`${tx.id}-${tx.categoryId ?? ""}-${tx.categoryName ?? ""}`}
                           name="category"
+                          aria-label={`${tx.merchant} 카테고리`}
                           defaultValue={buildCategoryValue(tx, categories)}
                           data={buildCategoryOptions(tx, categories)}
                         />
@@ -305,6 +313,9 @@ export function SourceDataManagementPanel({ onOpenUpload }: SourceDataManagement
                         <TextInput
                           form={`category-form-${tx.id}`}
                           name="tag"
+                          aria-label={`${tx.merchant} 태그`}
+                          title={tx.tag || undefined}
+                          styles={{ input: { textOverflow: "ellipsis" } }}
                           defaultValue={tx.tag ?? ""}
                           placeholder="태그 입력"
                           readOnly={focusedMemoId !== tx.id}
@@ -374,7 +385,7 @@ export function SourceDataManagementPanel({ onOpenUpload }: SourceDataManagement
                 )}
               </Table.Tbody>
             </Table>
-          </ScrollArea>
+          </Table.ScrollContainer>
 
           {totalPages > 1 && (
             <Group justify="center">
