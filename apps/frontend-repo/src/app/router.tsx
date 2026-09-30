@@ -7,12 +7,12 @@ import { ruleEngineQueries } from "@/features/rule-engine-builder/api/queries";
 import { SamplePage } from "@/features/sample/routes/SamplePage";
 import { action as sampleAction } from "@/features/sample/routes/action";
 import { loader as sampleLoader } from "@/features/sample/routes/loader";
-import { WashingPage } from "@/features/washing/routes/WashingPage";
+import { WashingEntry } from "./WashingEntry";
 import { action as washingAction } from "@/features/washing/routes/action";
 import { loader as washingLoader } from "@/features/washing/routes/loader";
 import { ErrorBoundary } from "@/shared/ui/ErrorBoundary";
 import { NotFoundPage } from "@/shared/ui/NotFoundPage";
-import { createBrowserRouter, redirect, Navigate } from "react-router";
+import { createBrowserRouter, redirect, Navigate, type ActionFunctionArgs, type LoaderFunctionArgs, type RouteObject } from "react-router";
 import { ComingSoonPage } from "./ComingSoonPage";
 import { Layout } from "./Layout";
 import { RuleEngineBuilderPage } from "./RuleEngineBuilderPage";
@@ -21,14 +21,25 @@ import { useAppStore } from "@/app/store/useAppStore";
 
 /**
  * 보안 라우팅 가드 로더
- * 미인증 접속 발생 시 즉시 /login 으로 안전하게 튕겨냅니다.
+ * 첫 경험은 공개 Empty State로 제공하고 데이터 작업 경로는 인증을 유지합니다.
  */
-const rootLoader = () => async () => {
+const rootLoader = () => async ({ request }: LoaderFunctionArgs) => {
   const { isAuthenticated } = useAppStore.getState();
-  if (!isAuthenticated) {
+  const pathname = new URL(request.url).pathname;
+  if (!isAuthenticated && pathname !== "/" && pathname !== "/washing") {
     return redirect("/login");
   }
   return null;
+};
+
+const protectedLoader = (load: () => Promise<unknown>) => async () => {
+  if (!useAppStore.getState().isAuthenticated) return redirect("/login");
+  return load();
+};
+
+const protectedAction = (act: ReturnType<typeof washingAction>) => async (args: ActionFunctionArgs) => {
+  if (!useAppStore.getState().isAuthenticated) return redirect("/login");
+  return act(args);
 };
 
 const ruleEngineLoader = () => async () => {
@@ -38,7 +49,7 @@ const ruleEngineLoader = () => async () => {
   return null;
 };
 
-export const router = createBrowserRouter([
+export const routes: RouteObject[] = [
   // 1. 공통 헤더 쉘 레이아웃에서 탈출한 단독 풀스크린 라우트
   {
     path: "/login",
@@ -59,6 +70,7 @@ export const router = createBrowserRouter([
     element: <Layout />,
     errorElement: <ErrorBoundary />,
     loader: rootLoader(),
+    shouldRevalidate: () => true,
     children: [
       {
         index: true,
@@ -67,25 +79,28 @@ export const router = createBrowserRouter([
       {
         path: "sample",
         element: <SamplePage />,
-        loader: sampleLoader(queryClient),
-        action: sampleAction(queryClient),
+        loader: protectedLoader(sampleLoader(queryClient)),
+        action: async (args) => {
+          if (!useAppStore.getState().isAuthenticated) return redirect("/login");
+          return sampleAction(queryClient)(args);
+        },
       },
       {
         path: "washing",
-        element: <WashingPage />,
-        loader: washingLoader(queryClient),
-        action: washingAction(queryClient),
+        element: <WashingEntry />,
+        loader: async () => useAppStore.getState().isAuthenticated ? washingLoader(queryClient)() : null,
+        action: protectedAction(washingAction(queryClient)),
       },
       {
         path: "rules",
         element: <RuleEngineBuilderPage />,
-        loader: ruleEngineLoader(),
-        action: washingAction(queryClient),
+        loader: protectedLoader(ruleEngineLoader()),
+        action: protectedAction(washingAction(queryClient)),
       },
       {
         path: "insights",
         element: <AiInsightsPage />,
-        loader: aiInsightsLoader(queryClient),
+        loader: protectedLoader(aiInsightsLoader(queryClient)),
       },
       {
         path: "pivot",
@@ -111,6 +126,6 @@ export const router = createBrowserRouter([
       },
     ],
   },
-]);
+];
 
-
+export const router = createBrowserRouter(routes);

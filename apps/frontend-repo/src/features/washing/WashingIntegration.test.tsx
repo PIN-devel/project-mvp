@@ -57,18 +57,18 @@ describe("Washing feature integration flow", () => {
     renderFeature();
 
     await screen.findByRole("heading", { name: /조금씩 선명해지는/ }, { timeout: 3000 });
-    expect(screen.getByRole("button", { name: /남은 9건 정리하기/ })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "정리할 내역" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /남은 9건 분류하기/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "분류할 내역" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: /전체 내역/ }));
     expect(screen.getByText("태그")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /지금 소비 분석 보기/ }));
+    fireEvent.click(screen.getByRole("button", { name: /현재 내역으로 소비 분석 보기/ }));
     expect(await screen.findByRole("heading", { name: "소비 분석 화면" })).toBeInTheDocument();
   });
 
   it("keeps bulk wash waiting items aligned with source-data unclassified rows", async () => {
     renderFeature();
 
-    await screen.findByRole("heading", { name: "정리할 내역" }, { timeout: 3000 });
+    await screen.findByRole("heading", { name: "분류할 내역" }, { timeout: 3000 });
     fireEvent.click(screen.getByRole("tab", { name: /전체 내역/ }));
 
     fireEvent.change(screen.getByLabelText("분류 상태"), {
@@ -91,14 +91,14 @@ describe("Washing feature integration flow", () => {
   it("does not expose the mock import button", async () => {
     renderFeature();
 
-    await screen.findByRole("heading", { name: "정리할 내역" }, { timeout: 3000 });
+    await screen.findByRole("heading", { name: "분류할 내역" }, { timeout: 3000 });
     expect(screen.queryByRole("button", { name: "Mock 데이터 추가 적재" })).not.toBeInTheDocument();
   });
 
   it("opens a detail modal for a single unclassified item and saves its category", async () => {
     renderFeature();
 
-    await screen.findByRole("heading", { name: "정리할 내역" }, { timeout: 3000 });
+    await screen.findByRole("heading", { name: "분류할 내역" }, { timeout: 3000 });
 
     const bulkWashTable = document.querySelectorAll("table")[0];
     expect(bulkWashTable).toBeDefined();
@@ -125,7 +125,7 @@ describe("Washing feature integration flow", () => {
       const updatedRows = document.querySelectorAll("table")[0]?.querySelectorAll("tbody tr");
       expect(updatedRows?.length).toBe(initialRows.length - 1);
     });
-    expect(screen.getByRole("button", { name: /남은 8건 정리하기/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /남은 8건 분류하기/ })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: /전체 내역/ }));
     fireEvent.change(screen.getByLabelText("분류 상태"), {
@@ -142,7 +142,7 @@ describe("Washing feature integration flow", () => {
   it("saves both category and mapping rule tag from the source data table", async () => {
     renderFeature();
 
-    await screen.findByRole("heading", { name: "정리할 내역" }, { timeout: 3000 });
+    await screen.findByRole("heading", { name: "분류할 내역" }, { timeout: 3000 });
     fireEvent.click(screen.getByRole("tab", { name: /전체 내역/ }));
 
     const sourceTable = document.querySelectorAll("table")[1];
@@ -177,7 +177,7 @@ describe("Washing feature integration flow", () => {
     renderFeature();
     await screen.findByRole("heading", { name: /내역을 넘어/ });
     expect(screen.getByText("아직 등록한 내역이 없어요")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Excel 내역 업로드/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Excel 이용내역 업로드/ }));
     expect(await screen.findByRole("dialog")).toHaveTextContent("신한카드와 KB국민카드");
   });
 
@@ -186,9 +186,9 @@ describe("Washing feature integration flow", () => {
       dbLedger.update(id, { categoryId: 1, categoryName: "식음료", isClassified: true }),
     );
     renderFeature();
-    await screen.findByRole("heading", { name: /내역 정리는 끝났어요/ });
+    await screen.findByRole("heading", { name: /내역 분류는 끝났어요/ });
     expect(screen.getByText("분류한 내역의 구성", { exact: false })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /소비 패턴 살펴보기/ }));
+    fireEvent.click(screen.getByRole("button", { name: /소비 분석으로 이어가기/ }));
     expect(await screen.findByRole("heading", { name: "소비 분석 화면" })).toBeInTheDocument();
   });
 
@@ -197,13 +197,13 @@ describe("Washing feature integration flow", () => {
       dbLedger.update(id, { categoryId: 1, categoryName: "식음료", isClassified: true }),
     );
     renderFeature();
-    await screen.findByRole("heading", { name: /내역 정리는 끝났어요/ });
+    await screen.findByRole("heading", { name: /내역 분류는 끝났어요/ });
     fireEvent.click(screen.getByRole("tab", { name: /전체 내역/ }));
     const row = document.querySelector("#work-all tbody tr");
     if (!row) throw new Error("Expected a ledger row");
     fireEvent.change(within(row as HTMLElement).getByRole("combobox"), { target: { value: "" } });
     fireEvent.click(within(row as HTMLElement).getByRole("button", { name: "저장" }));
-    expect(await screen.findByRole("button", { name: /남은 1건 정리하기/ })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /남은 1건 분류하기/ })).toBeInTheDocument();
   });
 
   it("never rounds an unfinished classification to 100%", () => {
@@ -214,19 +214,85 @@ describe("Washing feature integration flow", () => {
     }));
     render(<MemoryRouter><FirstExperienceHero overview={{ transactions, categories: ["식비"], lastImportedAt: "" }} onUpload={() => {}} onOrganize={() => {}} onSeeRecords={() => {}} /></MemoryRouter>);
     expect(screen.getByText("99+")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /남은 1건 정리하기/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /남은 1건 분류하기/ })).toBeInTheDocument();
     expect(screen.queryByText("✓ 분류 완료")).not.toBeInTheDocument();
+  });
+
+  it.each([1, 9])("%i건은 분류 완료 여부와 관계없이 추가 업로드가 Primary다", async (count) => {
+    dbLedger.getAll().slice(count).forEach(({ id }) => dbLedger.delete(id));
+    dbLedger.getAll().forEach(({ id }) => dbLedger.update(id, { categoryId: 1, categoryName: "식음료", isClassified: true }));
+    renderFeature();
+    const primary = await screen.findByRole("button", { name: "이용내역 더 추가하기" });
+    expect(screen.getByText(`현재 ${count}건 · ${10 - count}건 더 필요해요.`)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /소비 분석으로 이어가기|현재 내역으로 소비 분석 보기/ })).not.toBeInTheDocument();
+    fireEvent.click(primary);
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
+
+  it.each([false, true])("정확히 10건에서 분류 완료=%s에 맞는 CTA를 제공한다", async (classified) => {
+    dbLedger.getAll().slice(10).forEach(({ id }) => dbLedger.delete(id));
+    dbLedger.getAll().forEach(({ id }) => dbLedger.update(id, { categoryId: classified ? 1 : null, categoryName: classified ? "식음료" : null, isClassified: classified }));
+    renderFeature();
+    const primary = await screen.findByRole("button", { name: classified ? "소비 분석으로 이어가기" : "남은 10건 분류하기" });
+    if (!classified) {
+      expect(screen.getByRole("button", { name: "현재 내역으로 소비 분석 보기" })).toBeInTheDocument();
+      fireEvent.click(primary);
+      expect(screen.getByRole("tab", { name: /분류할 내역/ })).toHaveAttribute("aria-selected", "true");
+    } else {
+      fireEvent.click(primary);
+      expect(await screen.findByRole("heading", { name: "소비 분석 화면" })).toBeInTheDocument();
+    }
+  });
+
+  it("일괄 분류는 명시적인 카테고리 선택 후 실행하고 선택을 해제한다", async () => {
+    renderFeature();
+    await screen.findByRole("heading", { name: "분류할 내역" });
+    const checkbox = screen.getByRole("checkbox", { name: "에이블리 선택" });
+    fireEvent.click(checkbox);
+    const submit = screen.getByRole("button", { name: "선택한 내역 분류하기" });
+    expect(submit).toBeDisabled();
+    expect(screen.getByLabelText("분류할 카테고리")).toHaveValue("");
+    fireEvent.change(screen.getByLabelText("분류할 카테고리"), { target: { value: "1:식음료" } });
+    fireEvent.click(submit);
+    await screen.findByRole("button", { name: "남은 8건 분류하기" });
+    expect(screen.getByRole("button", { name: "선택한 내역 분류하기" })).toBeDisabled();
+    expect(screen.queryByRole("checkbox", { name: "에이블리 선택" })).not.toBeInTheDocument();
+  });
+
+  it("개별 분류 실패 시 선택과 모달을 보존하고 재시도한다", async () => {
+    server.use(http.patch("/api/transactions/:id/category", () => HttpResponse.json({ status: 503 }, { status: 503 })));
+    renderFeature();
+    await screen.findByRole("heading", { name: "분류할 내역" });
+    fireEvent.click(screen.getByRole("button", { name: "에이블리 분류" }));
+    const dialog = await screen.findByRole("dialog");
+    const select = within(dialog).getByRole("combobox");
+    expect(select).toHaveValue("");
+    expect(within(dialog).getByRole("button", { name: "저장" })).toBeDisabled();
+    fireEvent.change(select, { target: { value: "1:식음료" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "저장" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("선택한 카테고리는 그대로예요");
+    expect(select).toHaveValue("1:식음료");
+    server.resetHandlers();
+    fireEvent.click(within(dialog).getByRole("button", { name: "저장" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 
   it("honors the server classification flag consistently in Hero and ledger filtering", async () => {
     dbLedger.update(1, { isClassified: false });
     renderFeature();
-    await screen.findByRole("button", { name: /남은 10건 정리하기/ });
+    await screen.findByRole("button", { name: /남은 10건 분류하기/ });
     fireEvent.click(screen.getByRole("tab", { name: /전체 내역/ }));
     fireEvent.change(screen.getByLabelText("분류 상태"), { target: { value: "unclassified" } });
     const sourceTable = document.querySelectorAll("table")[1];
     if (!sourceTable) throw new Error("Expected ledger table");
     expect(within(sourceTable).getByText("GS25 역삼점")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: /분류할 내역/ }));
+    fireEvent.click(screen.getByRole("button", { name: "GS25 역삼점 분류" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.change(within(dialog).getByRole("combobox"), { target: { value: "6:편의점" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "저장" }));
+    await screen.findByRole("button", { name: /남은 9건 분류하기/ });
+    expect(dbLedger.getAll().find(({ id }) => id === 1)?.isClassified).toBe(true);
   });
 
   it("shows a data error instead of an empty account and retries the same query", async () => {

@@ -36,7 +36,6 @@
   padding: 40px 44px;
   isolation: isolate;
   background: radial-gradient(circle at 88% 76%, #1b5c60 0, transparent 34%), #0d1730;
-  box-shadow: 0 22px 48px rgb(13 23 48 / 14%);
   border-radius: 25px 0 0 25px;
 }
 
@@ -53,7 +52,6 @@
   height: 330px;
   border: 1px solid rgb(49 230 184 / 25%);
   border-radius: 50%;
-  box-shadow: 0 0 0 48px rgb(49 230 184 / 4%), 0 0 0 98px rgb(49 230 184 / 3%);
   content: "";
   pointer-events: none;
 }
@@ -76,8 +74,7 @@
 .analysisEvidence {
   padding: 38px 36px;
   border: 1px solid #e1e9e9;
-  background: linear-gradient(145deg, #fff 64%, #effaf7);
-  box-shadow: 0 16px 40px rgb(13 23 48 / 5%);
+  background: #fff;
   border-radius: 0 25px 25px 0;
 }
 
@@ -113,7 +110,6 @@
 .findingCard {
   min-height: 218px;
   border-color: #e2ebea;
-  box-shadow: 0 10px 24px rgb(13 23 48 / 4%);
 }
 
 .findingCard h4 {
@@ -161,7 +157,6 @@
   overflow: hidden;
   padding: 36px;
   background: radial-gradient(circle at 105% 88%, #17514f, transparent 42%), #0d1730;
-  box-shadow: 0 19px 42px rgb(13 23 48 / 12%);
 }
 
 .goalFocus > :first-child {
@@ -188,7 +183,6 @@
   padding: 34px 36px;
   border: 1px solid #e1e9e9;
   background: #fff;
-  box-shadow: 0 14px 36px rgb(13 23 48 / 5%);
 }
 
 .goalPanel h4 {
@@ -222,8 +216,8 @@
 }
 
 .goalChoiceSelected {
-  border-color: #31e6b8;
-  background: #f2fffa;
+  border-color: #006b56;
+  background: #f4f8f8;
 }
 
 .goalChoice button {

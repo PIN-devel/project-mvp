@@ -1,12 +1,13 @@
 import { MantineProvider } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { beforeEach, describe, expect, it } from "vitest";
-import { http, HttpResponse } from "msw";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { delay, http, HttpResponse } from "msw";
 import { theme } from "@/app/theme";
-import { resetAllMocks } from "@/mocks/db";
+import { dbLedger, resetAllMocks } from "@/mocks/db";
 import { server } from "@/mocks/server";
+import { resetMonthlyGoalsMock } from "@/mocks/handlers";
 import { AiInsightsPage } from "@/features/ai-insights/routes/AiInsightsPage";
 import { loader } from "@/features/ai-insights/routes/loader";
 
@@ -16,6 +17,7 @@ describe("AI insights integration flow", () => {
   beforeEach(() => {
     window.localStorage.clear();
     resetAllMocks();
+    resetMonthlyGoalsMock();
     queryClient = new QueryClient({
       defaultOptions: {
         queries: {
@@ -63,10 +65,10 @@ describe("AI insights integration flow", () => {
   it("explains unclassified transactions without exposing the prompt", async () => {
     renderFeature();
 
-    await screen.findByText("분류가 필요한 내역이 있어요", {}, { timeout: 3000 });
+    await screen.findByText(/미분류 내역도 분석에 포함돼요/, {}, { timeout: 3000 });
 
-    expect(screen.getByText(/미분류 거래 \d+건/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "이용내역 정리하기" })).toBeInTheDocument();
+    expect(screen.getByText(/분류 \d+건 · 미분류 \d+건/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /남은 \d+건 분류하기/ })).toBeInTheDocument();
     expect(screen.queryByText(/전송 프롬프트/)).not.toBeInTheDocument();
   });
 
@@ -90,7 +92,7 @@ describe("AI insights integration flow", () => {
       await screen.findByText(/조회 조건이 바뀌었어요/),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "내 소비 분석하기" }));
+    fireEvent.click(screen.getByRole("button", { name: "다시 분석하기" }));
     await waitFor(() => {
       expect(
         screen.queryByText(/조회 조건이 바뀌었어요/),
@@ -203,5 +205,82 @@ describe("AI insights integration flow", () => {
     expect(await screen.findByText("이 내역에서 발견한 점", {}, { timeout: 3000 })).toBeInTheDocument();
     expect(await screen.findByText("저장된 목표를 불러오지 못했어요")).toBeInTheDocument();
     expect(screen.getByText("가장 큰 지출 영역")).toBeInTheDocument();
+  });
+
+  it.each([0, 9])("전체 내역 %i건이면 추가 업로드로 안내하고 AI를 호출하지 않는다", async (count) => {
+    dbLedger.getAll().slice(count).forEach(({ id }) => dbLedger.delete(id));
+    const generate = vi.fn(() => HttpResponse.json({}));
+    server.use(http.post("/api/insights", generate));
+    renderFeature();
+    expect(await screen.findByRole("button", { name: "이용내역 더 추가하기" })).toBeEnabled();
+    expect(screen.getByText(`현재 ${count}건 · ${10 - count}건 더 추가하면 분석할 수 있어요.`)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "내 소비 분석하기" })).not.toBeInTheDocument();
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it("전체 데이터가 충분해도 필터 결과가 10건 미만이면 범위를 넓히도록 안내한다", async () => {
+    const generate = vi.fn(() => HttpResponse.json({}));
+    server.use(http.post("/api/insights", generate));
+    renderFeature();
+    await screen.findByRole("button", { name: "내 소비 분석하기" });
+    fireEvent.change(screen.getByLabelText("카테고리"), { target: { value: "1" } });
+    const button = screen.getByRole("button", { name: "내 소비 분석하기" });
+    expect(button).toBeDisabled();
+    expect(screen.getByText(/기간이나 카테고리 범위를 넓혀 최소 10건/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "이용내역 더 추가하기" })).not.toBeInTheDocument();
+    fireEvent.click(button);
+    expect(generate).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("카테고리"), { target: { value: "all" } });
+    expect(button).toBeEnabled();
+  });
+
+  it("정확히 10건의 미분류 내역도 분석하고 Loading 중 중복 실행을 막는다", async () => {
+    dbLedger.getAll().slice(10).forEach(({ id }) => dbLedger.delete(id));
+    dbLedger.getAll().forEach(({ id }) => dbLedger.update(id, { categoryId: null, categoryName: null, isClassified: false }));
+    const generate = vi.fn(async ({ request }: { request: Request }) => {
+      const payload = await request.json() as { transactions: unknown[] };
+      expect(payload.transactions).toHaveLength(10);
+      await delay(100);
+      return HttpResponse.json({ summary: "확인한 소비 흐름", cards: [{ title: "세부 발견", description: "실제 이용내역의 특징" }], generatedAt: "2026-09-30T05:00:00Z" });
+    });
+    server.use(http.post("/api/insights", generate));
+    renderFeature();
+    const button = await screen.findByRole("button", { name: "내 소비 분석하기" });
+    fireEvent.click(button);
+    await screen.findByText("선택한 내역을 읽고 있어요");
+    expect(screen.getByLabelText("조회 기간")).toBeDisabled();
+    expect(screen.getByLabelText("카테고리")).toBeDisabled();
+    fireEvent.click(button);
+    await screen.findByRole("heading", { name: "확인한 소비 흐름" });
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "개선 목표 살펴보기" })).toBeInTheDocument();
+  });
+
+  it("분석 오류에서 조건을 보존하고 같은 범위로 재시도한다", async () => {
+    server.use(http.post("/api/insights", () => HttpResponse.json({ type: "INS002", status: 503 }, { status: 503 })));
+    renderFeature();
+    await screen.findByRole("button", { name: "내 소비 분석하기" });
+    fireEvent.change(screen.getByLabelText("조회 기간"), { target: { value: "LAST_1_MONTH" } });
+    fireEvent.click(screen.getByRole("button", { name: "내 소비 분석하기" }));
+    expect(await screen.findByText("이번 분석 결과를 가져오지 못했어요")).toBeInTheDocument();
+    expect(screen.getByLabelText("조회 기간")).toHaveValue("LAST_1_MONTH");
+    server.resetHandlers();
+    fireEvent.click(screen.getByRole("button", { name: "같은 조건으로 다시 시도하기" }));
+    expect(await screen.findByText("이 내역에서 발견한 점")).toBeInTheDocument();
+  });
+
+  it("결과에서 목표로 Focus를 옮기고 저장 후 상태까지 확인한다", async () => {
+    renderFeature();
+    fireEvent.click(await screen.findByRole("button", { name: "내 소비 분석하기" }));
+    fireEvent.click(await screen.findByRole("button", { name: "개선 목표 살펴보기" }));
+    const section = document.getElementById("goal-selection");
+    await waitFor(() => expect(section).toHaveFocus());
+    fireEvent.click(screen.getAllByRole("button", { name: "이 계획 선택" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "이 목표 저장하기" }));
+    await screen.findByText("저장 완료");
+    fireEvent.click(screen.getByText("저장된 목표 1건 보기"));
+    fireEvent.click(screen.getByRole("button", { name: "완수로 표시" }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "완수로 표시" })).not.toBeInTheDocument());
+    expect(within(section!).getAllByText(/완수로 표시/).length).toBeGreaterThan(0);
   });
 });

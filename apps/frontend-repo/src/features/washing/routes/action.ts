@@ -34,7 +34,7 @@ export const action =
               categoryName: null,
               isClassified: false,
             });
-          } else if (tx.categoryId !== command.categoryId) {
+          } else if (tx.categoryId !== command.categoryId || tx.isClassified === false) {
             await updateTransactionCategory(command.id, command.categoryId);
           }
           if ((tx.tag ?? null) !== command.tag) {

@@ -1,5 +1,6 @@
 ﻿import {
   Badge,
+  Alert,
   Button,
   Checkbox,
   Group,
@@ -12,8 +13,8 @@
   Text,
   Title,
 } from "@mantine/core";
-import { IconCheck } from "@tabler/icons-react";
-import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { IconCheck, IconChevronRight } from "@tabler/icons-react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Form, useActionData, useNavigation, useSubmit } from "react-router";
 import { toast } from "@/shared/ui/toast";
@@ -25,7 +26,6 @@ import {
   getUnclassifiedTransactions,
 } from "@/features/washing/model/core";
 import type {
-  CategoryDto,
   WashingOverview,
   WashingTransaction,
 } from "@/features/washing/model/types";
@@ -33,14 +33,6 @@ import type {
 interface BulkWashPanelProps {
   overview: WashingOverview;
 }
-
-const buildCategoryOptionValue = (
-  categoryName: string,
-  categories: CategoryDto[],
-) => {
-  const matched = categories.find((category) => category.name === categoryName);
-  return matched ? `${matched.id}:${matched.name}` : `0:${categoryName}`;
-};
 
 type SelectedIdsAction =
   | { type: "replace"; ids: number[] }
@@ -70,10 +62,6 @@ const detailTransactionReducer = (
 
 export function BulkWashPanel({ overview }: BulkWashPanelProps) {
   const { data: categories } = useSuspenseQuery(washingQueries.categories());
-  const categoryNames = useMemo(
-    () => categories.map((category) => category.name),
-    [categories],
-  );
   const submit = useSubmit();
   const navigation = useNavigation();
   const actionData = useActionData<ActionResult>();
@@ -84,18 +72,13 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
     overview.transactions,
   );
   const [selectedIds, updateSelectedIds] = useReducer(selectedIdsReducer, []);
-  const [selectedCategory, setSelectedCategory] = useState(
-    categories[0] ? `${categories[0].id}:${categories[0].name}` : "",
-  );
+  const [selectedCategory, setSelectedCategory] = useState("");
   const [detailTransaction, updateDetailTransaction] = useReducer(
     detailTransactionReducer,
     null,
   );
-  const [detailCategory, setDetailCategory] = useState(
-    categoryNames[0]
-      ? buildCategoryOptionValue(categoryNames[0], categories)
-      : "",
-  );
+  const [detailCategory, setDetailCategory] = useState("");
+  const [detailError, setDetailError] = useReducer((_current: boolean, next: boolean) => next, false);
 
   const bulkCategoryOptions = categories.map((category) => ({
     value: `${category.id}:${category.name}`,
@@ -105,27 +88,9 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
     selectedCategory &&
     bulkCategoryOptions.some((option) => option.value === selectedCategory)
       ? selectedCategory
-      : (bulkCategoryOptions[0]?.value ?? "");
-  const defaultDetailCategory = detailTransaction
-    ? buildCategoryOptionValue(
-      detailTransaction.category ?? categoryNames[0] ?? "",
-      categories,
-    )
-    : "";
-  const detailCategoryValue = detailCategory || defaultDetailCategory;
-  const detailCategoryOptions = categories.map((category) => ({
-    value: `${category.id}:${category.name}`,
-    label: category.name,
-  }));
-  if (
-    detailCategoryValue &&
-    !detailCategoryOptions.some((option) => option.value === detailCategoryValue)
-  ) {
-    detailCategoryOptions.push({
-      value: detailCategoryValue,
-      label: detailCategoryValue.split(":").slice(1).join(":") || "미분류",
-    });
-  }
+      : "";
+  const detailCategoryValue = bulkCategoryOptions.some((option) => option.value === detailCategory) ? detailCategory : "";
+  const categoryOptions = [{ value: "", label: "카테고리를 선택해 주세요", disabled: true }, ...bulkCategoryOptions];
 
   useEffect(() => {
     if (!actionData || actionData === seenAction.current) return;
@@ -147,6 +112,8 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
     ) {
       if (!actionData.error) {
         updateDetailTransaction(null);
+      } else {
+        setDetailError(true);
       }
       detailSubmitIdRef.current = null;
     }
@@ -157,10 +124,10 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
   );
   const selectedCount = validSelectedIds.length;
   const isSubmitting =
-    navigation.state === "submitting" &&
+    navigation.state !== "idle" &&
     navigation.formData?.get("intent") === "bulk_wash";
   const isDetailSubmitting =
-    navigation.state === "submitting" &&
+    navigation.state !== "idle" &&
     navigation.formData?.get("intent") === "update_category" &&
     navigation.formData?.get("origin") === "bulk-detail";
 
@@ -178,7 +145,7 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
   };
 
   const handleBulkWash = () => {
-    if (validSelectedIds.length === 0 || selectedCategoryValue === "") {
+    if (navigation.state !== "idle" || validSelectedIds.length === 0 || selectedCategoryValue === "") {
       return;
     }
 
@@ -190,13 +157,10 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
   };
 
   const openDetailModal = (transaction: WashingTransaction) => {
+    if (navigation.state !== "idle") return;
     updateDetailTransaction(transaction);
-    setDetailCategory(
-      buildCategoryOptionValue(
-        transaction.category ?? categoryNames[0] ?? "",
-        categories,
-      ),
-    );
+    setDetailCategory("");
+    setDetailError(false);
   };
 
   return (
@@ -213,9 +177,13 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
         {detailTransaction && (
           <Form
             method="post"
-            onSubmit={() => {
+            onSubmit={(event) => {
+              if (!detailCategoryValue || isDetailSubmitting) {
+                event.preventDefault();
+                return;
+              }
               detailSubmitIdRef.current = detailTransaction.id;
-              updateDetailTransaction(null);
+              setDetailError(false);
             }}
           >
             <input type="hidden" name="intent" value="update_category" />
@@ -265,8 +233,12 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
               name="category"
               value={detailCategoryValue}
               onChange={(event) => setDetailCategory(event.currentTarget.value)}
-              data={detailCategoryOptions}
+              data={categoryOptions}
+              disabled={isDetailSubmitting}
+              required
             />
+
+            {detailError && <Alert color="red" role="alert">분류를 저장하지 못했어요. 선택한 카테고리는 그대로예요. 다시 시도해 주세요.</Alert>}
 
             <Group justify="flex-end">
               <Button
@@ -280,7 +252,7 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
                 leftSection={<IconCheck size={16} />}
                 type="submit"
                 loading={isDetailSubmitting}
-                disabled={detailCategoryValue === ""}
+                disabled={detailCategoryValue === "" || isDetailSubmitting}
               >
                 저장
               </Button>
@@ -294,12 +266,12 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
         <Stack gap="lg">
           <Group justify="space-between" align="flex-start">
             <Stack gap={6}>
-              <Title order={3}>정리할 내역</Title>
+              <Title order={3}>분류할 내역</Title>
               <Text size="sm" c="dimmed">
-                같은 카테고리의 내역을 골라 한 번에 정리하거나 개별 내역을 분류하세요.
+                같은 카테고리의 내역을 골라 한 번에 분류하세요. 개별 내역은 분류 버튼으로 확인할 수 있어요.
               </Text>
             </Stack>
-            <Badge color="brandMint" variant="light" size="lg">
+            <Badge color="gray" variant="light" size="lg">
               미분류 {unclassifiedTransactions.length}건
             </Badge>
           </Group>
@@ -326,13 +298,14 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
                   <Table.Th>가맹점</Table.Th>
                   <Table.Th>카드</Table.Th>
                   <Table.Th ta="right">금액</Table.Th>
-                  <Table.Th>기존 태그</Table.Th>
+                  <Table.Th>분류 상태</Table.Th>
+                  <Table.Th><span className="mantine-visually-hidden">개별 분류</span></Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
                 {unclassifiedTransactions.length === 0 ? (
                   <Table.Tr>
-                    <Table.Td colSpan={6}>
+                    <Table.Td colSpan={7}>
                       <Text ta="center" c="dimmed" py="xl">
                         현재 미분류 내역이 없습니다.
                       </Text>
@@ -342,14 +315,7 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
                   unclassifiedTransactions.map((transaction) => (
                     <Table.Tr
                       key={transaction.id}
-                      role="button"
-                      tabIndex={0}
                       onClick={() => openDetailModal(transaction)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          openDetailModal(transaction);
-                        }
-                      }}
                     >
                       <Table.Td
                         ta="center"
@@ -379,6 +345,11 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
                           미분류
                         </Badge>
                       </Table.Td>
+                      <Table.Td>
+                        <Button variant="subtle" color="gray" size="xs" aria-label={`${transaction.merchantName} 분류`} rightSection={<IconChevronRight size={14} aria-hidden="true" />} onClick={(event) => { event.stopPropagation(); openDetailModal(transaction); }}>
+                          분류
+                        </Button>
+                      </Table.Td>
                     </Table.Tr>
                   ))
                 )}
@@ -403,12 +374,13 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
                 label="분류할 카테고리"
                 value={selectedCategoryValue}
                 onChange={(event) => setSelectedCategory(event.currentTarget.value)}
-                data={bulkCategoryOptions}
+                data={categoryOptions}
+                disabled={isSubmitting}
               />
               <Button
                 leftSection={<IconCheck size={16} />}
                 onClick={handleBulkWash}
-                disabled={selectedCount === 0 || selectedCategoryValue === ""}
+                disabled={selectedCount === 0 || selectedCategoryValue === "" || isSubmitting}
                 loading={isSubmitting}
               >
                 선택한 내역 분류하기
