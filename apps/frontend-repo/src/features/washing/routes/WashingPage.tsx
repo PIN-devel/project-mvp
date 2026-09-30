@@ -60,13 +60,15 @@ function GuestEmptyState() {
   </main>;
 }
 
-export function WashingPage({ isAuthenticated = true }: { isAuthenticated?: boolean }) {
+export function WashingPage({ isAuthenticated = true, onUploadSaved, onUploadFailed }: { isAuthenticated?: boolean;
+  onUploadSaved?: (receipt: { addedCount: number; skippedCount: number }) => void; onUploadFailed?: () => void;
+}) {
   if (!isAuthenticated) return <GuestEmptyState />;
   return (
     <QueryErrorResetBoundary>
       {({ reset }) => <WashingErrorBoundary onReset={reset}>
         <Suspense fallback={<WashingPageSkeleton />}>
-          <WashingPageContent />
+          <WashingPageContent onUploadSaved={onUploadSaved} onUploadFailed={onUploadFailed} />
         </Suspense>
       </WashingErrorBoundary>}
     </QueryErrorResetBoundary>

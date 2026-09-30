@@ -19,6 +19,7 @@ import {
 import { useDisclosure } from "@mantine/hooks";
 import {
   IconChartBar,
+  IconTargetArrow,
   IconChevronDown,
   IconLogout,
   IconReceipt,
@@ -39,6 +40,7 @@ interface NavTab {
 const navTabs: NavTab[] = [
   { label: "이용내역", value: "/washing", icon: IconReceipt },
   { label: "소비 분석", value: "/insights", icon: IconChartBar },
+  { label: "목표와 변화", value: "/goals", icon: IconTargetArrow },
   ...(import.meta.env.DEV
     ? [{ label: "샘플", value: "/sample", icon: IconSparkles }]
     : []),

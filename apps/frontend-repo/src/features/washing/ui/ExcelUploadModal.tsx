@@ -27,10 +27,11 @@ import { toast } from "@/shared/ui/toast";
 interface ExcelUploadModalProps {
   opened: boolean;
   onClose: () => void;
-  onSuccess?: () => void;
+  onSuccess?: (receipt: { addedCount: number; skippedCount: number }) => void;
+  onSaveError?: () => void;
 }
 
-export function ExcelUploadModal({ opened, onClose, onSuccess }: ExcelUploadModalProps) {
+export function ExcelUploadModal({ opened, onClose, onSuccess, onSaveError }: ExcelUploadModalProps) {
   const queryClient = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<TransactionDto[] | null>(null);
@@ -51,9 +52,9 @@ export function ExcelUploadModal({ opened, onClose, onSuccess }: ExcelUploadModa
       if (added.length === 0) toast.info(msg);
       else toast.success(msg);
       handleClose();
-      onSuccess?.();
+      onSuccess?.({ addedCount: added.length, skippedCount });
     },
-    onError: () => toast.error("저장에 실패했습니다."),
+    onError: () => { toast.error("저장에 실패했습니다."); onSaveError?.(); },
   });
 
   const handleClose = () => {

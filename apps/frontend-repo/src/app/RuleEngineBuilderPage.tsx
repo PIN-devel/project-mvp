@@ -10,7 +10,7 @@ import {
 } from "@mantine/core";
 import { useQueryClient, useSuspenseQueries } from "@tanstack/react-query";
 import { Suspense } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { RuleEngineBuilderPanel } from "@/features/rule-engine-builder/ui/RuleEngineBuilderPanel";
 import { washingKeys, washingQueries } from "@/features/washing/api/queries";
 
@@ -95,9 +95,12 @@ function RuleEngineBuilderContent() {
 }
 
 export function RuleEngineBuilderPage() {
+  const [params] = useSearchParams();
+  const goalContext = params.get("flow") === "goal-update" && params.get("goalId")
+    ? `?${new URLSearchParams({ goalId: params.get("goalId")!, flow: "goal-update" })}` : "";
   return (
     <Stack gap="md">
-      <Group><Button component={Link} to="/washing" variant="subtle" color="teal">← 이용내역으로 돌아가기</Button></Group>
+      <Group><Button component={Link} to={`/washing${goalContext}`} variant="subtle" color="teal">← 이용내역으로 돌아가기</Button></Group>
     <Suspense fallback={<RuleEngineBuilderPageSkeleton />}>
       <RuleEngineBuilderContent />
     </Suspense>

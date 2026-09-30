@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { Button } from "@mantine/core";
 import { IconArrowRight } from "@tabler/icons-react";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
@@ -13,7 +13,12 @@ import styles from "./FirstExperience.module.css";
 
 type WorkView = "pending" | "all" | "summary" | "help";
 
-export function WashingPageContent() {
+export function WashingPageContent({ onUploadSaved, onUploadFailed }: {
+  onUploadSaved?: (receipt: { addedCount: number; skippedCount: number }) => void; onUploadFailed?: () => void;
+}) {
+  const [params] = useSearchParams();
+  const goalContext = params.get("flow") === "goal-update" && params.get("goalId")
+    ? `?${new URLSearchParams({ goalId: params.get("goalId")!, flow: "goal-update" })}` : "";
   const { data: overview, isError, isFetching } = useSuspenseQuery(washingQueries.overview());
   const queryClient = useQueryClient();
   const [view, setView] = useState<WorkView>("pending");
@@ -69,13 +74,14 @@ export function WashingPageContent() {
       <ExcelUploadModal
         opened={uploadOpened}
         onClose={closeUpload}
-        onSuccess={() => setUploadVersion((current) => current + 1)}
+        onSuccess={(receipt) => { setUploadVersion((current) => current + 1); onUploadSaved?.(receipt); }}
+        onSaveError={onUploadFailed}
       />
       <div className={styles.pageHeading}>
         <h2>이용내역 관리</h2>
         <Button
           component={Link}
-          to="/washing/rules"
+          to={`/washing/rules${goalContext}`}
           variant="subtle"
           color="teal"
           size="xs"

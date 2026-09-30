@@ -3,6 +3,7 @@ import { loginUser, registerUser } from "../api/mutations";
 import { useAppStore } from "@/app/store/useAppStore";
 import { toast } from "@/shared/ui/toast";
 import type { LoginRequest, RegisterRequest } from "../model/types";
+import { goalReturnPath } from "@/shared/model/goalReturnPath";
 
 /**
  * 로그인 라우트 Action
@@ -22,7 +23,7 @@ export const loginAction = () => async ({ request }: { request: Request }) => {
       // Zustand 스토어 세션 상태 업데이트 (영속화)
       useAppStore.getState().setSession(response.accessToken, response.nickname);
       toast.success(`${response.nickname}님, 환영합니다!`);
-      return redirect("/");
+      return redirect(goalReturnPath(new URL(request.url).search));
     }
   } catch (error) {
     console.error("Login action error:", error);

@@ -31,8 +31,9 @@ export function OpportunityReview({ run, userScope }: { run: AnalysisRun; userSc
       </Stack>
       <Stack gap="sm">
         {handoff.data?.stale && <Alert color="orange" variant="light">이용내역이 바뀌었습니다. 현재 내역으로 다시 분석해주세요.</Alert>}
-        {selected && <Button component={Link} to="/washing" variant="subtle" color="brandMint.4" rightSection={<IconArrowRight size={16} />}>이용내역에서 근거 정리하기</Button>}
-        <Text size="xs" c="gray.4">목표 설정은 다음 단계에서 제공됩니다. 선택한 후보의 근거는 이 분석에 보존됩니다.</Text>
+        {selected && <Button component={Link} to={`/goals?analysisRunId=${run.id}&opportunityId=${selected.id}`} color="brandMint.8" disabled={!handoff.data || handoff.data.stale} rightSection={<IconArrowRight size={16} />}>이 변화로 목표 시작하기</Button>}
+        {selected && <Button component={Link} to="/washing" variant="subtle" color="brandMint.4">이용내역에서 근거 정리하기</Button>}
+        <Text size="xs" c="gray.4">기준월의 내역을 확인한 뒤, 목표 금액과 실천할 달을 직접 선택해요.</Text>
       </Stack>
     </Stack></Paper>
     <Paper className={styles.goalPanel}><Stack gap="lg">

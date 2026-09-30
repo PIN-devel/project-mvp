@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cop.kbds.agilemvp.goalcycle.repository.GoalCycleMapper">
+    <select id="lockOwner" resultType="java.lang.Long">SELECT id FROM users WHERE id = #{userId} FOR UPDATE</select>
+    <select id="list" resultType="java.lang.String">SELECT cycle_json FROM goal_cycles WHERE user_id = #{userId} ORDER BY created_at DESC, id DESC</select>
+    <select id="find" resultType="java.lang.String">SELECT cycle_json FROM goal_cycles WHERE user_id = #{userId} AND id = #{id}</select>
+    <select id="byRequest" resultType="java.lang.String">SELECT cycle_json FROM goal_cycles WHERE user_id = #{userId} AND idempotency_key = #{key}</select>
+    <select id="countOpen" resultType="int">SELECT COUNT(*) FROM goal_cycles WHERE user_id = #{userId} AND lifecycle = 'OPEN'</select>
+    <select id="next" resultType="java.lang.String">SELECT id FROM goal_cycles WHERE user_id = #{userId} AND previous_cycle_id = #{previousId} ORDER BY created_at DESC, id DESC LIMIT 1</select>
+    <insert id="insert">
+        INSERT INTO goal_cycles(id, user_id, analysis_run_id, opportunity_id, category_id, lifecycle, open_owner_id, previous_cycle_id, idempotency_key, cycle_json)
+        VALUES(#{id}, #{userId}, #{runId}, #{opportunityId}, #{categoryId}, 'OPEN', #{userId}, #{previousId}, #{key}, #{json})
+    </insert>
+    <update id="close">
+        UPDATE goal_cycles SET lifecycle = #{lifecycle}, open_owner_id = NULL, cycle_json = #{json}
+        WHERE user_id = #{userId} AND id = #{id}
+    </update>
+    <select id="evaluations" resultType="java.lang.String">SELECT evaluation_json FROM goal_evaluations WHERE user_id = #{userId} AND goal_id = #{goalId} ORDER BY created_at DESC, id DESC</select>
+    <select id="evaluationByRequest" resultType="java.lang.String">SELECT evaluation_json FROM goal_evaluations WHERE user_id = #{userId} AND idempotency_key = #{key}</select>
+    <insert id="insertEvaluation">
+        INSERT INTO goal_evaluations(id, goal_id, user_id, data_revision, idempotency_key, evaluation_json, created_at)
+        VALUES(#{id}, #{goalId}, #{userId}, #{revision}, #{key}, #{json}, CAST(#{evaluatedAt} AS TIMESTAMP WITH TIME ZONE))
+    </insert>
+</mapper>

@@ -1,5 +1,6 @@
 import { useAppStore } from "@/app/store/useAppStore";
-import { Navigate } from "react-router";
+import { Navigate, useLocation } from "react-router";
+import { goalReturnPath } from "@/shared/model/goalReturnPath";
 import { Container, Center, Box } from "@mantine/core";
 import { LoginForm } from "../ui/LoginForm";
 
@@ -10,10 +11,11 @@ import { LoginForm } from "../ui/LoginForm";
  */
 export function LoginPage() {
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
+  const location = useLocation();
 
   // 이미 로그인된 사용자가 접근할 경우 홈(/)으로 리다이렉트
   if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={goalReturnPath(location.search)} replace />;
   }
 
   return (

@@ -106,10 +106,11 @@ public class AnalyticsQueryService {
                                 TransactionFoundation.SpendingExclusionReason.INVALID_AMOUNT).contains(r))).count(),
                 "UNKNOWN", "NOT_CONFIRMED", List.of("카드 자료의 기간 완결성은 확인되지 않았습니다.",
                 "거래가 없는 구간은 소비 0원으로 해석하지 않습니다.", "취소 표시를 제외한 승인 내역 합계이며 순현금 흐름이 아닙니다."));
-        // All source rows affect revision, including unresolved category/date and excluded records.
-        // This also detects newly observed cards or a new latest-date period anchor.
+        // Explicit periods keep a stable reference when later months receive new records.
+        // Rolling/ALL queries still include the source rows that determine their period anchor.
         String revision = hash(encode(List.of("spending-v1", query, period, source,
-                stored.stream().map(t -> List.of(t.getFoundation(), Objects.toString(t.getCardName(), ""))).toList())));
+                (query.start() == null ? stored : scoped).stream()
+                        .map(t -> List.of(t.getFoundation(), Objects.toString(t.getCardName(), ""))).toList())));
         List<Evidence> evidence = new ArrayList<>();
         List<Observation> observations = new ArrayList<>();
         evidence.add(evidence("total.amount", "TOTAL_AMOUNT", BigDecimal.valueOf(total), "KRW", null, period, source, "ALL", null, null, null, ids(records)));
