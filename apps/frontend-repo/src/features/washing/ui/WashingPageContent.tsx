@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
 import { Link } from "react-router";
+import { Button } from "@mantine/core";
+import { IconArrowRight } from "@tabler/icons-react";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { washingKeys, washingQueries } from "@/features/washing/api/queries";
 import { getUnclassifiedTransactions } from "@/features/washing/model/core";
@@ -70,7 +72,17 @@ export function WashingPageContent() {
         onSuccess={() => setUploadVersion((current) => current + 1)}
       />
       <div className={styles.pageHeading}>
-        <h2>이용내역 관리</h2><Link to="/washing/rules">자동 분류 규칙 →</Link>
+        <h2>이용내역 관리</h2>
+        <Button
+          component={Link}
+          to="/washing/rules"
+          variant="subtle"
+          color="teal"
+          size="xs"
+          rightSection={<IconArrowRight size={15} aria-hidden="true" />}
+        >
+          자동 분류 규칙
+        </Button>
       </div>
       {isError && <div role="alert" className={styles.staleNotice}>최신 내역을 확인하지 못했어요. 마지막으로 확인한 기록을 보여드립니다. <button type="button" onClick={() => queryClient.invalidateQueries({ queryKey: washingKeys.all })}>다시 불러오기</button></div>}
       {isFetching && !isError && <span role="status" className="mantine-visually-hidden">내역 업데이트 중</span>}
