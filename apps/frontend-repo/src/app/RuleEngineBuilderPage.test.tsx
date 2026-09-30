@@ -1,3 +1,4 @@
+import { MemoryRouter } from "react-router";
 import { MantineProvider } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
@@ -27,7 +28,7 @@ describe("Rules route loading experience", () => {
     render(
       <QueryClientProvider client={queryClient}>
         <MantineProvider theme={theme}>
-          <RuleEngineBuilderPage />
+          <MemoryRouter><RuleEngineBuilderPage /></MemoryRouter>
         </MantineProvider>
       </QueryClientProvider>,
     );

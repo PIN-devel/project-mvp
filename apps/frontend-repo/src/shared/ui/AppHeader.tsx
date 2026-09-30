@@ -16,13 +16,13 @@ import {
   UnstyledButton,
   rem,
 } from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
+import { useDisclosure, useReducedMotion } from "@mantine/hooks";
 import {
   IconChartBar,
+  IconTargetArrow,
   IconChevronDown,
   IconLogout,
   IconReceipt,
-  IconSettingsAutomation,
   IconSparkles,
   IconUser,
 } from "@tabler/icons-react";
@@ -40,7 +40,7 @@ interface NavTab {
 const navTabs: NavTab[] = [
   { label: "이용내역", value: "/washing", icon: IconReceipt },
   { label: "소비 분석", value: "/insights", icon: IconChartBar },
-  { label: "자동 분류 규칙", value: "/rules", icon: IconSettingsAutomation },
+  { label: "목표와 변화", value: "/goals", icon: IconTargetArrow },
   ...(import.meta.env.DEV
     ? [{ label: "샘플", value: "/sample", icon: IconSparkles }]
     : []),
@@ -66,6 +66,7 @@ export function AppHeader({
 }: AppHeaderProps) {
   const [drawerOpened, { toggle: toggleDrawer, close: closeDrawer }] =
     useDisclosure(false);
+  const prefersReducedMotion = useReducedMotion();
   const resolvedActiveTab = getActiveTab(activeTab);
 
   return (
@@ -176,7 +177,9 @@ export function AppHeader({
               borderBottom: "2px solid transparent",
               borderRadius: 0,
               marginBottom: rem(-1),
-              transition: "background-color 150ms ease, color 150ms ease",
+              position: "relative",
+              "--tab-hover-color": "transparent",
+              transition: "background-color 150ms ease, border-color 200ms ease, color 180ms ease",
             },
           }}
         >
@@ -191,11 +194,23 @@ export function AppHeader({
                   disabled={tab.disabled}
                   c={isActive ? "#0D1730" : "#64748B"}
                   fw={isActive ? 600 : 500}
-                  style={{
-                    borderBottomColor: isActive ? "#006B56" : "transparent",
-                  }}
                 >
                   {tab.label}
+                  <Box
+                    aria-hidden="true"
+                    pos="absolute"
+                    left={0}
+                    right={0}
+                    bottom={0}
+                    h={2}
+                    bg="#006B56"
+                    pe="none"
+                    style={{
+                      transform: isActive ? "scaleX(1)" : "scaleX(0)",
+                      transformOrigin: "left",
+                      transition: prefersReducedMotion ? "none" : "transform 220ms cubic-bezier(.2,.7,.25,1)",
+                    }}
+                  />
                 </Tabs.Tab>
               );
             })}

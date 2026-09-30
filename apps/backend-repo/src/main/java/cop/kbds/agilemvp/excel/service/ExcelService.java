@@ -197,7 +197,7 @@ public class ExcelService {
             String payMethod   = getCellString(row, ci.getOrDefault("결제방법", -1));
             String statusRaw   = getCellString(row, ci.getOrDefault("상태", -1));
             int    installment = parseInstallmentKb(payMethod);
-            String status      = statusRaw.contains("취소") ? "취소" : "승인";
+            String status      = statusRaw; // Preserve unknown source values; normalization belongs to TransactionFoundation.
             result.add(TransactionDto.builder()
                     .id(tempId++).transactionDate(date).merchant(merchant)
                     // categoryName(classifyCategory(merchant)) was intentionally disabled.

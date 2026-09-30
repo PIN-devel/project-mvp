@@ -5,7 +5,6 @@ import {
   deleteTransaction,
   updateTransaction,
   updateTransactionCategory,
-  updateTransactionTag,
 } from "@/features/washing/api/mutations";
 import { washingKeys } from "@/features/washing/api/queries";
 import { parseWashingCommand } from "@/features/washing/model/core";
@@ -36,9 +35,6 @@ export const action =
             });
           } else if (tx.categoryId !== command.categoryId || tx.isClassified === false) {
             await updateTransactionCategory(command.id, command.categoryId);
-          }
-          if ((tx.tag ?? null) !== command.tag) {
-            await updateTransactionTag(command.id, command.tag);
           }
           await queryClient.invalidateQueries({ queryKey: washingKeys.all });
           return { intent: "update_category" };

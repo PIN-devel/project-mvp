@@ -81,8 +81,8 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
   const [detailError, setDetailError] = useReducer((_current: boolean, next: boolean) => next, false);
 
   const bulkCategoryOptions = categories.map((category) => ({
-    value: `${category.id}:${category.name}`,
-    label: category.name,
+    value: String(category.id),
+    label: `${category.name} (${category.isDefault ? "기본" : "내 카테고리"})`,
   }));
   const selectedCategoryValue =
     selectedCategory &&
@@ -171,7 +171,7 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
           if (isDetailSubmitting) return;
           updateDetailTransaction(null);
         }}
-        title="미분류 내역 상세"
+        title="분류 확인이 필요한 내역"
         centered
       >
         {detailTransaction && (
@@ -189,7 +189,6 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
             <input type="hidden" name="intent" value="update_category" />
             <input type="hidden" name="origin" value="bulk-detail" />
             <input type="hidden" name="id" value={detailTransaction.id} />
-            <input type="hidden" name="tag" value={detailTransaction.tag} />
             <Stack gap="md">
             <Stack gap={6}>
               <Group justify="space-between">
@@ -222,7 +221,7 @@ export function BulkWashPanel({ overview }: BulkWashPanelProps) {
               </Group>
               <Stack gap={4}>
                 <Text size="sm" c="dimmed">
-                  태그/메모
+                  메모
                 </Text>
                 <Text size="sm">{detailTransaction.description || "-"}</Text>
               </Stack>

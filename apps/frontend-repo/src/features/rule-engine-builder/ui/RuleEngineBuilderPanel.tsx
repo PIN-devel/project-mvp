@@ -48,6 +48,7 @@ import {
   ruleEngineQueries,
 } from "@/features/rule-engine-builder/api/queries";
 import type { RuleDryRunResult } from "@/features/rule-engine-builder/model/types";
+import { isTransactionClassified, type TransactionFoundation } from "@/shared/model/transaction";
 import { toast } from "@/shared/ui/toast";
 import styles from "./RuleEngineBuilderPanel.module.css";
 
@@ -59,6 +60,7 @@ interface RuleEngineCategory {
 }
 
 interface RuleEngineTransaction {
+  foundation?: TransactionFoundation;
   id: number;
   transactionDate: string;
   merchant: string;
@@ -89,10 +91,10 @@ const formatAmount = (amount: number) =>
   new Intl.NumberFormat("ko-KR").format(amount);
 
 const isUnclassified = (transaction: RuleEngineTransaction) =>
-  transaction.categoryId == null && !transaction.categoryName;
+  !isTransactionClassified(transaction);
 
 const categoryOptions = (categories: RuleEngineCategory[]) =>
-  categories.length === 0 ? ["미분류"] : categories.map((category) => category.name);
+  categories.map((category) => ({ value: String(category.id), label: `${category.name} (${category.isDefault ? "기본" : "내 카테고리"})` }));
 
 const clampRgbChannel = (value: number) =>
   Math.max(0, Math.min(255, Math.round(value)));
@@ -262,8 +264,7 @@ export function RuleEngineBuilderPanel({
   const [categoryName, setCategoryName] = useState("");
   const [categoryColor, setCategoryColor] = useState(defaultCategoryColor);
   const [keyword, setKeyword] = useState("");
-  const [targetCategory, setTargetCategory] = useState(ruleCategoryOptions[0] ?? "미분류");
-  const [tag, setTag] = useState("");
+  const [targetCategory, setTargetCategory] = useState(ruleCategoryOptions[0]?.value ?? "");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showDryRun, setShowDryRun] = useState(false);
   const [dryRunResult, setDryRunResult] = useState<RuleDryRunResult | null>(null);
@@ -273,7 +274,7 @@ export function RuleEngineBuilderPanel({
     [transactions],
   );
   const selectedCategory = categories.find(
-    (category) => category.name === targetCategory,
+    (category) => String(category.id) === targetCategory,
   );
   const dryRunMatches = dryRunResult?.transactions ?? [];
 
@@ -304,7 +305,6 @@ export function RuleEngineBuilderPanel({
       await invalidateRuleQueries();
       onRuleApplied?.();
       setKeyword("");
-      setTag("");
       clearPreview();
       toast.success("자동 분류 규칙을 저장하고 일치 내역을 적용했습니다.");
     },
@@ -340,8 +340,8 @@ export function RuleEngineBuilderPanel({
     onSuccess: async (_, categoryId) => {
       const removedCategory = categories.find((category) => category.id === categoryId);
       await refreshCategoryList();
-      if (removedCategory && targetCategory === removedCategory.name) {
-        setTargetCategory("미분류");
+      if (removedCategory && targetCategory === String(removedCategory.id)) {
+        setTargetCategory("");
         clearPreview();
       }
       toast.success("카테고리를 삭제했습니다.");
@@ -359,7 +359,7 @@ export function RuleEngineBuilderPanel({
       toast.warning("카테고리명을 입력해주세요.");
       return;
     }
-    if (categories.some((category) => category.name === name)) {
+    if (categories.some((category) => !category.isDefault && category.name === name)) {
       toast.warning("이미 등록된 카테고리입니다.");
       return;
     }
@@ -423,8 +423,7 @@ export function RuleEngineBuilderPanel({
     recommendedCategoryName: string;
   }) => {
     setKeyword(suggestion.keyword);
-    setTargetCategory(suggestion.recommendedCategoryName);
-    setTag(`#${suggestion.keyword.replace(/\s+/g, "_")}`);
+    setTargetCategory(String(suggestion.recommendedCategoryId));
     setShowSuggestions(false);
     dryRunMutation.mutate({
       keyword: suggestion.keyword,
@@ -467,7 +466,6 @@ export function RuleEngineBuilderPanel({
     createRuleMutation.mutate({
       keyword: normalizedKeyword,
       categoryId,
-      tag: tag.trim() || `#${normalizedKeyword.replace(/\s+/g, "_")}`,
     });
   };
 
@@ -678,17 +676,9 @@ export function RuleEngineBuilderPanel({
                     setTargetCategory(event.currentTarget.value);
                     clearPreview();
                   }}
-                  data={ruleCategoryOptions}
+                  data={[{ value: "", label: "카테고리 선택", disabled: true }, ...ruleCategoryOptions]}
                 />
-                <TextInput
-                  label="자동 태그"
-                  placeholder="예: #식비 #취미"
-                  value={tag}
-                  onChange={(event) => {
-                    setTag(event.currentTarget.value);
-                    clearPreview();
-                  }}
-                />
+
               </SimpleGrid>
 
               <Button
@@ -799,7 +789,6 @@ export function RuleEngineBuilderPanel({
                   <Table.Tr>
                     <Table.Th>가맹점 키워드</Table.Th>
                     <Table.Th>분류 카테고리</Table.Th>
-                    <Table.Th>자동 태그</Table.Th>
                     <Table.Th ta="right">현재 적용</Table.Th>
                     <Table.Th ta="center">동작</Table.Th>
                   </Table.Tr>
@@ -807,7 +796,7 @@ export function RuleEngineBuilderPanel({
                 <Table.Tbody>
                   {rules.length === 0 ? (
                     <Table.Tr>
-                      <Table.Td colSpan={5}>
+                      <Table.Td colSpan={4}>
                         <Text ta="center" c="dimmed" py="xl">
                           등록된 분류 규칙이 없습니다.
                         </Text>
@@ -822,11 +811,7 @@ export function RuleEngineBuilderPanel({
                         <Table.Td>
                           <Text size="sm">{rule.categoryName || "미지정"}</Text>
                         </Table.Td>
-                        <Table.Td>
-                          <Text c="teal.8" fw={800}>
-                            {rule.tag ?? "-"}
-                          </Text>
-                        </Table.Td>
+
                         <Table.Td ta="right">
                           <Text size="sm" fw={700} c="teal.8">{rule.appliedCount}건</Text>
                         </Table.Td>

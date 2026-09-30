@@ -18,14 +18,16 @@
         <result property="memo"            column="memo"/>
         <result property="tag"             column="tag"/>
         <result property="isClassified"    column="is_classified"/>
+        <result property="appliedRuleId"   column="applied_rule_id"/>
+        <result property="persisted"       column="persisted"/>
     </resultMap>
 
     <select id="findAll" resultMap="transactionResultMap">
         SELECT t.id, t.user_id, t.transaction_date, t.merchant,
                t.category_id, c.name AS category_name,
-               t.amount, t.card_name, t.installment, t.status, t.memo, t.tag, t.is_classified
+               t.amount, t.card_name, t.installment, t.status, t.memo, t.tag, t.is_classified, t.applied_rule_id, TRUE AS persisted
         FROM transactions t
-        LEFT JOIN categories c ON t.category_id = c.id
+        LEFT JOIN categories c ON t.category_id = c.id AND (c.user_id IS NULL OR c.user_id = t.user_id)
         WHERE t.user_id = #{userId}
         ORDER BY t.transaction_date DESC, t.id DESC
     </select>
@@ -33,9 +35,9 @@
     <select id="findById" resultMap="transactionResultMap">
         SELECT t.id, t.user_id, t.transaction_date, t.merchant,
                t.category_id, c.name AS category_name,
-               t.amount, t.card_name, t.installment, t.status, t.memo, t.tag, t.is_classified
+               t.amount, t.card_name, t.installment, t.status, t.memo, t.tag, t.is_classified, t.applied_rule_id, TRUE AS persisted
         FROM transactions t
-        LEFT JOIN categories c ON t.category_id = c.id
+        LEFT JOIN categories c ON t.category_id = c.id AND (c.user_id IS NULL OR c.user_id = t.user_id)
         WHERE t.id = #{id}
     </select>
 
@@ -64,7 +66,7 @@
             memo             = #{memo},
             tag              = #{tag},
             is_classified    = CASE WHEN #{categoryId,jdbcType=BIGINT} IS NULL THEN FALSE ELSE TRUE END,
-            applied_rule_id  = NULL,
+            applied_rule_id  = #{appliedRuleId,jdbcType=BIGINT},
             updated_at       = NOW()
         WHERE id = #{id}
     </update>
@@ -72,7 +74,6 @@
     <update id="updateCategory">
         UPDATE transactions
         SET category_id = #{categoryId},
-            tag         = #{tag},
             is_classified = TRUE,
             applied_rule_id = NULL,
             updated_at  = NOW()
@@ -82,7 +83,6 @@
     <update id="updateTag">
         UPDATE transactions
         SET tag = #{tag},
-            applied_rule_id = NULL,
             updated_at = NOW()
         WHERE id = #{id}
     </update>
@@ -127,9 +127,9 @@
             resultMap="transactionResultMap">
         SELECT t.id, t.user_id, t.transaction_date, t.merchant,
                t.category_id, c.name AS category_name,
-               t.amount, t.card_name, t.installment, t.status, t.memo, t.tag, t.is_classified
+               t.amount, t.card_name, t.installment, t.status, t.memo, t.tag, t.is_classified, t.applied_rule_id, TRUE AS persisted
         FROM transactions t
-        LEFT JOIN categories c ON t.category_id = c.id
+        LEFT JOIN categories c ON t.category_id = c.id AND (c.user_id IS NULL OR c.user_id = t.user_id)
         <include refid="searchWhere"/>
         <choose>
             <when test="sortField == 'amount'">  ORDER BY t.amount</when>
@@ -152,7 +152,7 @@
             SUM(CASE WHEN t.status = '취소' THEN 1 ELSE 0 END)       AS cancelledCount,
             SUM(CASE WHEN t.status = '승인' THEN t.amount ELSE 0 END) AS totalAmount
         FROM transactions t
-        LEFT JOIN categories c ON t.category_id = c.id
+        LEFT JOIN categories c ON t.category_id = c.id AND (c.user_id IS NULL OR c.user_id = t.user_id)
         <include refid="searchWhere"/>
     </select>
 

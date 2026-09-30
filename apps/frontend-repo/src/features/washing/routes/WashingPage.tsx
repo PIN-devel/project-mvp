@@ -1,13 +1,16 @@
 import { Component, Suspense, useRef, type ReactNode } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
+import { Stack } from "@mantine/core";
 import { QueryErrorResetBoundary } from "@tanstack/react-query";
 import { WashingPageContent } from "@/features/washing/ui/WashingPageContent";
+import type { GoalUpdateJourney } from "@/features/washing/ui/WashingPageContent";
 import { WashingPageSkeleton } from "@/features/washing/ui/WashingPageSkeleton";
 import { FirstExperienceHero } from "@/features/washing/ui/FirstExperienceHero";
+import { goalLoginPath } from "@/shared/model/goalReturnPath";
 import styles from "@/features/washing/ui/FirstExperience.module.css";
 
 class WashingErrorBoundary extends Component<
-  { children: ReactNode; onReset: () => void },
+  { children: ReactNode; onReset: () => void; goalContext?: ReactNode },
   { error: Error | null }
 > {
   state = { error: null as Error | null };
@@ -20,6 +23,7 @@ class WashingErrorBoundary extends Component<
     if (this.state.error) {
       return <main className={styles.page}>
         <div className={styles.pageHeading}><h2>나의 소비 기록</h2></div>
+        {this.props.goalContext && <Stack mb="xl">{this.props.goalContext}</Stack>}
         <section className={styles.stateFrame} aria-labelledby="washing-error-title">
           <h1 id="washing-error-title">소비 기록을<br />확인할 수 없어요.</h1>
           <p>내역 상태를 아직 확인하지 못했어요. 다시 불러오면 이어서 정리할 수 있어요.</p>
@@ -34,8 +38,9 @@ class WashingErrorBoundary extends Component<
   }
 }
 
-function GuestEmptyState() {
+function GuestEmptyState({ goalContext }: { goalContext?: ReactNode }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const helpRef = useRef<HTMLElement>(null);
   const showHelp = () => {
     helpRef.current?.scrollIntoView({
@@ -47,9 +52,10 @@ function GuestEmptyState() {
 
   return <main className={styles.page}>
     <div className={styles.pageHeading}><h2>나의 소비 기록</h2></div>
+    {goalContext && <Stack mb="xl">{goalContext}</Stack>}
     <FirstExperienceHero
       overview={{ transactions: [], categories: [], lastImportedAt: "" }}
-      onUpload={() => navigate("/login")}
+      onUpload={() => navigate(goalContext ? goalLoginPath(location.pathname + location.search) : "/login")}
       onOrganize={showHelp}
       onSeeRecords={showHelp}
     />
@@ -60,13 +66,15 @@ function GuestEmptyState() {
   </main>;
 }
 
-export function WashingPage({ isAuthenticated = true }: { isAuthenticated?: boolean }) {
-  if (!isAuthenticated) return <GuestEmptyState />;
+export function WashingPage({ isAuthenticated = true, onUploadSaved, onUploadFailed, goalContext, goalUpdate }: { isAuthenticated?: boolean; goalContext?: ReactNode; goalUpdate?: GoalUpdateJourney;
+  onUploadSaved?: (receipt: { addedCount: number; skippedCount: number }) => void; onUploadFailed?: () => void;
+}) {
+  if (!isAuthenticated) return <GuestEmptyState goalContext={goalContext} />;
   return (
     <QueryErrorResetBoundary>
-      {({ reset }) => <WashingErrorBoundary onReset={reset}>
+      {({ reset }) => <WashingErrorBoundary onReset={reset} goalContext={goalContext}>
         <Suspense fallback={<WashingPageSkeleton />}>
-          <WashingPageContent />
+          <WashingPageContent onUploadSaved={onUploadSaved} onUploadFailed={onUploadFailed} goalContext={goalContext} goalUpdate={goalUpdate} />
         </Suspense>
       </WashingErrorBoundary>}
     </QueryErrorResetBoundary>

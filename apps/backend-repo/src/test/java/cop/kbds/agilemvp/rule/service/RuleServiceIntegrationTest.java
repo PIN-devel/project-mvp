@@ -66,7 +66,7 @@ class RuleServiceIntegrationTest {
 
         Map<String, Object> restored = transaction(appliedTargetId);
         assertThat(restored.get("CATEGORY_ID")).isNull();
-        assertThat(restored.get("TAG")).isNull();
+        assertThat(restored.get("TAG")).isEqualTo("#커피");
         assertThat(restored.get("IS_CLASSIFIED")).isEqualTo(false);
         assertThat(restored.get("APPLIED_RULE_ID")).isNull();
 
@@ -291,6 +291,48 @@ class RuleServiceIntegrationTest {
         assertThat(transactionService.findAll(userId))
                 .extracting(TransactionDto::getMerchant)
                 .containsExactlyInAnyOrder("메가MGC커피", "신규가맹점");
+    }
+
+    @Test
+    void organizeUpdates_PreserveHiddenTagsAndUseActualRuleId() {
+        Long userId = createUser("organize-preservation", "보존유저");
+        Long foodId = categoryId("식음료");
+        Long transactionId = insertTransaction(userId, "2026-09-01", "스타벅스 보존", null, 1000L, "legacy raw tag", false);
+        ruleService.create(userId, "스타벅스", foodId, null);
+        TransactionDto applied = transactionService.findById(transactionId, userId);
+        assertThat(applied.getTag()).isEqualTo("legacy raw tag");
+        assertThat(applied.getFoundation().appliedRuleId()).isEqualTo(ruleId(userId, "스타벅스"));
+        assertThat(applied.getFoundation().persisted()).isTrue();
+        assertThat(applied.getFoundation().classification()).isEqualTo(cop.kbds.agilemvp.transaction.service.Classification.CLASSIFIED);
+
+        TransactionDto unrelatedUpdate = TransactionDto.builder().transactionDate("2026-09-01")
+                .merchant("스타벅스 보존").categoryId(foodId).amount(1000L).cardName("테스트카드")
+                .installment(1).status("승인").memo("메모 수정").build();
+        TransactionDto updated = transactionService.update(transactionId, unrelatedUpdate, userId);
+        assertThat(updated.getTag()).isEqualTo("legacy raw tag");
+        assertThat(updated.getAppliedRuleId()).isEqualTo(applied.getAppliedRuleId());
+
+        TransactionDto manual = transactionService.patchCategory(transactionId, categoryId("쇼핑"), userId);
+        assertThat(manual.getTag()).isEqualTo("legacy raw tag");
+        assertThat(manual.getFoundation().appliedRuleId()).isNull();
+    }
+
+    @Test
+    void categoryLifecycle_PreservesIdentityAndDoesNotReconnectByName() {
+        Long userId = createUser("organize-lifecycle", "생명주기유저");
+        Long categoryId = createCategory(userId, "식음료");
+        Long transactionId = insertTransaction(userId, "2026-09-01", "원본 이용처", categoryId, 1000L, "legacy", true);
+        categoryService.update(categoryId, userId, "이름 변경", "#123456");
+        TransactionDto renamed = transactionService.findById(transactionId, userId);
+        assertThat(renamed.getFoundation().categoryId()).isEqualTo(categoryId);
+        assertThat(renamed.getFoundation().categoryLabel()).isEqualTo("이름 변경");
+        categoryService.delete(categoryId, userId);
+        createCategory(userId, "이름 변경");
+        TransactionDto detached = transactionService.findById(transactionId, userId);
+        assertThat(detached.getFoundation().categoryId()).isNull();
+        assertThat(detached.getFoundation().classification()).isEqualTo(cop.kbds.agilemvp.transaction.service.Classification.UNCLASSIFIED);
+        assertThat(detached.getTag()).isEqualTo("legacy");
+        assertThat(detached.getFoundation().spendingEligible()).isTrue();
     }
 
     private Long createUser(String loginId, String nickname) {

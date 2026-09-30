@@ -3,6 +3,7 @@ import { AppHeader } from "@/shared/ui/AppHeader";
 import { AppShell, Box, LoadingOverlay } from "@mantine/core";
 import { NavigationProgress, nprogress } from "@mantine/nprogress";
 import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Outlet, useLocation, useNavigate, useNavigation } from "react-router";
 import { toast } from "@/shared/ui/toast";
 import { brandTokens } from "@/app/theme";
@@ -15,8 +16,15 @@ export function Layout() {
   const navigation = useNavigation();
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const { isAuthenticated, nickname, clearSession } = useAppStore();
   const isNavigating = navigation.state === "loading";
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const activeGoal = (location.pathname === "/washing" || location.pathname === "/washing/rules") && params.get("flow") === "goal-update" ? params.get("goalId") : null;
+    queryClient.removeQueries({ queryKey: ["goal-update-baseline"], predicate: (query) => query.queryKey[2] !== activeGoal });
+  }, [location.pathname, location.search, queryClient]);
 
   useEffect(() => {
     if (isNavigating) {

@@ -1,3 +1,4 @@
+export { TransactionDtoSchema, TransactionDtoListSchema } from "@/shared/model/transaction";
 import { z } from "zod";
 
 export const InsightPeriodSchema = z.enum([
@@ -50,24 +51,6 @@ export const MonthlyGoalSchema = z.object({
 });
 
 export const MonthlyGoalListSchema = z.array(MonthlyGoalSchema);
-
-export const TransactionDtoSchema = z.object({
-  id: z.number(),
-  userId: z.number(),
-  transactionDate: z.string(),
-  merchant: z.string(),
-  categoryId: z.number().nullable().optional(),
-  categoryName: z.string().nullable().optional(),
-  amount: z.number(),
-  cardName: z.string(),
-  installment: z.number(),
-  status: z.string(),
-  memo: z.string().nullable().optional(),
-  tag: z.string().nullable().optional(),
-  isClassified: z.boolean().optional(),
-});
-
-export const TransactionDtoListSchema = z.array(TransactionDtoSchema);
 
 export const CategoryDtoSchema = z.object({
   id: z.number(),

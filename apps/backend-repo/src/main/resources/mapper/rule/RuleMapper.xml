@@ -58,7 +58,7 @@
     <update id="applyRuleToTransactions">
         UPDATE transactions
         SET category_id = #{categoryId},
-            tag         = #{tag},
+            <if test="tag != null">tag = #{tag},</if>
             is_classified = TRUE,
             applied_rule_id = #{ruleId},
             updated_at  = NOW()
@@ -70,7 +70,7 @@
     <update id="applyRuleToTransactionIds">
         UPDATE transactions
         SET category_id = #{categoryId},
-            tag         = #{tag},
+            <if test="tag != null">tag = #{tag},</if>
             is_classified = TRUE,
             applied_rule_id = #{ruleId},
             updated_at  = NOW()
@@ -86,7 +86,6 @@
     <update id="restoreRuleAppliedTransactions">
         UPDATE transactions
         SET category_id = NULL,
-            tag = NULL,
             is_classified = FALSE,
             applied_rule_id = NULL,
             updated_at = NOW()

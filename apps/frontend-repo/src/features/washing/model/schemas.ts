@@ -1,7 +1,11 @@
+import { TransactionFoundationSchema } from "@/shared/model/transaction";
+import { TransactionDtoListSchema } from "@/shared/model/transaction";
+export { TransactionDtoSchema, TransactionDtoListSchema } from "@/shared/model/transaction";
 import { z } from "zod";
 
 export const WashingTransactionSchema = z.object({
   id: z.number(),
+  foundation: TransactionFoundationSchema.optional(),
   occurredAt: z.string(),
   merchantName: z.string(),
   description: z.string(),
@@ -19,24 +23,6 @@ export const WashingOverviewSchema = z.object({
   transactions: z.array(WashingTransactionSchema),
   lastImportedAt: z.string(),
 });
-
-export const TransactionDtoSchema = z.object({
-  id: z.number(),
-  userId: z.number(),
-  transactionDate: z.string(),
-  merchant: z.string(),
-  categoryId: z.number().nullable().optional(),
-  categoryName: z.string().nullable().optional(),
-  amount: z.number(),
-  cardName: z.string(),
-  installment: z.number(),
-  status: z.string(),
-  memo: z.string().nullable().optional(),
-  tag: z.string().nullable().optional(),
-  isClassified: z.boolean().optional(),
-});
-
-export const TransactionDtoListSchema = z.array(TransactionDtoSchema);
 
 export const CategoryDtoSchema = z.object({
   id: z.number(),

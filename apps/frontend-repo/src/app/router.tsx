@@ -2,6 +2,8 @@ import LoginPage from "@/features/auth/routes/LoginPage";
 import RegisterPage from "@/features/auth/routes/RegisterPage";
 import { loginAction, registerAction } from "@/features/auth/routes/action";
 import { AiInsightsEntry } from "./AiInsightsEntry";
+import { GoalsEntry } from "./GoalsEntry";
+import { goalLoginPath } from "@/shared/model/goalReturnPath";
 import { loader as aiInsightsLoader } from "@/features/ai-insights/routes/loader";
 import { ruleEngineQueries } from "@/features/rule-engine-builder/api/queries";
 import { SamplePage } from "@/features/sample/routes/SamplePage";
@@ -25,15 +27,19 @@ import { useAppStore } from "@/app/store/useAppStore";
  */
 const rootLoader = () => async ({ request }: LoaderFunctionArgs) => {
   const { isAuthenticated } = useAppStore.getState();
-  const pathname = new URL(request.url).pathname;
+  const url = new URL(request.url);
+  const pathname = url.pathname;
   if (!isAuthenticated && pathname !== "/" && pathname !== "/washing") {
-    return redirect("/login");
+    return redirect(pathname === "/goals" ? goalLoginPath(url.pathname + url.search) : "/login");
   }
   return null;
 };
 
-const protectedLoader = (load: () => Promise<unknown>) => async () => {
-  if (!useAppStore.getState().isAuthenticated) return redirect("/login");
+const protectedLoader = (load: () => Promise<unknown>) => async ({ request }: LoaderFunctionArgs) => {
+  if (!useAppStore.getState().isAuthenticated) {
+    const url = new URL(request.url);
+    return redirect(url.pathname === "/goals" ? goalLoginPath(url.pathname + url.search) : "/login");
+  }
   return load();
 };
 
@@ -50,6 +56,13 @@ const ruleEngineLoader = () => async () => {
 };
 
 export const routes: RouteObject[] = [
+  {
+    path: "/rules",
+    loader: ({ request }) => {
+      const url = new URL(request.url);
+      return redirect(`/washing/rules${url.search}${url.hash}`);
+    },
+  },
   // 1. 공통 헤더 쉘 레이아웃에서 탈출한 단독 풀스크린 라우트
   {
     path: "/login",
@@ -92,7 +105,7 @@ export const routes: RouteObject[] = [
         action: protectedAction(washingAction(queryClient)),
       },
       {
-        path: "rules",
+        path: "washing/rules",
         element: <RuleEngineBuilderPage />,
         loader: protectedLoader(ruleEngineLoader()),
         action: protectedAction(washingAction(queryClient)),
@@ -101,6 +114,11 @@ export const routes: RouteObject[] = [
         path: "insights",
         element: <AiInsightsEntry />,
         loader: protectedLoader(aiInsightsLoader(queryClient)),
+      },
+      {
+        path: "goals",
+        element: <GoalsEntry />,
+        loader: protectedLoader(async () => null),
       },
       {
         path: "pivot",

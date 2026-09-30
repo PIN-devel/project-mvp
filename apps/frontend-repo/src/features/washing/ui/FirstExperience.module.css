@@ -14,8 +14,8 @@
 .description strong{color:#F6FBFA;font-weight:600}
 .actions{display:flex;flex-wrap:wrap;align-items:center;gap:22px;margin-top:28px}
 .actions button{font:inherit;cursor:pointer;border:0}
-.primary{display:inline-flex;gap:12px;align-items:center;justify-content:center;min-height:48px;padding:12px 21px;border-radius:10px;background:#31E6B8;color:#0D1730;font-weight:750!important;font-size:15px!important;transition:background .16s ease,transform .16s ease}
-.primary:hover{background:#55EAC4;transform:translateY(-1px)}
+.primary{display:inline-flex;gap:12px;align-items:center;justify-content:center;min-height:56px;padding:12px 24px;border-radius:10px;background:#31E6B8;color:#0D1730;font-weight:700!important;font-size:16px!important;transition:background .16s ease,transform .16s ease}
+.primary:hover{background:#26C9A0;transform:translateY(-1px)}
 .primary:active{background:#26C9A0;transform:none}
 .secondary{display:inline-flex;align-items:center;gap:8px;background:transparent;color:#D1E4E1;font-size:14px!important;padding:10px 0}
 .secondary:hover{text-decoration:underline}
@@ -57,10 +57,13 @@
 .workHeading h2{font-size:20px;letter-spacing:-.04em;margin:0 0 5px}.workHeading p{color:#586574;font-size:13px;margin:0}
 .uploadSecondary{border:1px solid #DCE6E5;background:#fff;color:#0D1730;padding:9px 16px;border-radius:9px;font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap}
 .tabs{display:flex;gap:24px;padding:0 24px;background:#fff;border:1px solid #DCE6E5;border-bottom:0;border-radius:16px 16px 0 0}
-.tabs button{background:transparent;border:0;border-bottom:2px solid transparent;padding:18px 0 16px;color:#586574;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
-.tabs button[aria-selected="true"]{border-color:#006B56;color:#006B56}
+.tabs button{position:relative;background:transparent;border:0;border-bottom:2px solid transparent;padding:18px 0 16px;color:#586574;font:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:color 180ms ease,border-color 180ms ease}
+.tabs button::after{content:"";position:absolute;inset:auto 0 -2px;height:2px;background:#006B56;transform:scaleX(0);transform-origin:left;transition:transform 220ms cubic-bezier(.2,.7,.25,1)}
+.tabs button[aria-selected="true"]{border-color:transparent;color:#006B56}
+.tabs button[aria-selected="true"]::after{transform:scaleX(1)}
 .tabs span{display:inline-block;background:#EAF1EF;padding:2px 6px;border-radius:4px;margin-left:5px;font-size:11px}
-.view{min-width:0}.view > :first-child{border-radius:0 0 16px 16px}
+.view{min-width:0}.view:not([hidden]){animation:work-view-enter 180ms cubic-bezier(.2,.7,.25,1) both}.view > :first-child{border-radius:0 0 16px 16px}
+@keyframes work-view-enter{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .workSurface{border-top:0!important;box-shadow:none!important;background:#fff}
 .workSurface :global(.mantine-Table-th){font-size:12px;color:#60727D;font-weight:700;white-space:nowrap}
 .workSurface :global(.mantine-Table-td){font-variant-numeric:tabular-nums}
@@ -83,4 +86,4 @@
 .skeletonLine{height:18px;width:65%;border-radius:5px;background:#ffffff1c;margin:14px 0}.skeletonLarge{height:100px;width:80%;margin-top:42px}
 @media(max-width:1000px){.workspace{grid-template-columns:minmax(0,1fr)}.aside{display:none}.heroGrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.story{padding:36px 32px}.signal{padding:32px 28px 24px 8px}.heroFoot{margin:0 32px}}
 @media(max-width:760px){.heroGrid{grid-template-columns:1fr}.story{padding:32px 28px 12px}.story h1{font-size:clamp(26px,7vw,34px);word-break:normal}.signal{padding:20px 28px 28px}.heroFoot{margin:0 28px}.heroFoot small,.heroFoot > span:last-child{display:none}.startGuide,.readySummary{grid-template-columns:1fr}.readySide{border-left:0;border-top:1px solid #DCE6E5;padding:20px 0 0}.page{padding:20px 16px 48px}.field{column-gap:5px}}
-@media(prefers-reduced-motion:reduce){.primary{transition:none}.primary:hover{transform:none}}
+@media(prefers-reduced-motion:reduce){.primary,.tabs button,.tabs button::after{transition:none}.primary:hover{transform:none}.view:not([hidden]){animation:none}}

@@ -66,7 +66,6 @@
     <update id="detachTransactionsByCategoryId">
         UPDATE transactions
         SET category_id = NULL,
-            tag = CASE WHEN applied_rule_id IS NULL THEN tag ELSE NULL END,
             is_classified = FALSE,
             applied_rule_id = NULL,
             updated_at = NOW()

@@ -10,6 +10,8 @@ interface FirstExperienceHeroProps {
   onUpload: () => void;
   onOrganize: () => void;
   onSeeRecords: () => void;
+  primaryAction?: { label: string; onClick: () => void; disabled?: boolean };
+  supportingContext?: string;
 }
 
 const cells = Array.from({ length: 128 }, (_, index) => index);
@@ -19,6 +21,8 @@ export function FirstExperienceHero({
   onUpload,
   onOrganize,
   onSeeRecords,
+  primaryAction,
+  supportingContext,
 }: FirstExperienceHeroProps) {
   const navigate = useNavigate();
   const total = overview.transactions.length;
@@ -60,20 +64,20 @@ export function FirstExperienceHero({
                     <>전체 {total}건 중 <strong>{completed}건을 분류했어요.</strong><br />남은 {remaining}건에 카테고리를 더해 보세요.</>}
           </p>
           <div className={styles.actions}>
-            <button className={styles.primary} type="button" onClick={empty || needsMore ? onUpload : ready ? () => navigate("/insights") : onOrganize}>
-              {empty ? "Excel 이용내역 업로드" : needsMore ? "이용내역 더 추가하기" : ready ? "소비 분석으로 이어가기" : completed === 0 ? "소비 내역 분류 시작하기" : `남은 ${remaining}건 분류하기`}
+            <button className={styles.primary} type="button" disabled={primaryAction?.disabled} onClick={primaryAction?.onClick ?? (empty || needsMore ? onUpload : ready ? () => navigate("/insights") : onOrganize)}>
+              {primaryAction?.label ?? (empty ? "Excel 이용내역 업로드" : needsMore ? "이용내역 더 추가하기" : ready ? "소비 분석으로 이어가기" : completed === 0 ? "소비 내역 분류 시작하기" : `남은 ${remaining}건 분류하기`)}
               <IconArrowRight size={19} aria-hidden="true" />
             </button>
-            <button className={styles.secondary} type="button" onClick={empty || ready ? onSeeRecords : needsMore ? onOrganize : () => navigate("/insights")}>
-              {empty ? "지원 파일 안내" : ready ? "내역 다시 보기" : needsMore ? `남은 ${remaining}건 분류하기` : "현재 내역으로 소비 분석 보기"}
-              <span aria-hidden="true">{empty || ready || needsMore ? "↓" : "↗"}</span>
+            <button className={styles.secondary} type="button" onClick={primaryAction ? onSeeRecords : empty || ready ? onSeeRecords : needsMore ? onOrganize : () => navigate("/insights")}>
+              {primaryAction ? empty ? "지원 파일 안내" : "내역 다시 보기" : empty ? "지원 파일 안내" : ready ? "내역 다시 보기" : needsMore ? `남은 ${remaining}건 분류하기` : "현재 내역으로 소비 분석 보기"}
+              <span aria-hidden="true">{primaryAction || empty || ready || needsMore ? "↓" : "↗"}</span>
             </button>
           </div>
           <p className={styles.support}>
-            {empty ? "신한카드 · KB국민카드 / .xls, .xlsx / 최대 10MB" :
+            {supportingContext ?? (empty ? "신한카드 · KB국민카드 / .xls, .xlsx / 최대 10MB" :
               needsMore ? "내역을 추가하는 동안 카테고리를 미리 분류할 수 있어요." :
                 ready ? "분류 완료 기준 · AI 분석 결과는 다음 화면에서 확인" :
-                  `미분류 ${remaining}건 포함 · 카테고리별 해석이 제한될 수 있어요.`}
+                  `미분류 ${remaining}건 포함 · 카테고리별 해석이 제한될 수 있어요.`)}
           </p>
         </div>
 
