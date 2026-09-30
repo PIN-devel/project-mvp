@@ -1,3 +1,4 @@
+import { journeyPrimaryProps } from "@/shared/ui/journeyActions";
 import { Accordion, Alert, Badge, Button, Checkbox, Divider, Group, Modal, Paper, Stack, Text, Title } from "@mantine/core";
 import { IconArrowRight, IconPlus } from "@tabler/icons-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -60,9 +61,9 @@ export function GoalDetail({ goal, observedAt, refreshing }: { goal: GoalView; o
         {!result && scheduled && <Text size="sm" c="dimmed">{c.start}부터 실천을 시작해요. 실행월의 새 이용내역이 변화의 근거가 됩니다.</Text>}
         {!result && actual === null && <Text size="sm" c="dimmed">실행월이 시작되지 않았거나, 아직 대상 카드 내역이 없어요. 소비가 0원이라고 판단하지 않습니다.</Text>}
       </Stack>
-      {!result && !ready && <Button component={Link} to={washTo} color="brandMint.8" size="md" w="fit-content" leftSection={<IconPlus size={18} />}>새 이용내역 추가하기</Button>}
+      {!result && !ready && <Button component={Link} to={washTo} {...journeyPrimaryProps} w="fit-content" leftSection={<IconPlus size={18} />}>새 이용내역 추가하기</Button>}
       {result && <Group>
-        <Button component={Link} to={nextCycleId ? `/goals?goalId=${nextCycleId}` : `/goals?continueFrom=${c.id}`} variant={canReview ? "subtle" : "filled"} color={canReview ? "gray" : "brandMint.8"} rightSection={<IconArrowRight size={17} />}>{nextCycleId ? "이어가는 목표 확인하기" : "이 목표 이어가기"}</Button>
+        <Button component={Link} to={nextCycleId ? `/goals?goalId=${nextCycleId}` : `/goals?continueFrom=${c.id}`} {...(canReview ? { variant: "subtle" as const, color: "gray" } : journeyPrimaryProps)} rightSection={<IconArrowRight size={17} />}>{nextCycleId ? "이어가는 목표 확인하기" : "이 목표 이어가기"}</Button>
         <Button component={Link} to="/insights" variant="subtle" color="gray">다시 분석하기</Button>
       </Group>}
       {canReview && <Stack gap="md">
@@ -71,7 +72,7 @@ export function GoalDetail({ goal, observedAt, refreshing }: { goal: GoalView; o
         <Checkbox color="teal" checked={confirmed} disabled={review.isPending} onChange={(e) => setConfirmed(e.currentTarget.checked)} label="대상 카드·기간의 이용내역을 모두 반영했어요. 소비 내역이 없는 경우도 확인했어요." />
         {review.isError && <Text c="red" size="sm" role="alert">결과를 확인하지 못했어요. 최신 내역을 불러온 뒤 다시 확인해 주세요.</Text>}
         <Group>
-          <Button color="brandMint.8" disabled={!confirmed} loading={review.isPending} onClick={() => review.mutate({ confirm: true, key: crypto.randomUUID() })}>확인한 내역으로 결과 보기</Button>
+          <Button {...journeyPrimaryProps} disabled={!confirmed} loading={review.isPending} onClick={() => review.mutate({ confirm: true, key: crypto.randomUUID() })}>확인한 내역으로 결과 보기</Button>
           <Button component={Link} to={washTo} variant="subtle" color="gray">새 이용내역 추가하기</Button>
           {ready && <Button variant="subtle" color="gray" disabled={review.isPending} onClick={() => review.mutate({ confirm: false, key: crypto.randomUUID() })}>자료가 부족한 상태로 기록하기</Button>}
         </Group>

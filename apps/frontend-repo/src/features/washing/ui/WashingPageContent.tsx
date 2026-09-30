@@ -117,6 +117,7 @@ export function WashingPageContent({ onUploadSaved, onUploadFailed, goalContext:
             <Group gap="xs">
               {!empty && <button type="button" className={styles.uploadSecondary} onClick={openUpload}>＋ Excel 추가</button>}
               <Button component={Link} to={`/washing/rules${goalContext}`} variant="subtle" color="teal" size="xs"
+                vars={() => ({ root: { "--button-hover": "transparent" } })}
                 rightSection={<IconArrowRight size={15} aria-hidden="true" />}>자동 분류 규칙</Button>
             </Group>
           </div>

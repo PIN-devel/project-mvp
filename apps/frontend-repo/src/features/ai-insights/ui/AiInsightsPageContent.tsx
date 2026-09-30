@@ -1,7 +1,8 @@
+import { journeyPrimaryProps } from "@/shared/ui/journeyActions";
 import { Accordion, Alert, Button, Container, Group, NativeSelect, Paper, SimpleGrid, Stack, Text, Title } from "@mantine/core";
-import { IconAlertTriangle, IconRefresh } from "@tabler/icons-react";
+import { IconAlertTriangle, IconArrowRight, IconRefresh } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { analysisKeys, analysisQueries, createAnalysis } from "../api/analysis";
 import { aiInsightQueries } from "../api/queries";
@@ -30,6 +31,7 @@ export function AiInsightsPageContent({ userScope }: { userScope: string | null 
   const [activeSnapshot, setActiveSnapshot] = useState<AnalyticsSnapshot | null>(null);
   const [entryRequested, setEntryRequested] = useState(false);
   const resultRevealRef = useRef<HTMLDivElement>(null);
+  const restoredResultScrollRef = useRef(false);
   const analysisScopeRef = useRef<HTMLSelectElement>(null);
   const analysis = useMutation({
     mutationFn: ({ query, revision }: { query: AnalyticsQuery; revision: string }) => createAnalysis(query, revision),
@@ -57,6 +59,17 @@ export function AiInsightsPageContent({ userScope }: { userScope: string | null 
   const count = current?.transactionCount;
   const aiEligible = count !== undefined && count >= MIN_ANALYSIS_TRANSACTION_COUNT;
   const unresolved = (current?.quality.unclassifiedCount ?? 0) + (current?.quality.inconsistentCount ?? 0);
+
+  useEffect(() => {
+    if (restoredResultScrollRef.current || !snapshot || !run || !sameRunScope || stale || checking || activeSnapshot) return;
+    const firstScene = resultRevealRef.current?.querySelector<HTMLElement>("[data-scene]");
+    if (!firstScene) return;
+    const frame = window.requestAnimationFrame(() => {
+      restoredResultScrollRef.current = true;
+      firstScene.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeSnapshot, checking, run, sameRunScope, snapshot, stale]);
 
   const changeQuery = (next: AnalyticsQuery) => {
     setSelectedQuery(next);
@@ -112,7 +125,7 @@ export function AiInsightsPageContent({ userScope }: { userScope: string | null 
     {(analytics.isError || restored.isError) && <Alert color="red" icon={<IconAlertTriangle size={18} />} title="분석 데이터를 가져오지 못했어요"><Stack gap="sm"><Text size="sm">잠시 후 다시 시도해 주세요.</Text><Button variant="subtle" color="gray" onClick={() => { void restored.refetch(); void analytics.refetch(); }}>다시 확인하기</Button></Stack></Alert>}
     {!snapshot && <Paper className={styles.gateway}><Stack gap="xl">
       <Stack gap="sm" aria-live="polite"><Text size="xs" c="dimmed" fw={700}>나의 소비 읽기</Text><Title order={2}>{checking ? "저장한 결과와 이용내역을 확인하고 있어요" : stale ? "이용내역이 바뀌었어요" : "정리한 내역에서 나의 소비를 읽어볼까요?"}</Title><Text c="dimmed" maw={620}>{stale ? "현재 이용내역으로 다시 분석해 주세요. 이전 근거는 저장한 분석에서 보존됩니다." : "소비가 모이는 곳과 시간의 흐름을 실제 기록에서 먼저 확인하고, AI의 해석을 더해보세요."}</Text></Stack>
-      <Button color="brandMint.8" size="lg" w="fit-content" onClick={requestAnalysis} disabled={!current || checking || analysis.isPending} loading={checking}>내 소비 분석하기</Button>
+      <Button {...journeyPrimaryProps} w="fit-content" rightSection={<IconArrowRight size={18} />} onClick={requestAnalysis} disabled={!current || checking || analysis.isPending} loading={checking}>내 소비 분석하기</Button>
       <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="xl" className={styles.gatewayPreview}>{["소비가 집중된 영역", "시간에 따른 소비 흐름", "패턴을 만든 주요 거래"].map((label, i) => <Stack gap={5} key={label}><Text size="xs" c="dimmed">분석 후 살펴볼 내용 / 0{i + 1}</Text><Text size="sm" fw={600}>{label}</Text></Stack>)}</SimpleGrid>
     </Stack></Paper>}
 

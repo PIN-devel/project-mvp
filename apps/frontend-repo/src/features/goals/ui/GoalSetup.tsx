@@ -1,7 +1,8 @@
-import { Alert, Button, Checkbox, Group, NumberInput, Paper, Select, SimpleGrid, Stack, Text, TextInput, Title, useMantineTheme } from "@mantine/core";
-import { IconArrowRight } from "@tabler/icons-react";
+import { journeyPrimaryProps } from "@/shared/ui/journeyActions";
+import { Alert, Button, Checkbox, Divider, Group, NumberInput, Paper, Select, SimpleGrid, Stack, Text, TextInput, Title, useMantineTheme } from "@mantine/core";
+import { IconAlertTriangle, IconArrowRight } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { createGoal, goalKeys, goalQueries } from "../api/queries";
 import { endDate, reasonText, won } from "../model/contract";
@@ -22,6 +23,7 @@ function GoalSetupForm({ preparation: p, onMonth, userScope }: { preparation: Go
   const [execution, setExecution] = useState(p.earliestExecutionMonth);
   const [confirmed, setConfirmed] = useState(false);
   const [key] = useState(() => crypto.randomUUID());
+  const baselineInput = useRef<HTMLInputElement>(null);
   const mutation = useMutation({ mutationFn: createGoal, onSuccess: async (goal) => {
     client.setQueryData(goalKeys.view(userScope, goal.cycle.id), goal);
     await client.invalidateQueries({ queryKey: goalKeys.all });
@@ -30,6 +32,19 @@ function GoalSetupForm({ preparation: p, onMonth, userScope }: { preparation: Go
   const baseline = p.baselineSnapshot.totalAmount;
   const validTarget = typeof target === "number" && Number.isSafeInteger(target) && target >= 0 && target < baseline;
   const validMonth = /^\d{4}-\d{2}$/.test(execution) && execution >= p.earliestExecutionMonth;
+  const needsGoal = p.reasons.some((reason) => reason === "OPEN_GOAL_EXISTS" || reason === "NEXT_CYCLE_EXISTS");
+  const needsRecords = p.reasons.some((reason) => reason === "UNRESOLVED_RECORDS" || reason === "SOURCE_SCOPE_UNAVAILABLE");
+  const needsAnalysis = p.reasons.some((reason) => reason === "STALE_OPPORTUNITY" || reason === "CATEGORY_UNAVAILABLE");
+  const resolution = needsGoal ? { to: "/goals", label: "현재 목표 확인하기" }
+    : needsRecords ? { to: "/washing", label: "이용내역 정리하기" }
+    : needsAnalysis ? { to: "/insights", label: "다시 분석하기" }
+    : p.reasons.includes("NO_BASELINE_SPENDING") ? { to: null, label: "기준월 다시 선택하기" }
+    : { to: "/washing", label: "기준 내역 확인하기" };
+  const alternatives = [
+    { to: "/goals", label: "현재 목표 확인하기" },
+    { to: "/washing", label: "이용내역 정리하기" },
+    { to: "/insights", label: "다시 분석하기" },
+  ].filter((action) => action.to !== resolution.to);
   return <Stack gap="lg">
     <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
       <Paper radius="xl" p={{ base: "xl", md: 36 }} bg={theme.other.brand.deepNavy} c="white"><Stack gap="lg">
@@ -40,14 +55,27 @@ function GoalSetupForm({ preparation: p, onMonth, userScope }: { preparation: Go
       </Stack></Paper>
       <Paper withBorder radius="xl" p={{ base: "xl", md: 36 }} bg="white"><Stack gap="lg">
         <Title order={3}>{p.previousCycleId ? "같은 변화, 새로운 Cycle" : "내가 선택할 변화"}</Title>
-        <Select label="어느 달을 기준으로 볼까요?" data={[...new Set([p.baselineMonth, ...p.availableBaselineMonths])]} value={p.baselineMonth} onChange={(value) => { if (value) onMonth(value); }} disabled={mutation.isPending} allowDeselect={false} description={`기준 내역 ${p.baselineSnapshot.period.start} ~ ${p.baselineSnapshot.period.endExclusive ? endDate(p.baselineSnapshot.period.endExclusive) : ""}`} />
-        <NumberInput label="이번에는 얼마까지 쓰고 싶나요?" description={`0원부터 기준 소비 ${won(baseline)}보다 낮은 금액을 직접 선택해 주세요.`} suffix=" 원" thousandSeparator min={0} max={Math.max(0, baseline - 1)} decimalScale={0} value={target} onChange={setTarget} disabled={mutation.isPending} />
+        <Select ref={baselineInput} label="어느 달을 기준으로 볼까요?" data={[...new Set([p.baselineMonth, ...p.availableBaselineMonths])]} value={p.baselineMonth} onChange={(value) => { if (value) onMonth(value); }} disabled={mutation.isPending} allowDeselect={false} description={`기준 내역 ${p.baselineSnapshot.period.start} ~ ${p.baselineSnapshot.period.endExclusive ? endDate(p.baselineSnapshot.period.endExclusive) : ""}`} />
+        <NumberInput label="이번에는 얼마까지 쓰고 싶나요?" description={`0원부터 기준 소비 ${won(baseline)}보다 낮은 금액을 직접 선택해 주세요.`} suffix=" 원" thousandSeparator min={0} max={Math.max(0, baseline - 1)} step={1000} clampBehavior="strict" decimalScale={0} value={target} onChange={setTarget} disabled={mutation.isPending} />
         <TextInput type="month" label="언제 실천할까요?" min={p.earliestExecutionMonth} value={execution} onChange={(e) => setExecution(e.currentTarget.value)} disabled={mutation.isPending} description="월 전체 소비를 비교해요. 지금 시작할 수 있는 완전한 달력월부터 선택할 수 있어요." />
         {validTarget && <Text size="sm" c="dimmed">계획한 소비 차이 {won(baseline - target)} · 실제 결과는 새 이용내역에서 확인해요.</Text>}
         <Checkbox color="teal" checked={confirmed} onChange={(e) => setConfirmed(e.currentTarget.checked)} disabled={mutation.isPending} label={`${p.baselineMonth}의 대상 카드 이용내역을 모두 반영했고, 이 소비를 기준으로 시작할게요.`} />
-        {!p.canCreate && <Alert color="orange"><Stack gap="xs">{p.reasons.map((reason) => <Text size="sm" key={reason}>{reasonText(reason)}</Text>)}<Group><Button component={Link} to="/goals" variant="subtle" color="gray" size="xs">현재 목표 확인하기</Button><Button component={Link} to="/washing" variant="subtle" color="gray" size="xs">이용내역 정리하기</Button><Button component={Link} to="/insights" variant="subtle" color="gray" size="xs">다시 분석하기</Button></Group></Stack></Alert>}
+        {!p.canCreate && <Alert color="orange" bg="#FFF4E3" variant="light" radius="lg" icon={<IconAlertTriangle size={18} />} title="목표를 시작하기 전에 확인해 주세요">
+          <Stack gap="sm">
+            <Stack gap={4}>{p.reasons.map((reason) => <Text size="sm" key={reason}>{reasonText(reason)}</Text>)}</Stack>
+            <Group>
+              {resolution.to ? <Button component={Link} to={resolution.to} variant="default" color="gray" size="sm" radius={10} fw={600} rightSection={<IconArrowRight size={16} />}>{resolution.label}</Button>
+                : <Button variant="default" color="gray" size="sm" radius={10} fw={600} onClick={() => baselineInput.current?.focus()}>{resolution.label}</Button>}
+            </Group>
+            <Divider color="orange.2" />
+            <Group gap="xs">
+              <Text size="xs" c="dimmed" fw={600}>다른 방법</Text>
+              {alternatives.map((action) => <Button key={action.to} component={Link} to={action.to} variant="subtle" color="gray" size="xs">{action.label}</Button>)}
+            </Group>
+          </Stack>
+        </Alert>}
         {mutation.isError && <Text size="sm" c="red" role="alert">목표를 시작하지 못했어요. 현재 기준 내역을 다시 확인해 주세요.</Text>}
-        <Button color="brandMint.8" rightSection={<IconArrowRight size={17} />} loading={mutation.isPending} disabled={!p.canCreate || !validTarget || !validMonth || !confirmed}
+        <Button {...journeyPrimaryProps} rightSection={<IconArrowRight size={17} />} loading={mutation.isPending} disabled={!p.canCreate || !validTarget || !validMonth || !confirmed}
           onClick={() => { if (typeof target !== "number") return; mutation.mutate({ analysisRunId: p.analysisRunId, opportunityId: p.opportunityId, previousCycleId: p.previousCycleId,
             baselineMonth: p.baselineMonth, executionMonth: execution, targetAmount: target, sourceConfirmed: confirmed,
             expectedSourceRevision: p.sourceDataRevision, expectedBaselineRevision: p.baselineSnapshot.dataRevision, idempotencyKey: key }); }}>이 변화로 시작하기</Button>

@@ -305,12 +305,12 @@ export function SourceDataManagementPanel({ onOpenUpload }: SourceDataManagement
                         {formatAmount(tx.amount)}원
                       </Table.Td>
                       <Table.Td>
-                        <Stack gap={4}>
-                          <Badge color={isTransactionClassified(tx) ? "teal" : !tx.foundation || tx.foundation.classification === "INCONSISTENT" ? "orange" : "gray"} variant="light">
-                            {(!tx.foundation || tx.foundation.classification === "INCONSISTENT") ? "분류 확인 필요" : isTransactionClassified(tx) ? "분류 완료" : "미분류"}
+                        <Stack gap={4} w={104} align="center">
+                          <Badge w="fit-content" mx="auto" ta="center" color={!tx.foundation || tx.foundation.canonicalStatus === "UNKNOWN" || tx.foundation.classification === "INCONSISTENT" ? "orange" : isTransactionClassified(tx) ? "teal" : "gray"} variant="light">
+                            {tx.foundation?.canonicalStatus === "UNKNOWN" ? "내역 확인 필요" : (!tx.foundation || tx.foundation.classification === "INCONSISTENT") ? "분류 확인 필요" : isTransactionClassified(tx) ? "분류 완료" : "미분류"}
                           </Badge>
                           {tx.foundation?.appliedRuleId != null && <Text component={Link} to={`/washing/rules${goalContext}`} size="xs" c="teal.8">규칙 #{tx.foundation.appliedRuleId}</Text>}
-                          <Text size="xs" c="dimmed">{(tx.foundation?.canonicalStatus ?? "UNKNOWN") === "UNKNOWN" ? `승인 상태 확인 필요 (${tx.status || "값 없음"})` : tx.status}</Text>
+                          {tx.foundation?.canonicalStatus === "CANCELLED" && <Badge w="fit-content" mx="auto" ta="center" color="red" variant="light">취소</Badge>}
                         </Stack>
                       </Table.Td>
                       <Table.Td>
@@ -318,14 +318,16 @@ export function SourceDataManagementPanel({ onOpenUpload }: SourceDataManagement
                           <Form method="post" id={`category-form-${tx.id}`}>
                             <input type="hidden" name="intent" value="update_category" />
                             <input type="hidden" name="id" value={tx.id} />
-                            <Button type="submit" size="xs" loading={isCategoryUpdateSubmitting(tx.id)}>
+                            <Button type="submit" size="xs" radius="md" variant="light" color="teal" fw={600} loading={isCategoryUpdateSubmitting(tx.id)}>
                               저장
                             </Button>
                           </Form>
                           <Button
                             size="xs"
+                            radius="md"
                             color="red"
-                            variant="light"
+                            variant="subtle"
+                            fw={500}
                             loading={isDeleteSubmitting(tx.id)}
                             onClick={() =>
                               modals.openConfirmModal({

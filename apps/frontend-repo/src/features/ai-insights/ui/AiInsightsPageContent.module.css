@@ -270,19 +270,40 @@
 }
 
 .goalChoice {
-  padding: 16px 18px;
-  border: 1px solid #e2ebea;
-  border-radius: 14px;
-  background: #fff;
+  position: relative;
+  text-align: left;
+  font: inherit;
+  min-height: 170px;
+  padding: 22px 24px;
+  border: 1px solid #d9e5e3;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #fff 45%, #f8fbfa 100%);
+  box-shadow: 0 2px 8px rgb(13 23 48 / 4%);
+  cursor: pointer;
+  transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
 }
 
+.goalChoice:hover { transform: translateY(-2px); border-color: #6da99a; background: #f8fcfa; box-shadow: 0 10px 24px rgb(13 73 62 / 10%); }
+.goalChoice:focus-visible { outline: 3px solid #006b56; outline-offset: 3px; }
+.goalChoice h4 { padding-top: 2px; color: #0d1730; font-size: 20px; letter-spacing: -0.035em; }
+.goalChoiceMark { display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; border: 1px solid #d6e2e0; border-radius: 50%; background: white; color: #52656b; transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease, transform 180ms ease; }
+.goalChoice:hover .goalChoiceMark { transform: translateX(2px); border-color: #7aab9f; color: #006b56; }
+.goalChoiceMarkSelected { border-color: #006b56; background: #006b56; color: white; }
+.goalChoiceAction { min-height: 42px; padding: 0 14px; border: 1px solid #dce7e8; border-radius: 10px; background: #f4f8f8; color: #425466; }
+.goalChoiceActionSelected { border-color: #c9e5dc; background: #e2f3ec; color: #005c49; }
 .goalChoiceSelected {
-  border-color: #006b56;
-  background: #f4f8f8;
+  border: 2px solid #00745b;
+  padding: 21px 23px;
+  background: linear-gradient(145deg, #f1faf6 0%, #f7fbf9 72%);
+  box-shadow: 0 7px 20px rgb(0 107 86 / 10%);
 }
+.goalChoiceSelected:hover { border-color: #006b56; background: #eff8f4; box-shadow: 0 12px 26px rgb(0 107 86 / 13%); }
+.goalChoiceSelected:hover .goalChoiceMark { transform: none; border-color: #006b56; color: white; }
+.goalActions { align-items: center; gap: 14px; }
 
-.goalChoice button {
-  white-space: nowrap;
+@media (prefers-reduced-motion: reduce) {
+  .goalChoice, .goalChoiceMark { transition: none; }
+  .goalChoice:hover, .goalChoiceMark { transform: none; }
 }
 
 @media (max-width: 860px) {
@@ -319,7 +340,7 @@
 .gateway h2 { max-width: 700px; font-size: clamp(28px, 3vw, 40px); letter-spacing: -.045em; line-height: 1.35; word-break: keep-all; }
 .gatewayPreview { padding-top: 28px; border-top: 1px solid #e4eceb; }
 .analysisStage { position: relative; isolation: isolate; margin-inline: calc(50% - 50vw + 10px); --stage-gutter: max(48px, calc((100vw - 1100px) / 2)); padding-inline: var(--stage-gutter); background: #0d1730; color: #f0f5f8; }
-.analysisStage section { scroll-margin-top: 24px; border-radius: 0; background: transparent; padding: 56px 0; min-height: 88svh; }
+.analysisStage section { scroll-margin-top: calc(var(--app-shell-header-height, 112px) + 16px); border-radius: 0; background: transparent; padding: 56px 0; min-height: 88svh; }
 .analysisStage section:focus { outline: none; }
 .analysisStage section:focus-visible { outline: 2px solid #31e6b8; outline-offset: 6px; }
 .analysisStage .structureScene { padding-top: 64px; }
