@@ -182,7 +182,7 @@
 }
 
 .goalSection {
-  scroll-margin-top: 24px;
+  scroll-margin-top: calc(var(--app-shell-header-height, 112px) + 16px);
   padding-top: 38px;
   border-top: 1px solid #e1e9e9;
 }
@@ -312,4 +312,49 @@
   .goalFocus > :first-child {
     min-height: 0;
   }
+}
+
+/* Only the result stage uses navy. The application keeps its light theme. */
+.gateway { padding: clamp(28px, 5vw, 64px); background: #fff; border: 1px solid #dce7e8; border-radius: 24px; }
+.gateway h2 { max-width: 700px; font-size: clamp(28px, 3vw, 40px); letter-spacing: -.045em; line-height: 1.35; word-break: keep-all; }
+.gatewayPreview { padding-top: 28px; border-top: 1px solid #e4eceb; }
+.resultReveal { animation: scene-arrive 450ms ease-out; }
+.analysisStage { position: relative; isolation: isolate; margin-inline: calc(50% - 50vw + 10px); padding-inline: max(48px, calc((100vw - 1100px) / 2)); background: #0d1730; color: #f0f5f8; }
+.analysisStage section { scroll-margin-top: 24px; border-radius: 0; background: transparent; padding: 56px 0; min-height: 88svh; }
+.analysisStage section:focus { outline: none; }
+.analysisStage section:focus-visible { outline: 2px solid #31e6b8; outline-offset: 6px; }
+.analysisStage .structureScene { padding-top: 64px; }
+.analysisStage .pulseScene > :first-child, .analysisStage .explorationScene > :first-child { min-height: calc(88svh - 112px); justify-content: center; }
+.analysisStage .dataBasis { padding: 32px 0; border-block: 1px solid #304057; }
+.analysisStage .pulseDetail, .analysisStage .transactionRow { border-color: #304057; }
+.analysisStage .merchantDetail { background: #14223a; border: 1px solid #304057; }
+.analysisStage .allTransactions summary { color: #bac9d6; }
+.analysisStage :global(.mantine-NativeSelect-input) { background: #14223a; color: #f0f5f8; border-color: #53667c; }
+.analysisStage :global(.mantine-NativeSelect-label) { color: #bac9d6; }
+.analysisStage :global(.mantine-NativeSelect-section) { color: #bac9d6; }
+.analysisStage .merchantNode:focus-visible circle { stroke: #31e6b8; }
+.sceneNavigator { position: fixed; right: max(16px, calc((100vw - 1380px) / 2)); top: 50%; transform: translateY(-50%); z-index: 101; padding: 10px 4px; border-left: 1px solid #53667c; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 200ms ease, visibility 200ms ease; }
+.sceneNavigator[data-active="true"] { opacity: 1; visibility: visible; pointer-events: auto; }
+.sceneLink { position: relative; min-width: 44px; min-height: 44px; padding: 10px; background: #0d1730; border: 0; border-radius: 6px; color: #bac9d6; cursor: pointer; font: inherit; font-size: 12px; }
+.sceneLink[aria-current] { color: #31e6b8; }
+.sceneLink[aria-current]::before { content: ""; position: absolute; left: -7px; top: 20px; width: 5px; height: 5px; background: #31e6b8; border-radius: 50%; }
+.sceneLabel { position: absolute; right: 52px; top: 8px; padding: 8px 12px; background: #14223a; color: #f0f5f8; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 150ms ease; }
+.sceneLink:hover .sceneLabel, .sceneLink:focus-visible .sceneLabel { opacity: 1; }
+.sceneLink:focus-visible { outline: 2px solid #31e6b8; outline-offset: 2px; }
+.aiHeading { padding-block: 48px 12px; }
+.aiInterpretation { background: #fff; color: #0d1730; border: 1px solid #dce7e8; }
+@media (min-width: 62em) {
+  :global([data-product-header]) { transition: opacity 220ms ease, transform 220ms ease; }
+  :global(body:has([data-analysis-stage-active="true"]) [data-product-header]) { opacity: .08; transform: translateY(-85%); }
+  :global(body:has([data-analysis-stage-active="true"]) [data-product-header]:hover), :global(body:has([data-analysis-stage-active="true"]) [data-product-header]:focus-within) { opacity: 1; transform: none; }
+}
+@media (max-width: 62em) {
+  .sceneNavigator { display: none; }
+  .analysisStage { margin-inline: -12px; padding-inline: 24px; }
+  .analysisStage section { min-height: auto; padding-block: 48px; scroll-margin-top: calc(var(--app-shell-header-height, 60px) + 16px); }
+  .analysisStage .pulseScene > :first-child, .analysisStage .explorationScene > :first-child { min-height: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .resultReveal { animation: none; }
+  .sceneNavigator, .sceneLabel, :global([data-product-header]) { transition: none; }
 }

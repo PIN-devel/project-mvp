@@ -1,6 +1,6 @@
 import { MantineProvider } from "@mantine/core";
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { theme } from "@/app/theme";
 import type { TransactionDto } from "../model/types";
 import { SpendingDiscovery } from "./SpendingDiscovery";
@@ -10,6 +10,8 @@ const data: TransactionDto[] = [
   { id: 2, userId: 1, transactionDate: "2026-09-03", merchant: "버스", categoryId: 2, categoryName: "교통", amount: 2000, cardName: "카드", installment: 0, status: "승인", isClassified: true },
 ];
 const show = (transactions = data) => render(<MantineProvider theme={theme}><SpendingDiscovery transactions={transactions} categories={[]} /></MantineProvider>);
+
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("spending discovery interaction", () => {
   it("shows three different questions before AI with exact source totals", () => {
@@ -47,4 +49,40 @@ describe("spending discovery interaction", () => {
     expect(screen.queryByRole("group", { name: /카테고리별 소비 구조/ })).not.toBeInTheDocument();
     expect(screen.getByText(/취소 2건/)).toBeInTheDocument();
   });
+  it("tracks scene visibility, supports focused reduced-motion jumps, and cleans up observers", () => {
+    const callbacks: IntersectionObserverCallback[] = [];
+    const disconnect = vi.fn();
+    vi.stubGlobal("IntersectionObserver", class {
+      constructor(callback: IntersectionObserverCallback) { callbacks.push(callback); }
+      observe = vi.fn();
+      unobserve = vi.fn();
+      disconnect = disconnect;
+    });
+    const view = show();
+    const stage = screen.getByLabelText("실제 소비 시각화");
+    const scenes = [...stage.querySelectorAll<HTMLElement>("[data-scene]")];
+    const navigator = screen.getByLabelText("소비 시각화 장면");
+    expect(navigator).toHaveAttribute("data-active", "false");
+    const intersect = (index: number, visible: boolean) => act(() => {
+      const bounds = scenes[index].getBoundingClientRect();
+      callbacks[1]([{ target: scenes[index], isIntersecting: visible, boundingClientRect: bounds, intersectionRect: bounds, intersectionRatio: visible ? 1 : 0, rootBounds: null, time: 0 }], {} as IntersectionObserver);
+    });
+    intersect(0, true);
+    expect(navigator).toHaveAttribute("data-active", "true");
+    expect(screen.getByRole("button", { name: "01 소비 구조 장면으로 이동" })).toHaveAttribute("aria-current", "step");
+    intersect(0, false);
+    intersect(1, true);
+    expect(screen.getByRole("button", { name: "02 소비 흐름 장면으로 이동" })).toHaveAttribute("aria-current", "step");
+    vi.spyOn(window, "matchMedia").mockReturnValue({ matches: true } as MediaQueryList);
+    const scroll = vi.spyOn(scenes[2], "scrollIntoView");
+    fireEvent.click(screen.getByRole("button", { name: "03 거래 패턴 장면으로 이동" }));
+    expect(scroll).toHaveBeenCalledWith({ behavior: "instant", block: "start" });
+    expect(scenes[2]).toHaveFocus();
+    intersect(1, false);
+    expect(stage).toHaveAttribute("data-analysis-stage-active", "false");
+    expect(navigator).toHaveAttribute("data-active", "false");
+    view.unmount();
+    expect(disconnect).toHaveBeenCalledTimes(2);
+  });
+
 });

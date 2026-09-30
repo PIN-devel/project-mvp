@@ -26,4 +26,22 @@ describe("light-only app storage migration", () => {
     expect(session.isAuthenticated).toBe(true);
     expect(window.localStorage.getItem("app-storage")).not.toContain("dark");
   });
+  it("isolates login sessions and clears only analysis caches on logout", () => {
+    useAppStore.getState().setSession("token-A", "사용자 A");
+    const first = useAppStore.getState().analysisNamespace;
+    expect(first).toBeTruthy();
+    window.localStorage.setItem(`motifin:analysis:v1:${first}`, "analysis");
+    window.localStorage.setItem("unrelated-preference", "keep");
+    useAppStore.getState().setSession("token-A", "사용자 A");
+    expect(useAppStore.getState().analysisNamespace).toBe(first);
+    useAppStore.getState().setSession("token-B", "사용자 B");
+    expect(useAppStore.getState().analysisNamespace).not.toBe(first);
+    expect(window.localStorage.getItem(`motifin:analysis:v1:${first}`)).toBeNull();
+    window.localStorage.setItem(`motifin:analysis:v1:${useAppStore.getState().analysisNamespace}`, "analysis");
+    useAppStore.getState().clearSession();
+    expect(useAppStore.getState().analysisNamespace).toBeNull();
+    expect(Object.keys(window.localStorage).filter((key) => key.startsWith("motifin:analysis:v1:"))).toHaveLength(0);
+    expect(window.localStorage.getItem("unrelated-preference")).toBe("keep");
+  });
+
 });
