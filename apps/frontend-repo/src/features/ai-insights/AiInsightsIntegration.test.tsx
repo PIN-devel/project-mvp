@@ -1,21 +1,29 @@
 import { MantineProvider } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { delay, http, HttpResponse } from "msw";
+import { http, HttpResponse } from "msw";
 import { useAppStore } from "@/app/store/useAppStore";
-import { aiInsightKeys } from "./api/queries";
-import { ANALYSIS_CACHE_PREFIX } from "@/shared/model/analysisCacheStorage";
 import { theme } from "@/app/theme";
 import { dbLedger, resetAllMocks } from "@/mocks/db";
 import { server } from "@/mocks/server";
 import { resetMonthlyGoalsMock } from "@/mocks/handlers";
-import { AiInsightsPage } from "@/features/ai-insights/routes/AiInsightsPage";
-import { loader } from "@/features/ai-insights/routes/loader";
+import { analysisQueries, createAnalysis } from "./api/analysis";
+import type { AnalyticsQuery } from "./model/analytics";
+import { AiInsightsPage } from "./routes/AiInsightsPage";
+import { loader } from "./routes/loader";
 
-describe("AI insights integration flow", () => {
+const all: AnalyticsQuery = { period: "ALL", start: null, endExclusive: null, categoryIds: [], cardNames: [] };
+const unavailable = () => HttpResponse.json({ type: "about:blank", title: "Unavailable", status: 503 }, { status: 503 });
+
+describe("vNext 소비 분석 통합 흐름", () => {
   let queryClient: QueryClient;
+  const routers: ReturnType<typeof createMemoryRouter>[] = [];
+  const requests: Request[] = [];
+  const recordRequest = ({ request }: { request: Request }) => { requests.push(request.clone()); };
+  const scope = () => useAppStore.getState().analysisNamespace;
+  const posts = () => requests.filter((r) => r.method === "POST" && new URL(r.url).pathname === "/api/v2/analyses");
 
   beforeEach(() => {
     window.localStorage.clear();
@@ -23,318 +31,227 @@ describe("AI insights integration flow", () => {
     useAppStore.getState().setSession("test-session", "테스터");
     resetAllMocks();
     resetMonthlyGoalsMock();
-    queryClient = new QueryClient({
-      defaultOptions: {
-        queries: {
-          retry: false,
-          staleTime: Infinity,
-        },
-      },
-    });
+    requests.length = 0;
+    server.events.on("request:start", recordRequest);
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+  });
+  afterEach(() => {
+    routers.splice(0).forEach((router) => router.dispose());
+    queryClient.clear();
+    server.events.removeListener("request:start", recordRequest);
+    vi.restoreAllMocks();
   });
 
-  afterEach(() => { vi.unstubAllGlobals(); });
-
-  const renderFeature = () => {
-    const router = createMemoryRouter(
-      [
-        {
-          path: "/",
-          element: <AiInsightsPage userScope={useAppStore.getState().analysisNamespace} />,
-          loader: loader(queryClient),
-        },
-      ],
-      { initialEntries: ["/"] },
-    );
-
-    return render(
-      <QueryClientProvider client={queryClient}>
-        <MantineProvider theme={theme}>
-          <RouterProvider router={router} />
-        </MantineProvider>
-      </QueryClientProvider>,
-    );
+  const renderFeature = (entry = "/insights") => {
+    const router = createMemoryRouter([
+      { path: "/insights", element: <AiInsightsPage userScope={scope()} />, loader: loader(queryClient) },
+      { path: "/washing", element: <h1>이용내역 정리 화면</h1> },
+      { path: "/goals", element: <h1>목표 설정 화면</h1> },
+    ], { initialEntries: [entry] });
+    routers.push(router);
+    render(<QueryClientProvider client={queryClient}><MantineProvider theme={theme}><RouterProvider router={router} /></MantineProvider></QueryClientProvider>);
+    return router;
+  };
+  const ready = async () => {
+    const button = await screen.findByRole("button", { name: "내 소비 분석하기" });
+    await waitFor(() => expect(button).toBeEnabled());
+    return button;
+  };
+  const analyze = async () => {
+    fireEvent.click(await ready());
+    await screen.findByText("핵심 발견");
+  };
+  const selectFuel = async () => {
+    fireEvent.click(await screen.findByRole("button", { name: /^주유.*이 후보 선택하고 근거 보기/ }));
+    return screen.findByRole("link", { name: "이 변화로 목표 시작하기" });
+  };
+  const seedRun = async (query = all) => {
+    const snapshot = await queryClient.fetchQuery(analysisQueries.snapshot(scope(), query));
+    return createAnalysis(query, snapshot.dataRevision);
   };
 
-  it("renders request controls and an initial state before analysis", async () => {
+  it("서버 조회 후 조건과 분석 전 안내를 보여주고 자동으로 분석하지 않는다", async () => {
     renderFeature();
-
-    await screen.findByText("내 소비를 이해하는 첫 번째 발견", {}, { timeout: 3000 });
-
-    expect(screen.getByLabelText("조회 기간")).toBeInTheDocument();
-    expect(screen.getByLabelText("카테고리")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "내 소비 분석하기" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("정리한 내역에서 나의 소비를 읽어볼까요?")).toBeInTheDocument();
+    await ready();
+    expect(screen.getByLabelText("조회 기간")).toHaveValue("ALL");
+    expect(screen.getByLabelText("카테고리")).toHaveValue("all");
+    expect(screen.getByRole("heading", { name: "정리한 내역에서 나의 소비를 읽어볼까요?" })).toBeInTheDocument();
     expect(screen.queryByLabelText("실제 소비 시각화")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "이 계획 선택" })).not.toBeInTheDocument();
+    expect(posts()).toHaveLength(0);
   });
 
-  it("explains unclassified transactions without exposing the prompt", async () => {
+  it("미분류의 해석 한계를 알리고 이용내역 정리로 연결한다", async () => {
     renderFeature();
-
-    await screen.findByText(/미분류 내역도 분석에 포함돼요/, {}, { timeout: 3000 });
-
-    expect(screen.getByText(/분류 \d+건 · 미분류 \d+건/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /남은 \d+건 분류하기/ })).toBeInTheDocument();
+    await ready();
+    expect(screen.getByText(/미분류 9건 · 분류 확인 필요 0건도 합계에 포함/)).toBeInTheDocument();
     expect(screen.queryByText(/전송 프롬프트/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "이용내역 정리하기" }));
+    await screen.findByRole("heading", { name: "이용내역 정리 화면" });
   });
 
-  it("generates insight results, supports re-request, and marks stale results when filters change", async () => {
+  it("서버 집계 revision으로 분석하고 필터 변경 시 이전 결과를 숨긴다", async () => {
+    const router = renderFeature();
+    await analyze();
+    expect(screen.getByLabelText("실제 소비 시각화")).toBeInTheDocument();
+    const id = new URLSearchParams(router.state.location.search).get("analysisRunId");
+    const saved = await queryClient.fetchQuery(analysisQueries.run(scope(), id));
+    expect(await posts()[0].json()).toEqual({ ...all, expectedDataRevision: saved.run!.snapshot.dataRevision });
+    expect(saved.run!.snapshot.transactionCount).toBe(29); // 취소 거래 제외
+    expect(screen.getByRole("heading", { name: /MSW 샘플 해석/ })).toHaveTextContent("359,800원");
+    fireEvent.change(screen.getByLabelText("조회 기간"), { target: { value: "LAST_1_MONTH" } });
+    expect(screen.queryByText("핵심 발견")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("실제 소비 시각화")).not.toBeInTheDocument();
+    await analyze();
+    expect(await posts()[1].json()).toMatchObject({ period: "LAST_1_MONTH", categoryIds: [] });
+    expect(new URLSearchParams(router.state.location.search).get("analysisRunId")).not.toBe(id);
+  });
+
+  it("후보 선택 후 근거를 조회하고 두 ID를 목표 설정 화면에 전달한다", async () => {
+    const router = renderFeature();
+    await analyze();
+    expect(screen.queryByRole("link", { name: "이 변화로 목표 시작하기" })).not.toBeInTheDocument();
+    const id = new URLSearchParams(router.state.location.search).get("analysisRunId");
+    const link = await selectFuel();
+    await waitFor(() => expect(link).not.toHaveAttribute("data-disabled"));
+    expect(link).toHaveAttribute("href", `/goals?analysisRunId=${id}&opportunityId=opportunity-7`);
+    expect(screen.getByRole("button", { name: /^주유.*선택한 후보/ })).toHaveAttribute("aria-pressed", "true");
+    expect(requests.some((r) => r.method === "POST" && r.url.includes("goal-cycles"))).toBe(false);
+    fireEvent.click(link);
+    await screen.findByRole("heading", { name: "목표 설정 화면" });
+    expect(router.state.location.search).toBe(`?analysisRunId=${id}&opportunityId=opportunity-7`);
+  });
+
+  it("근거 조회 실패 시 선택을 유지하고 목표 이동을 막으며 재조회할 수 있다", async () => {
+    server.use(http.get("/api/v2/analyses/:id/opportunities/:opportunityId", unavailable));
     renderFeature();
-
-    await screen.findByText("내 소비를 이해하는 첫 번째 발견", {}, { timeout: 3000 });
-
-    fireEvent.click(screen.getByRole("button", { name: "내 소비 분석하기" }));
-
-    await screen.findByText("이 내역에서 발견한 점", {}, { timeout: 3000 });
-    expect(screen.getByText("가장 큰 지출 영역")).toBeInTheDocument();
-    expect(screen.getByText("반복 소비 패턴")).toBeInTheDocument();
-    expect(screen.getByText("소비 점검 포인트")).toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText("조회 기간"), {
-      target: { value: "LAST_1_MONTH" },
-    });
-
-    expect(
-      await screen.findByText(/조회 조건이나 이용내역이 바뀌었어요/),
-    ).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "이 범위로 다시 분석하기" }));
-    await waitFor(() => {
-      expect(
-        screen.queryByText(/조회 조건이나 이용내역이 바뀌었어요/),
-      ).not.toBeInTheDocument();
-    });
+    await analyze();
+    const link = await selectFuel();
+    await screen.findByText("현재 근거를 확인하지 못했어요. 다시 확인해주세요.");
+    expect(link).toHaveAttribute("data-disabled", "true");
+    expect(screen.getByRole("button", { name: /^주유.*선택한 후보/ })).toHaveAttribute("aria-pressed", "true");
+    server.resetHandlers();
+    fireEvent.click(screen.getByRole("button", { name: "근거 다시 확인하기" }));
+    await waitFor(() => expect(link).not.toHaveAttribute("data-disabled"));
   });
 
-  it("selects a plan separately and saves it through the goal API", async () => {
+  it("후보의 근거가 최신 내역과 달라졌으면 목표 이동을 막는다", async () => {
     renderFeature();
-
-    await screen.findByText("내 소비를 이해하는 첫 번째 발견", {}, { timeout: 3000 });
-    fireEvent.click(screen.getByRole("button", { name: "내 소비 분석하기" }));
-
-    await screen.findByText("발견을 나의 선택으로.", {}, { timeout: 3000 });
-    expect(screen.getByText("바꿔볼 목표 고르기")).toBeInTheDocument();
-    expect(screen.getByText(/한 거래월의 실제 분류 내역/)).toBeInTheDocument();
-
-    const chooseButtons = screen.getAllByRole("button", { name: "이 계획 선택" });
-    fireEvent.click(chooseButtons[0]);
-    expect(screen.getByRole("button", { name: "이 목표 저장하기" })).toBeInTheDocument();
-    expect(screen.queryByText("저장 완료")).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "이 목표 저장하기" }));
-    expect(await screen.findByText("저장 완료")).toBeInTheDocument();
-    expect(await screen.findByText("저장된 목표 1건 보기")).toBeInTheDocument();
+    await analyze();
+    const tx = dbLedger.getAll()[0];
+    dbLedger.update(tx.id, { amount: tx.amount + 1000 });
+    const link = await selectFuel();
+    await screen.findByText("이용내역이 바뀌었습니다. 현재 내역으로 다시 분석해주세요.");
+    expect(link).toHaveAttribute("data-disabled", "true");
   });
 
-  it("shows saved goals even when there is no AI result", async () => {
-    server.use(
-      http.get("/api/monthly-goals", () =>
-        HttpResponse.json([
-          {
-            id: 91,
-            month: "2026-06",
-            title: "저장 데이터 목표",
-            targetCategory: "교통",
-            reductionRatio: 0.3,
-            baselineAmount: 100000,
-            targetAmount: 70000,
-            monthlySave: 30000,
-            status: "active",
-            actualSaved: null,
-            createdAt: "2026-06-01T00:00:00Z",
-            updatedAt: "2026-06-01T00:00:00Z",
-          },
-        ]),
-      ),
-    );
-
-    renderFeature();
-
-    expect(await screen.findAllByText("저장 데이터 목표")).toHaveLength(1);
-    expect(screen.queryByText("이 내역에서 발견한 점")).not.toBeInTheDocument();
-    expect(screen.queryByText("30,000원 절감했어요")).not.toBeInTheDocument();
-  });
-
-  it("keeps the selected plan and replacement notice when saving fails", async () => {
-    server.use(
-      http.get("/api/monthly-goals", () =>
-        HttpResponse.json([
-          {
-            id: 92,
-            month: "2026-06",
-            title: "기존 교통 목표",
-            targetCategory: "교통",
-            reductionRatio: 0.2,
-            baselineAmount: 100000,
-            targetAmount: 80000,
-            monthlySave: 20000,
-            status: "active",
-            actualSaved: null,
-            createdAt: "2026-06-01T00:00:00Z",
-            updatedAt: "2026-06-01T00:00:00Z",
-          },
-        ]),
-      ),
-      http.put("/api/monthly-goals/:month", () =>
-        HttpResponse.json({ status: 503 }, { status: 503 }),
-      ),
-    );
-
-    renderFeature();
-    fireEvent.click(await screen.findByRole("button", { name: "내 소비 분석하기" }));
-    await screen.findByText("저장된 목표 1건 보기");
-    fireEvent.click(screen.getByRole("button", { name: "다른 목표 살펴보기" }));
-    await screen.findByText("주유 30% 줄이기");
-
-    fireEvent.click(screen.getAllByRole("button", { name: "이 계획 선택" })[0]);
-    expect(await screen.findByText(/기존 교통 목표 목표를 새 선택으로 교체합니다/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "기존 목표 교체하기" }));
-
-    expect(await screen.findByText("저장 실패")).toBeInTheDocument();
-    expect(screen.getByText("선택됨")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "교체 다시 시도하기" })).toBeInTheDocument();
-  });
-
-  it("keeps a successful insight visible when the separate goal lookup fails", async () => {
-    server.use(
-      http.get("/api/monthly-goals", () =>
-        HttpResponse.json(
-          { type: "about:blank", title: "Unavailable", status: 503 },
-          { status: 503 },
-        ),
-      ),
-    );
-
-    renderFeature();
-    await screen.findByText("내 소비를 이해하는 첫 번째 발견", {}, { timeout: 3000 });
-    fireEvent.click(screen.getByRole("button", { name: "내 소비 분석하기" }));
-
-    expect(await screen.findByText("이 내역에서 발견한 점", {}, { timeout: 3000 })).toBeInTheDocument();
-    expect(await screen.findByText("저장된 목표를 불러오지 못했어요")).toBeInTheDocument();
-    expect(screen.getByText("가장 큰 지출 영역")).toBeInTheDocument();
-  });
-
-  it.each([0, 9])("전체 내역 %i건이면 추가 업로드로 안내하고 AI를 호출하지 않는다", async (count) => {
+  it.each([0, 9])("집계 대상 %i건이면 실제 기록을 안내하고 AI 해석과 후보는 제공하지 않는다", async (count) => {
     dbLedger.getAll().slice(count).forEach(({ id }) => dbLedger.delete(id));
-    const generate = vi.fn(() => HttpResponse.json({}));
-    server.use(http.post("/api/insights", generate));
     renderFeature();
-    expect(await screen.findByRole("button", { name: "이용내역 더 추가하기" })).toBeEnabled();
-    expect(screen.getByText(`현재 ${count}건 · ${10 - count}건 더 추가하면 분석할 수 있어요.`)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "내 소비 분석하기" })).not.toBeInTheDocument();
-    expect(generate).not.toHaveBeenCalled();
+    fireEvent.click(await ready());
+    await screen.findByText("AI 해석에는 소비 집계 대상 10건이 필요해요. 이용내역을 추가하면 다시 분석할 수 있어요.");
+    expect(screen.getByText(new RegExp(`현재 ${count}건이에요`))).toBeInTheDocument();
+    expect(screen.queryByText("핵심 발견")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "바꿔볼 한 가지를 골라보세요" })).not.toBeInTheDocument();
+    expect(requests.some((r) => new URL(r.url).pathname === "/api/insights")).toBe(false);
   });
 
-  it("전체 데이터가 충분해도 필터 결과가 10건 미만이면 범위를 넓히도록 안내한다", async () => {
-    const generate = vi.fn(() => HttpResponse.json({}));
-    server.use(http.post("/api/insights", generate));
+  it("필터 결과가 10건 미만이어도 해당 기록을 보여주며 범위를 넓혀 다시 분석할 수 있다", async () => {
     renderFeature();
-    await screen.findByRole("button", { name: "내 소비 분석하기" });
+    await ready();
     fireEvent.change(screen.getByLabelText("카테고리"), { target: { value: "1" } });
-    const button = screen.getByRole("button", { name: "내 소비 분석하기" });
-    expect(button).toBeDisabled();
-    expect(screen.getByText(/기간이나 카테고리 범위를 넓혀 최소 10건/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "이용내역 더 추가하기" })).not.toBeInTheDocument();
-    fireEvent.click(button);
-    expect(generate).not.toHaveBeenCalled();
+    fireEvent.click(await ready());
+    await screen.findByText(/AI 해석에는 소비 집계 대상 10건이 필요해요/);
+    expect(screen.getByLabelText("실제 소비 시각화")).toBeInTheDocument();
+    expect(await posts()[0].json()).toMatchObject({ categoryIds: [1] });
     fireEvent.change(screen.getByLabelText("카테고리"), { target: { value: "all" } });
-    expect(button).toBeEnabled();
+    await analyze();
   });
 
-  it("정확히 10건의 미분류 내역도 분석하고 Loading 중 중복 실행을 막는다", async () => {
+  it("정확히 10건의 미분류도 분석하고 AI 완료 후 전체 결과를 공개하며 중복 요청을 막는다", async () => {
     dbLedger.getAll().slice(10).forEach(({ id }) => dbLedger.delete(id));
     dbLedger.getAll().forEach(({ id }) => dbLedger.update(id, { categoryId: null, categoryName: null, isClassified: false }));
-    const generate = vi.fn(async ({ request }: { request: Request }) => {
-      const payload = await request.json() as { transactions: unknown[] };
-      expect(payload.transactions).toHaveLength(10);
-      await delay(100);
-      return HttpResponse.json({ summary: "확인한 소비 흐름", cards: [{ title: "세부 발견", description: "실제 이용내역의 특징" }], generatedAt: "2026-09-30T05:00:00Z" });
-    });
-    server.use(http.post("/api/insights", generate));
+    const result = await seedRun();
+    let complete!: () => void;
+    const pending = new Promise<void>((resolve) => { complete = resolve; });
+    server.use(http.get("/api/v2/analyses", () => HttpResponse.json({ run: null, currentDataRevision: null, stale: false })),
+      http.post("/api/v2/analyses", async () => { await pending; return HttpResponse.json(result); }));
+    requests.length = 0;
     renderFeature();
-    const button = await screen.findByRole("button", { name: "내 소비 분석하기" });
+    const button = await ready();
     fireEvent.click(button);
-    await screen.findByText("선택한 내역을 읽고 있어요");
+    await screen.findByRole("heading", { name: "소비 흐름을 살펴보고 있어요" });
     expect(screen.queryByLabelText("실제 소비 시각화")).not.toBeInTheDocument();
-    expect(localStorage.getItem(`${ANALYSIS_CACHE_PREFIX}${useAppStore.getState().analysisNamespace}`)).toBeNull();
+    expect(screen.queryByText("핵심 발견")).not.toBeInTheDocument();
     expect(screen.getByLabelText("조회 기간")).toBeDisabled();
     expect(screen.getByLabelText("카테고리")).toBeDisabled();
     fireEvent.click(button);
-    await screen.findByRole("heading", { name: "확인한 소비 흐름" });
-    expect(generate).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("button", { name: "개선 목표 살펴보기" })).toBeInTheDocument();
-  });
-
-  it("분석 오류에서 조건을 보존하고 같은 범위로 재시도한다", async () => {
-    server.use(http.post("/api/insights", () => HttpResponse.json({ type: "INS002", status: 503 }, { status: 503 })));
-    renderFeature();
-    await screen.findByRole("button", { name: "내 소비 분석하기" });
-    fireEvent.change(screen.getByLabelText("조회 기간"), { target: { value: "LAST_1_MONTH" } });
-    fireEvent.click(screen.getByRole("button", { name: "내 소비 분석하기" }));
-    expect(await screen.findByText("이번 분석 결과를 가져오지 못했어요")).toBeInTheDocument();
-    expect(screen.getByLabelText("조회 기간")).toHaveValue("LAST_1_MONTH");
-    server.resetHandlers();
-    fireEvent.click(screen.getByRole("button", { name: "같은 조건으로 다시 시도하기" }));
-    expect(await screen.findByText("이 내역에서 발견한 점")).toBeInTheDocument();
-  });
-
-  it("결과에서 목표로 Focus를 옮기고 저장 후 상태까지 확인한다", async () => {
-    renderFeature();
-    fireEvent.click(await screen.findByRole("button", { name: "내 소비 분석하기" }));
-    fireEvent.click(await screen.findByRole("button", { name: "개선 목표 살펴보기" }));
-    const section = document.getElementById("goal-selection");
-    await waitFor(() => expect(section).toHaveFocus());
-    fireEvent.click(screen.getAllByRole("button", { name: "이 계획 선택" })[0]);
-    fireEvent.click(screen.getByRole("button", { name: "이 목표 저장하기" }));
-    await screen.findByText("저장 완료");
-    fireEvent.click(screen.getByText("저장된 목표 1건 보기"));
-    fireEvent.click(screen.getByRole("button", { name: "완수로 표시" }));
-    await waitFor(() => expect(screen.queryByRole("button", { name: "완수로 표시" })).not.toBeInTheDocument());
-    expect(within(section!).getAllByText(/완수로 표시/).length).toBeGreaterThan(0);
-  });
-  it("restores successful results and their filters on revisit without another AI request", async () => {
-    const view = renderFeature();
-    await screen.findByRole("button", { name: "내 소비 분석하기" });
-    fireEvent.change(screen.getByLabelText("조회 기간"), { target: { value: "LAST_1_MONTH" } });
-    fireEvent.click(screen.getByRole("button", { name: "내 소비 분석하기" }));
-    await screen.findByText("이 내역에서 발견한 점");
-    view.unmount();
-    const generate = vi.fn(() => HttpResponse.json({}));
-    server.use(http.post("/api/insights", generate));
-    renderFeature();
-    await screen.findByText("이 내역에서 발견한 점");
-    expect(screen.getByLabelText("조회 기간")).toHaveValue("LAST_1_MONTH");
-    expect(screen.getByLabelText("실제 소비 시각화")).toBeInTheDocument();
-    expect(generate).not.toHaveBeenCalled();
-  });
-
-  it("hides changed-data results and preserves the last success when reanalysis fails", async () => {
-    renderFeature();
-    fireEvent.click(await screen.findByRole("button", { name: "내 소비 분석하기" }));
-    await screen.findByText("이 내역에서 발견한 점");
-    const key = `${ANALYSIS_CACHE_PREFIX}${useAppStore.getState().analysisNamespace}`;
-    const previous = localStorage.getItem(key);
-    const changed = dbLedger.getAll().map((t, i) => i === 0 ? { ...t, amount: t.amount + 1 } : t);
-    queryClient.setQueryData(aiInsightKeys.transactions(), changed);
-    await screen.findByRole("button", { name: "이 범위로 다시 분석하기" });
+    complete();
+    await screen.findByRole("heading", { name: "분석 결과가 준비됐어요" });
     expect(screen.queryByLabelText("실제 소비 시각화")).not.toBeInTheDocument();
-    server.use(http.post("/api/insights", () => HttpResponse.json({}, { status: 503 })));
-    fireEvent.click(screen.getByRole("button", { name: "이 범위로 다시 분석하기" }));
-    await screen.findByRole("button", { name: "같은 조건으로 다시 시도하기" });
-    expect(localStorage.getItem(key)).toBe(previous);
-    expect(screen.queryByText("이 내역에서 발견한 점")).not.toBeInTheDocument();
-  });
-
-  it("still reveals a successful result in memory when cache storage is full", async () => {
-    renderFeature();
-    const button = await screen.findByRole("button", { name: "내 소비 분석하기" });
-    vi.stubGlobal("localStorage", { getItem: localStorage.getItem.bind(localStorage), setItem: () => { throw new Error("quota"); } });
-    fireEvent.click(button);
-    await screen.findByText("이 내역에서 발견한 점");
+    await screen.findByText("핵심 발견");
     expect(screen.getByLabelText("실제 소비 시각화")).toBeInTheDocument();
+    expect(posts()).toHaveLength(1);
+    expect(result.run!.snapshot.transactionCount).toBe(10);
+    expect(screen.getByText(/현재 근거에서는 카테고리별 변화 후보를 제안하지 않았어요/)).toBeInTheDocument();
   });
 
+  it("AI 요청 오류에서도 시각화와 조건을 보존하고 같은 revision으로 재시도한다", async () => {
+    server.use(http.post("/api/v2/analyses", unavailable));
+    renderFeature();
+    await ready();
+    fireEvent.change(screen.getByLabelText("조회 기간"), { target: { value: "LAST_1_MONTH" } });
+    fireEvent.click(await ready());
+    await screen.findByText("AI 해석을 완료하지 못했어요");
+    expect(screen.getByLabelText("실제 소비 시각화")).toBeInTheDocument();
+    expect(screen.getByLabelText("조회 기간")).toHaveValue("LAST_1_MONTH");
+    const payload = await posts()[0].json();
+    server.resetHandlers();
+    fireEvent.click(screen.getByRole("button", { name: "AI 해석 다시 시도하기" }));
+    await screen.findByText("핵심 발견");
+    expect(await posts()[1].json()).toEqual(payload);
+  });
+
+  it("재방문 시 서버 결과와 조건을 복원하고 재분석 없이 첫 소비 장면으로 스크롤한다", async () => {
+    await seedRun({ ...all, period: "LAST_1_MONTH" });
+    requests.length = 0;
+    const scroll = vi.spyOn(HTMLElement.prototype, "scrollIntoView");
+    renderFeature();
+    await screen.findByText("핵심 발견");
+    expect(screen.getByLabelText("조회 기간")).toHaveValue("LAST_1_MONTH");
+    expect(screen.getByLabelText("실제 소비 시각화")).toBeInTheDocument();
+    expect(posts()).toHaveLength(0);
+    await waitFor(() => expect(scroll).toHaveBeenCalled());
+    expect(scroll.mock.instances[0]).toBe(document.querySelector("[data-scene='0']"));
+  });
+
+  it("내역 변경 시 이전 결과를 숨기고 재분석 실패에도 저장된 성공 근거를 보존한다", async () => {
+    const router = renderFeature();
+    await analyze();
+    const id = new URLSearchParams(router.state.location.search).get("analysisRunId")!;
+    const previous = await queryClient.fetchQuery(analysisQueries.run(scope(), id));
+    const tx = dbLedger.getAll()[0];
+    dbLedger.update(tx.id, { amount: tx.amount + 1000 });
+    await act(async () => { await queryClient.invalidateQueries({ queryKey: ["vnext-analytics"] }); });
+    await screen.findByRole("heading", { name: "이용내역이 바뀌었어요" });
+    expect(screen.queryByLabelText("실제 소비 시각화")).not.toBeInTheDocument();
+    expect(screen.queryByText("핵심 발견")).not.toBeInTheDocument();
+    server.use(http.post("/api/v2/analyses", unavailable));
+    fireEvent.click(await ready());
+    await screen.findByText("AI 해석을 완료하지 못했어요");
+    expect(screen.queryByText("핵심 발견")).not.toBeInTheDocument();
+    const preserved = await queryClient.fetchQuery({ ...analysisQueries.run(scope(), id), staleTime: 0 });
+    expect(preserved.run).toEqual(previous.run);
+    expect(preserved.stale).toBe(true);
+  });
+
+  it("집계 조회 실패 시 빈 집계로 분석하지 않고 재조회 후 요청을 허용한다", async () => {
+    server.use(http.get("/api/v2/analytics", unavailable));
+    renderFeature();
+    await screen.findByText("분석 데이터를 가져오지 못했어요");
+    expect(screen.getByRole("button", { name: "내 소비 분석하기" })).toBeDisabled();
+    expect(posts()).toHaveLength(0);
+    server.resetHandlers();
+    fireEvent.click(screen.getByRole("button", { name: "다시 확인하기" }));
+    await analyze();
+  });
 });
