@@ -294,6 +294,40 @@ class RuleServiceIntegrationTest {
     }
 
     @Test
+    void automaticImportPreservesExplicitAndRuleCategoriesAndAllowsCorrections() {
+        Long userId = createUser("auto-classification", "자동분류유저");
+        Long shoppingId = categoryId("쇼핑");
+        Long foodId = categoryId("식음료");
+        Long educationId = categoryId("교육");
+        ruleService.create(userId, "스타벅스", educationId, "내규칙");
+        var rows = List.of(
+                importRow("스타벅스 강남점", null),
+                importRow("스타벅스 수동", shoppingId),
+                importRow("맥도날드", null),
+                importRow("알수없는 가맹점", null));
+        BulkUploadResult result = transactionService.addBulk(rows, userId);
+        assertThat(result.added()).extracting(TransactionDto::getCategoryId)
+                .containsExactly(educationId, shoppingId, foodId, categoryId("기타"));
+        assertThat(result.added().getFirst().getAppliedRuleId()).isEqualTo(ruleId(userId, "스타벅스"));
+        assertThat(result.added().getFirst().getTag()).isEqualTo("#내규칙");
+        assertThat(result.added()).allSatisfy(row -> {
+            assertThat(row.getIsClassified()).isTrue();
+            assertThat(row.getFoundation().spendingEligible()).isTrue();
+        });
+        Long autoId = result.added().get(2).getId();
+        assertThat(transactionService.patchCategory(autoId, educationId, userId).getCategoryId())
+                .isEqualTo(educationId);
+        assertThat(transactionService.addBulk(List.of(importRow("맥도날드", null)), userId).skippedCount())
+                .isEqualTo(1);
+        assertThat(transactionService.findById(autoId, userId).getCategoryId()).isEqualTo(educationId);
+    }
+
+    private TransactionDto importRow(String merchant, Long categoryId) {
+        return TransactionDto.builder().transactionDate("2026-09-01").merchant(merchant)
+                .categoryId(categoryId).amount(1000L).cardName("테스트카드").installment(1).status("승인").build();
+    }
+
+    @Test
     void organizeUpdates_PreserveHiddenTagsAndUseActualRuleId() {
         Long userId = createUser("organize-preservation", "보존유저");
         Long foodId = categoryId("식음료");

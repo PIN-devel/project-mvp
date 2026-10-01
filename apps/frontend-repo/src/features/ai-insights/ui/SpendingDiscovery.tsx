@@ -44,6 +44,16 @@ export function SpendingDiscovery({ snapshot, entryRequested = false, onEntryCom
   const entryConsumed = useRef(false);
   const [entryStarted, setEntryStarted] = useState(false);
   const [activeScene, setActiveScene] = useState<number | null>(null);
+  useEffect(() => {
+    const stage = sceneRef.current;
+    if (!stage) return;
+    // A tall viewport can intersect a scene while the document is still at the top.
+    // Keep the header available there without changing scrolling or scene selection.
+    const update = () => { stage.dataset.analysisScrolled = window.scrollY > 16 ? "true" : "false"; };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    return () => window.removeEventListener("scroll", update);
+  }, [model.records.length]);
   useLayoutEffect(() => {
     if (!entryRequested) return;
     const firstScene = sceneRef.current?.querySelector<HTMLElement>("[data-scene='0']");

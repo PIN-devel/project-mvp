@@ -41,7 +41,7 @@ export function FirstExperienceHero({
   ) : needsMore ? (
     <>소비를 이해할 기록을<br /><em>조금 더 모아볼까요?</em></>
   ) : ready ? (
-    <>내역 분류는 끝났어요.<br /><em>이제, 패턴을 발견할 차례.</em></>
+    <>카테고리를 정리했어요.<br /><em>이제, 패턴을 발견할 차례.</em></>
   ) : completed === 0 ? (
     <>소비 패턴을 발견할<br /><em>첫 단계.</em></>
   ) : (
@@ -76,7 +76,7 @@ export function FirstExperienceHero({
           <p className={styles.support}>
             {supportingContext ?? (empty ? "신한카드 · KB국민카드 / .xls, .xlsx / 최대 10MB" :
               needsMore ? "내역을 추가하는 동안 카테고리를 미리 분류할 수 있어요." :
-                ready ? "분류 완료 기준 · AI 분석 결과는 다음 화면에서 확인" :
+                ready ? "자동 분류는 정확하지 않을 수 있어요. 필요한 항목만 수정해주세요." :
                   `미분류 ${remaining}건 포함 · 카테고리별 해석이 제한될 수 있어요.`)}
           </p>
         </div>

@@ -50,7 +50,7 @@ export function Layout() {
 
       <AppShell.Header
         data-product-header
-        bg={brandTokens.cardSurface}
+        bg={`var(--product-header-surface, ${brandTokens.cardSurface})`}
         withBorder={false}
       >
         <AppHeader

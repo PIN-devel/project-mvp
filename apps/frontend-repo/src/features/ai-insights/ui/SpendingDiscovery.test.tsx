@@ -60,6 +60,21 @@ function observeScenes() {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("spending discovery interaction", () => {
+  it("keeps the header available at the document top even when a scene intersects a tall viewport", () => {
+    const observe = observeScenes();
+    vi.stubGlobal("scrollY", 0);
+    show();
+    observe(0);
+    const stage = screen.getByLabelText("실제 소비 시각화");
+    expect(stage).toHaveAttribute("data-analysis-stage-active", "true");
+    expect(stage).toHaveAttribute("data-analysis-scrolled", "false");
+    vi.stubGlobal("scrollY", 400);
+    fireEvent.scroll(window);
+    expect(stage).toHaveAttribute("data-analysis-scrolled", "true");
+    vi.stubGlobal("scrollY", 0);
+    fireEvent.scroll(window);
+    expect(stage).toHaveAttribute("data-analysis-scrolled", "false");
+  });
   it("shows three different questions before AI with exact source totals", () => {
     show();
     expect(screen.getByRole("group", { name: /카테고리별 소비 구조, 총 10,000원, 2건/ })).toBeInTheDocument();

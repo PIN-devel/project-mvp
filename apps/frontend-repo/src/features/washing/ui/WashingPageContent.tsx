@@ -111,8 +111,8 @@ export function WashingPageContent({ onUploadSaved, onUploadFailed, goalContext:
             <div>
               <h2 id="work-title">내역 작업실</h2>
               <p>{empty ? "카드사에서 받은 파일 하나로 시작할 수 있어요." :
-                ready ? "분류한 내역을 살펴보고 필요하면 수정할 수 있어요." :
-                  "같은 카테고리의 내역을 골라 한 번에 분류하세요."}</p>
+                ready ? "자동 분류 결과는 정확하지 않을 수 있어요. 전체 내역에서 필요한 항목만 수정해주세요." :
+                  "자동 분류는 정확하지 않을 수 있어요. 필요한 항목을 수정하고 남은 내역은 함께 분류하세요."}</p>
             </div>
             <Group gap="xs">
               {!empty && <button type="button" className={styles.uploadSecondary} onClick={openUpload}>＋ Excel 추가</button>}
@@ -151,7 +151,7 @@ export function WashingPageContent({ onUploadSaved, onUploadFailed, goalContext:
           <h3>정리에서 이해로,<br />이해에서 변화로.</h3>
           <ol className={styles.journey}>
             <li><span className={`${styles.step} ${!empty ? styles.doneStep : ""}`}>{empty ? "1" : "✓"}</span><div><strong>내역 가져오기</strong><p>카드사 Excel 파일을 직접 업로드해요.</p></div></li>
-            <li><span className={`${styles.step} ${ready ? styles.doneStep : empty ? styles.futureStep : ""}`}>{ready ? "✓" : "2"}</span><div><strong>카테고리 분류하기</strong><p>같은 성격의 내역을 모아 소비의 윤곽을 만들어요.</p></div></li>
+            <li><span className={`${styles.step} ${ready ? styles.doneStep : empty ? styles.futureStep : ""}`}>{ready ? "✓" : "2"}</span><div><strong>카테고리 확인하기</strong><p>자동으로 정리한 내역에서 필요한 항목만 수정해요.</p></div></li>
             <li><span className={`${styles.step} ${ready ? "" : styles.futureStep}`}>3</span><div><strong>소비 패턴 살펴보기</strong><p>정리한 기록을 바탕으로 나의 소비를 이해해요.</p></div></li>
           </ol>
         </aside>

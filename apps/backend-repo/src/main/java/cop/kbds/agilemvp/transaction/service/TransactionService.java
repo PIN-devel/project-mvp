@@ -1,6 +1,7 @@
 package cop.kbds.agilemvp.transaction.service;
 
 import cop.kbds.agilemvp.category.repository.CategoryRepository;
+import cop.kbds.agilemvp.category.service.CategoryClassifier;
 import cop.kbds.agilemvp.common.exception.BusinessException;
 import cop.kbds.agilemvp.common.exception.CommonErrorCode;
 import cop.kbds.agilemvp.common.util.SqlLikeUtil;
@@ -28,13 +29,16 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final CategoryRepository    categoryRepository;
     private final RuleRepository        ruleRepository;
+    private final CategoryClassifier    categoryClassifier;
 
     public TransactionService(TransactionRepository transactionRepository,
                               CategoryRepository categoryRepository,
-                              RuleRepository ruleRepository) {
+                              RuleRepository ruleRepository,
+                              CategoryClassifier categoryClassifier) {
         this.transactionRepository = transactionRepository;
         this.categoryRepository    = categoryRepository;
         this.ruleRepository        = ruleRepository;
+        this.categoryClassifier    = categoryClassifier;
     }
 
     public List<TransactionDto> findAll(Long userId) {
@@ -99,6 +103,24 @@ public class TransactionService {
             }
         }
         applyExistingRulesToNewTransactions(userId, added);
+        List<TransactionDto> unclassified = added.stream()
+                .map(dto -> transactionRepository.findById(dto.getId()))
+                .filter(dto -> dto.getCategoryId() == null)
+                .toList();
+        if (!unclassified.isEmpty()) {
+            // Only canonical default categories are eligible for machine classification.
+            Map<String, Long> defaults = new HashMap<>();
+            categoryRepository.findAllAvailable(userId).stream()
+                    .filter(category -> Boolean.TRUE.equals(category.getIsDefault()))
+                    .forEach(category -> defaults.put(category.getName(), category.getId()));
+            Map<String, String> classified = categoryClassifier.classify(
+                    unclassified.stream().map(TransactionDto::getMerchant).toList());
+            for (TransactionDto dto : unclassified) {
+                Long categoryId = defaults.get(classified.getOrDefault(dto.getMerchant(), "기타"));
+                if (categoryId == null) categoryId = defaults.get("기타");
+                if (categoryId != null) transactionRepository.updateCategory(dto.getId(), categoryId, dto.getTag());
+            }
+        }
         List<TransactionDto> refreshed = added.stream()
                 .map(dto -> transactionRepository.findById(dto.getId()))
                 .toList();

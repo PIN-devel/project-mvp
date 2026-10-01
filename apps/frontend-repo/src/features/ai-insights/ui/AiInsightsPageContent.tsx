@@ -105,7 +105,7 @@ export function AiInsightsPageContent({ userScope }: { userScope: string | null 
     const frame = window.requestAnimationFrame(() => {
       restoredResultScrollRef.current = true;
       revealedRequestRef.current = requestVersionRef.current;
-      firstScene.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" });
+      firstScene.scrollIntoView({ behavior: !activeSnapshot || window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" });
       firstScene.focus({ preventScroll: true });
     });
     return () => window.cancelAnimationFrame(frame);
@@ -181,7 +181,7 @@ export function AiInsightsPageContent({ userScope }: { userScope: string | null 
       <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="xl" className={styles.gatewayPreview}>{["소비가 집중된 영역", "시간에 따른 소비 흐름", "패턴을 만든 주요 거래"].map((label, i) => <Stack gap={5} key={label}><Text size="xs" c="dimmed">분석 후 살펴볼 내용 / 0{i + 1}</Text><Text size="sm" fw={600}>{label}</Text></Stack>)}</SimpleGrid>
     </Stack></Paper>}
 
-    {snapshot && <Stack ref={resultRevealRef} gap={forwardTransition ? 0 : "xl"} tabIndex={-1} className={styles.resultReveal}>
+    {snapshot && <Stack ref={resultRevealRef} gap={forwardTransition ? 0 : "xl"} tabIndex={-1} className={styles.resultReveal} data-analysis-result={activeSnapshot ? "fresh" : "restored"}>
       <SpendingDiscovery key={snapshot.dataRevision} snapshot={snapshot} entryRequested={entryRequested} onEntryComplete={setEntryRequested} forwardTransition={forwardTransition} />
       <AnalysisForwardTransition enabled={forwardTransition} goal={displayRun?.status === "SUCCEEDED" && !analysis.isPending ? (
         <Stack gap="lg" className={styles.goalSection}>

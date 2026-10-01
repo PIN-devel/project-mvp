@@ -203,7 +203,7 @@ export function AppHeader({
                     right={0}
                     bottom={0}
                     h={2}
-                    bg="#006B56"
+                    bg="var(--product-tab-accent, #006B56)"
                     pe="none"
                     style={{
                       transform: isActive ? "scaleX(1)" : "scaleX(0)",
