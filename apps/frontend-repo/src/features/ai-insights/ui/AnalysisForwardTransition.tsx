@@ -13,21 +13,24 @@ export function AnalysisForwardTransition({ enabled, children, goal }: {
 }) {
   const journeyRef = useRef<HTMLDivElement>(null);
   const boundaryRef = useRef<HTMLDivElement>(null);
+  const atmosphereRef = useRef<HTMLDivElement>(null);
   const goalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const journey = journeyRef.current;
     const boundary = boundaryRef.current;
-    if (!enabled || !journey || !boundary) return;
+    const atmosphere = atmosphereRef.current;
+    if (!enabled || !journey || !boundary || !atmosphere) return;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     let frame = 0;
     let listening = false;
-    let padding = parseFloat(window.getComputedStyle(boundary).paddingTop) || 0;
     const update = () => {
       frame = 0;
-      // One viewport of ordinary scrolling carries the surface forward. No scroll capture.
+      // Complete the reveal as the gradient leaves the bottom of the viewport,
+      // so the goal is readable when it enters, even on tall screens / short results.
       const viewport = Math.max(window.innerHeight, 1);
-      const progress = reducedMotion.matches ? 1 : clamp((viewport - boundary.getBoundingClientRect().top - padding) / viewport);
+      const height = Math.max(atmosphere.getBoundingClientRect().height, 1);
+      const progress = reducedMotion.matches ? 1 : clamp((viewport - boundary.getBoundingClientRect().top) / height);
       journey.style.setProperty("--forward-progress", String(progress));
       journey.style.setProperty("--forward-headline", String(clamp((progress - .6) / .14)));
       journey.style.setProperty("--forward-evidence", String(clamp((progress - .68) / .16)));
@@ -36,7 +39,6 @@ export function AnalysisForwardTransition({ enabled, children, goal }: {
       if (progress > 0) journey.setAttribute("data-forward-entered", "true");
     };
     const schedule = () => { if (!frame) frame = window.requestAnimationFrame(update); };
-    const measure = () => { padding = parseFloat(window.getComputedStyle(boundary).paddingTop) || 0; schedule(); };
     const listen = (active: boolean) => {
       if (active === listening) return;
       listening = active;
@@ -49,16 +51,17 @@ export function AnalysisForwardTransition({ enabled, children, goal }: {
     }, { rootMargin: "100% 0px 100% 0px" });
     observer?.observe(boundary);
     if (!observer) listen(true);
-    const resize = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    const resize = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(schedule);
     resize?.observe(journey);
-    window.addEventListener("resize", measure);
+    resize?.observe(atmosphere);
+    window.addEventListener("resize", schedule);
     reducedMotion.addEventListener("change", schedule);
     update();
     return () => {
       observer?.disconnect();
       resize?.disconnect();
       listen(false);
-      window.removeEventListener("resize", measure);
+      window.removeEventListener("resize", schedule);
       reducedMotion.removeEventListener("change", schedule);
       if (frame) window.cancelAnimationFrame(frame);
     };
@@ -83,6 +86,7 @@ export function AnalysisForwardTransition({ enabled, children, goal }: {
       </Group>
     </Stack>
     <Box ref={boundaryRef} className={styles.forwardBoundary} data-forward-boundary="true">
+      <Box ref={atmosphereRef} className={styles.forwardAtmosphere} data-forward-atmosphere="true" aria-hidden="true" />
       <Stack ref={goalRef} gap="xl" tabIndex={-1} className={styles.forwardSurface} aria-label="분석에서 다음 행동으로">
         {goal}
       </Stack>

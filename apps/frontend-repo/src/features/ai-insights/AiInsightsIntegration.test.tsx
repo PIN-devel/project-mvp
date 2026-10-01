@@ -222,6 +222,9 @@ describe("vNext 소비 분석 통합 흐름", () => {
     expect(posts()).toHaveLength(0);
     await waitFor(() => expect(scroll).toHaveBeenCalled());
     expect(scroll.mock.instances[0]).toBe(document.querySelector("[data-scene='0']"));
+    expect(scroll).toHaveBeenCalledWith({ behavior: "instant", block: "start" });
+    expect(document.querySelector("[data-analysis-result]")).toHaveAttribute("data-analysis-result", "restored");
+    expect(screen.getByLabelText("실제 소비 시각화")).toHaveAttribute("data-entry", "idle");
   });
 
   it("내역 변경 시 이전 결과를 숨기고 재분석 실패에도 저장된 성공 근거를 보존한다", async () => {
