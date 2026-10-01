@@ -63,6 +63,54 @@ class AnalysisContractTest {
         assertThatThrownBy(() -> validator.validate(snapshot, draft(observation, evidenceId, category + 999, "근거 확인"))).isInstanceOf(BusinessException.class);
     }
 
+    @Test void findingCanCompareMeasuredEvidenceWhileItsGoalKeepsTheCategoryBoundary() {
+        long owner = user(); long category = category(owner);
+        var snapshot = enoughSnapshot(owner, category);
+        var observation = snapshot.observations().getFirst();
+        String ref = observation.evidenceIds().getFirst();
+        String total = "total.amount";
+        var finding = new FindingDraft(observation.id(), List.of(ref, total),
+                "전체 소비 {{" + total + "}}와 분류 소비 {{" + ref + "}}를 함께 확인해 보세요.",
+                "HIGH", List.of("자료 완결성 미확인"));
+        var opportunity = new OpportunityDraft(category, List.of(ref), List.of(observation.id()),
+                "REDUCE_SPENDING", "관측 소비 {{" + ref + "}}를 확인해 보세요.");
+        var model = mock(AnalysisInterpreter.class);
+        when(model.interpret(snapshot)).thenReturn(new Draft(List.of(finding), List.of(opportunity)));
+        var run = new AnalysisService(analytics, repository, model, validator).create(owner, all, null);
+        assertThat(run.status()).isEqualTo("SUCCEEDED");
+        assertThat(run.failureCode()).isNull();
+        assertThat(run.findings()).singleElement().satisfies(f ->
+                assertThat(f.evidenceIds()).containsExactly(ref, total));
+        assertThat(run.opportunities()).singleElement().satisfies(o ->
+                assertThat(o.evidenceIds()).containsExactly(ref));
+        assertThat(repository.find(owner, run.id()).findings()).isEqualTo(run.findings());
+        verify(model, never()).correctNumericProse(any(), any());
+    }
+
+    @Test void comparisonCannotInventEvidenceDetachFromItsObservationOrBroadenGoalScope() {
+        long owner = user(); long category = category(owner);
+        var snapshot = enoughSnapshot(owner, category);
+        var observation = snapshot.observations().getFirst();
+        String ref = observation.evidenceIds().getFirst();
+        var detached = new FindingDraft(observation.id(), List.of("total.amount"), "근거 확인",
+                "HIGH", List.of("자료 완결성 미확인"));
+        assertThatThrownBy(() -> validator.validate(snapshot, new Draft(List.of(detached), List.of())))
+                .isInstanceOfSatisfying(AnalysisResultValidator.RejectedDraftException.class,
+                        e -> assertThat(e.reason()).isEqualTo("INVALID_FINDING_EVIDENCE"));
+        var invented = new FindingDraft(observation.id(), List.of(ref, "invented"), "근거 확인",
+                "HIGH", List.of("자료 완결성 미확인"));
+        assertThatThrownBy(() -> validator.validate(snapshot, new Draft(List.of(invented), List.of())))
+                .isInstanceOfSatisfying(AnalysisResultValidator.RejectedDraftException.class,
+                        e -> assertThat(e.reason()).isEqualTo("INVALID_FINDING_EVIDENCE"));
+        var finding = new FindingDraft(observation.id(), List.of(ref, "total.amount"), "근거 확인",
+                "HIGH", List.of("자료 완결성 미확인"));
+        var badGoal = new OpportunityDraft(category, List.of("total.amount"), List.of(observation.id()),
+                "REDUCE_SPENDING", "근거 확인");
+        assertThatThrownBy(() -> validator.validate(snapshot, new Draft(List.of(finding), List.of(badGoal))))
+                .isInstanceOfSatisfying(AnalysisResultValidator.RejectedDraftException.class,
+                        e -> assertThat(e.reason()).isEqualTo("INVALID_OPPORTUNITY_EVIDENCE"));
+    }
+
     @Test void savedRunIsOwnerScopedAndRevisionGuardsHandoffWithoutMonthlyTotalInference() {
         long owner = user(); long other = user(); long category = category(owner);
         for (int day = 1; day <= 10; day++) transaction(owner, category, "2026-08-" + String.format("%02d", day), 100, "승인", true);
