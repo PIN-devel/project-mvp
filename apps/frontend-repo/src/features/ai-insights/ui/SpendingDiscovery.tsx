@@ -27,10 +27,11 @@ function prepareSignalAperture(scene: HTMLElement, orbit: SVGSVGElement) {
   scene.style.setProperty("--signal-extent", `${Math.hypot(Math.max(x, sceneBounds.width - x), Math.max(y, sceneBounds.height - y)) + 2}px`);
 }
 
-export function SpendingDiscovery({ snapshot, entryRequested = false, onEntryComplete }: {
+export function SpendingDiscovery({ snapshot, entryRequested = false, onEntryComplete, forwardTransition = false }: {
   snapshot: AnalyticsSnapshot;
   entryRequested?: boolean;
   onEntryComplete?: (requested: false) => void;
+  forwardTransition?: boolean;
 }) {
   const model = useMemo(() => toSpendingSceneModel(snapshot), [snapshot]);
   const nodes = useMemo(() => packMerchants(model.merchants), [model.merchants]);
@@ -271,7 +272,7 @@ export function SpendingDiscovery({ snapshot, entryRequested = false, onEntryCom
           </SimpleGrid>
         </Stack>
       </section>
-      <Box aria-hidden="true" className={styles.stageRecovery} />
+      {!forwardTransition && <Box aria-hidden="true" className={styles.stageRecovery} />}
     </Stack>
   );
 }

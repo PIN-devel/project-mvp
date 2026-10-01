@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { delay, http, HttpResponse } from "msw";
+import { http, HttpResponse } from "msw";
 import { useAppStore } from "@/app/store/useAppStore";
 import { theme } from "@/app/theme";
 import { dbLedger, resetAllMocks } from "@/mocks/db";
@@ -167,22 +167,29 @@ describe("vNext 소비 분석 통합 흐름", () => {
     await analyze();
   });
 
-  it("정확히 10건의 미분류도 분석하고 AI 대기 중 시각화를 유지하며 중복 요청을 막는다", async () => {
+  it("정확히 10건의 미분류도 분석하고 AI 완료 후 전체 결과를 공개하며 중복 요청을 막는다", async () => {
     dbLedger.getAll().slice(10).forEach(({ id }) => dbLedger.delete(id));
     dbLedger.getAll().forEach(({ id }) => dbLedger.update(id, { categoryId: null, categoryName: null, isClassified: false }));
     const result = await seedRun();
+    let complete!: () => void;
+    const pending = new Promise<void>((resolve) => { complete = resolve; });
     server.use(http.get("/api/v2/analyses", () => HttpResponse.json({ run: null, currentDataRevision: null, stale: false })),
-      http.post("/api/v2/analyses", async () => { await delay(200); return HttpResponse.json(result); }));
+      http.post("/api/v2/analyses", async () => { await pending; return HttpResponse.json(result); }));
     requests.length = 0;
     renderFeature();
     const button = await ready();
     fireEvent.click(button);
-    await screen.findByRole("heading", { name: "소비의 근거를 읽고 있어요" });
-    expect(screen.getByLabelText("실제 소비 시각화")).toBeInTheDocument();
+    await screen.findByRole("heading", { name: "소비 흐름을 살펴보고 있어요" });
+    expect(screen.queryByLabelText("실제 소비 시각화")).not.toBeInTheDocument();
+    expect(screen.queryByText("핵심 발견")).not.toBeInTheDocument();
     expect(screen.getByLabelText("조회 기간")).toBeDisabled();
     expect(screen.getByLabelText("카테고리")).toBeDisabled();
     fireEvent.click(button);
+    complete();
+    await screen.findByRole("heading", { name: "분석 결과가 준비됐어요" });
+    expect(screen.queryByLabelText("실제 소비 시각화")).not.toBeInTheDocument();
     await screen.findByText("핵심 발견");
+    expect(screen.getByLabelText("실제 소비 시각화")).toBeInTheDocument();
     expect(posts()).toHaveLength(1);
     expect(result.run!.snapshot.transactionCount).toBe(10);
     expect(screen.getByText(/현재 근거에서는 카테고리별 변화 후보를 제안하지 않았어요/)).toBeInTheDocument();
