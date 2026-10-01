@@ -37,9 +37,23 @@ export const analysisQueries = {
       return AnalysisResponseSchema.parse(data);
     },
     refetchOnMount: "always", retry: false,
+    refetchInterval: (query) => query.state.data?.run?.status === "PENDING" ? 1500 : false,
   }),
 };
-export async function createAnalysis(query: AnalyticsQuery, expectedDataRevision: string) {
-  const { data } = await api.post("/api/v2/analyses", { ...query, expectedDataRevision });
-  return AnalysisResponseSchema.parse(data);
+export async function createAnalysis(query: AnalyticsQuery, expectedDataRevision: string, signal?: AbortSignal) {
+  const { data } = await api.post("/api/v2/analyses", { ...query, expectedDataRevision }, { signal });
+  let response = AnalysisResponseSchema.parse(data);
+  // The current server waits for AI. Also tolerate an explicitly pending saved run.
+  while (response.run?.status === "PENDING" && !response.stale) {
+    await new Promise<void>((resolve, reject) => {
+      if (signal?.aborted) { reject(signal.reason); return; }
+      const abort = () => { clearTimeout(timer); reject(signal?.reason); };
+      const timer = setTimeout(() => { signal?.removeEventListener("abort", abort); resolve(); }, 1500);
+      signal?.addEventListener("abort", abort, { once: true });
+    });
+    const { data: completed } = await api.get(`/api/v2/analyses/${encodeURIComponent(response.run.id)}`, { signal });
+    response = AnalysisResponseSchema.parse(completed);
+  }
+  if (!response.run) throw new Error("분석 결과를 확인하지 못했어요.");
+  return response;
 }

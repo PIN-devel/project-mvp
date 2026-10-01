@@ -12,6 +12,7 @@ import { formatGeneratedAt, getPeriodLabel } from "../model/core";
 import { MIN_ANALYSIS_TRANSACTION_COUNT } from "@/shared/model/analysisEligibility";
 import { OpportunityReview } from "./OpportunityReview";
 import { SpendingDiscovery } from "./SpendingDiscovery";
+import { useAnalysisReveal } from "./useAnalysisReveal";
 import styles from "./AiInsightsPageContent.module.css";
 
 const defaultQuery: AnalyticsQuery = { period: "ALL", start: null, endExclusive: null, categoryIds: [], cardNames: [] };
@@ -30,17 +31,43 @@ export function AiInsightsPageContent({ userScope }: { userScope: string | null 
   const analytics = useQuery({ ...analysisQueries.snapshot(userScope, query), enabled: !restored.isPending });
   const [activeSnapshot, setActiveSnapshot] = useState<AnalyticsSnapshot | null>(null);
   const [entryRequested, setEntryRequested] = useState(false);
+  const reveal = useAnalysisReveal();
+  const requestVersionRef = useRef(0);
+  const requestControllerRef = useRef<AbortController | null>(null);
   const resultRevealRef = useRef<HTMLDivElement>(null);
   const restoredResultScrollRef = useRef(false);
+  const revealedRequestRef = useRef<number | null>(null);
   const analysisScopeRef = useRef<HTMLSelectElement>(null);
   const analysis = useMutation({
-    mutationFn: ({ query, revision }: { query: AnalyticsQuery; revision: string }) => createAnalysis(query, revision),
-    onSuccess: (response) => {
-      if (!response.run) return;
+    mutationFn: ({ snapshot, signal }: { snapshot: AnalyticsSnapshot; signal: AbortSignal; version: number }) => createAnalysis(snapshot.query, snapshot.dataRevision, signal),
+    onSuccess: (response, request) => {
+      if (request.version !== requestVersionRef.current || request.signal.aborted || !response.run) return;
+      requestControllerRef.current = null;
       queryClient.setQueryData(analysisKeys.run(userScope, response.run.id), response);
       queryClient.setQueryData(analysisKeys.run(userScope, null), response);
       setParams({ analysisRunId: response.run.id }, { replace: true });
-      if (response.stale) setActiveSnapshot(null);
+      if (response.stale) {
+        setActiveSnapshot(null);
+        reveal.dispatch("reset");
+        void analytics.refetch();
+        return;
+      }
+      setActiveSnapshot(response.run.snapshot);
+      setEntryRequested(true);
+      reveal.dispatch("complete");
+    },
+    onError: (error, request) => {
+      if (request.version !== requestVersionRef.current || request.signal.aborted) return;
+      requestControllerRef.current = null;
+      if (error && typeof error === "object" && "status" in error && error.status === 409) {
+        reveal.dispatch("reset");
+        void analytics.refetch();
+        return;
+      }
+      // Transport / AI failures keep deterministic data, without an earlier run's findings.
+      setActiveSnapshot(request.snapshot);
+      setEntryRequested(true);
+      reveal.dispatch("complete");
     },
   });
   const response = analysis.data ?? restored.data;
@@ -50,8 +77,10 @@ export function AiInsightsPageContent({ userScope }: { userScope: string | null 
   const stale = Boolean(sameRunScope && (response?.stale || (current && run?.snapshot.dataRevision !== current.dataRevision)));
   const checking = restored.isFetching || analytics.isFetching;
   const activeIsStale = Boolean(activeSnapshot && current && activeSnapshot.dataRevision !== current.dataRevision);
-  const snapshot = activeIsStale ? null : activeSnapshot ?? (sameRunScope && !stale && !checking ? run?.snapshot : null);
-  const displayRun = snapshot && run?.snapshot.dataRevision === snapshot.dataRevision && sameRunScope && !stale ? run : null;
+  const savedPending = !activeSnapshot && sameRunScope && !stale && run?.status === "PENDING";
+  const focused = reveal.busy || savedPending;
+  const snapshot = focused || activeIsStale ? null : activeSnapshot ?? (sameRunScope && !analysis.isError && !stale && !checking && run?.status !== "PENDING" ? run?.snapshot : null);
+  const displayRun = !analysis.isError && snapshot && run?.snapshot.dataRevision === snapshot.dataRevision && sameRunScope && !stale ? run : null;
   const leadFinding = displayRun?.findings.toSorted((a, b) => ["HIGH", "MEDIUM", "LOW"].indexOf(a.importance) - ["HIGH", "MEDIUM", "LOW"].indexOf(b.importance))[0];
   const categoryLabel = query.categoryIds.length
     ? categories.find((c) => c.id === query.categoryIds[0])?.name ?? run?.snapshot.categories.find((c) => c.categoryId === query.categoryIds[0])?.categoryLabel ?? "선택한 카테고리"
@@ -60,36 +89,49 @@ export function AiInsightsPageContent({ userScope }: { userScope: string | null 
   const aiEligible = count !== undefined && count >= MIN_ANALYSIS_TRANSACTION_COUNT;
   const unresolved = (current?.quality.unclassifiedCount ?? 0) + (current?.quality.inconsistentCount ?? 0);
 
+  useEffect(() => () => {
+    requestVersionRef.current += 1;
+    requestControllerRef.current?.abort();
+  }, []);
+
   useEffect(() => {
-    if (restoredResultScrollRef.current || !snapshot || !run || !sameRunScope || stale || checking || activeSnapshot) return;
-    const firstScene = resultRevealRef.current?.querySelector<HTMLElement>("[data-scene]");
+    if (!snapshot || (!activeSnapshot && (restoredResultScrollRef.current || !run || !sameRunScope || stale || checking))) return;
+    if (activeSnapshot && revealedRequestRef.current === requestVersionRef.current) return;
+    // Scroll only after the complete result has mounted, including fallback / empty data.
+    const firstScene = resultRevealRef.current?.querySelector<HTMLElement>("[data-scene]") ?? resultRevealRef.current;
     if (!firstScene) return;
     const frame = window.requestAnimationFrame(() => {
       restoredResultScrollRef.current = true;
+      revealedRequestRef.current = requestVersionRef.current;
       firstScene.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" });
+      firstScene.focus({ preventScroll: true });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [activeSnapshot, checking, run, sameRunScope, snapshot, stale]);
 
   const changeQuery = (next: AnalyticsQuery) => {
+    requestVersionRef.current += 1;
+    requestControllerRef.current?.abort();
+    requestControllerRef.current = null;
+    reveal.dispatch("reset");
     setSelectedQuery(next);
     setActiveSnapshot(null);
     setEntryRequested(false);
     analysis.reset();
   };
   const requestAnalysis = () => {
-    if (!current || analysis.isPending || checking) return;
-    setActiveSnapshot(current);
-    setEntryRequested(true);
-    analysis.mutate({ query, revision: current.dataRevision });
-    requestAnimationFrame(() => {
-      const firstScene = resultRevealRef.current?.querySelector<HTMLElement>("[data-scene]");
-      firstScene?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" });
-      firstScene?.focus({ preventScroll: true });
-    });
+    if (!current || focused || analysis.isPending || checking || requestControllerRef.current) return;
+    const controller = new AbortController();
+    requestControllerRef.current = controller;
+    const version = ++requestVersionRef.current;
+    analysis.reset();
+    setActiveSnapshot(null);
+    setEntryRequested(false);
+    reveal.dispatch("start");
+    analysis.mutate({ snapshot: current, version, signal: controller.signal });
   };
 
-  return <Container size={1180}><Stack gap="xl" className={styles.page}>
+  return <Container size={1180}><Stack gap="xl" className={styles.page} data-analysis-focus={focused || undefined}>
     <Stack gap="sm" className={styles.pageHeading}>
       <Text size="sm" fw={800} c="teal.8" tt="uppercase" lts={1}>CONSUMPTION INTELLIGENCE</Text>
       <Title order={1}>내 소비를 이해하는 첫 번째 발견</Title>
@@ -101,9 +143,9 @@ export function AiInsightsPageContent({ userScope }: { userScope: string | null 
         <Stack gap={3}><Text size="sm" fw={700}>{count === undefined ? analytics.isError || restored.isError ? "대상 건수 미확인" : "대상 건수 확인 중" : `${count}건`} · {getPeriodLabel(query.period)} · {categoryLabel}</Text></Stack>
       </Group>
       <Group align="end" gap="md">
-        <NativeSelect w={{ base: "100%", sm: 190 }} label="조회 기간" ref={analysisScopeRef} value={query.period} disabled={analysis.isPending}
+        <NativeSelect w={{ base: "100%", sm: 190 }} label="조회 기간" ref={analysisScopeRef} value={query.period} disabled={focused || analysis.isPending}
           onChange={(e) => changeQuery({ ...query, period: e.currentTarget.value as AnalyticsQuery["period"], start: null, endExclusive: null })} data={periodOptions} />
-        <NativeSelect w={{ base: "100%", sm: 190 }} label="카테고리" value={String(query.categoryIds[0] ?? "all")} disabled={analysis.isPending}
+        <NativeSelect w={{ base: "100%", sm: 190 }} label="카테고리" value={String(query.categoryIds[0] ?? "all")} disabled={focused || analysis.isPending}
           onChange={(e) => changeQuery({ ...query, categoryIds: e.currentTarget.value === "all" ? [] : [Number(e.currentTarget.value)] })}
           data={[{ value: "all", label: "전체 카테고리" }, ...categories.map((c) => ({ value: String(c.id), label: c.name })),
             ...query.categoryIds.filter((id) => !categories.some((c) => c.id === id)).map((id) => ({ value: String(id), label: "이전 카테고리 · 현재 사용 불가" }))]} />
@@ -123,17 +165,23 @@ export function AiInsightsPageContent({ userScope }: { userScope: string | null 
     </Stack></Paper>
 
     {(analytics.isError || restored.isError) && <Alert color="red" icon={<IconAlertTriangle size={18} />} title="분석 데이터를 가져오지 못했어요"><Stack gap="sm"><Text size="sm">잠시 후 다시 시도해 주세요.</Text><Button variant="subtle" color="gray" onClick={() => { void restored.refetch(); void analytics.refetch(); }}>다시 확인하기</Button></Stack></Alert>}
-    {!snapshot && <Paper className={styles.gateway}><Stack gap="xl">
+    {!snapshot && <Paper className={styles.gateway} data-focus={focused || undefined} data-phase={reveal.phase} aria-busy={focused}><Stack gap="xl">
+      {focused ? <Stack gap="md" role="status" aria-live="polite" aria-atomic="true">
+        <Text size="xs" c="teal.8" fw={700}>나의 소비에 집중하는 시간</Text>
+        <Title order={2}>{reveal.phase === "converging" || reveal.phase === "settled" ? "분석 결과가 준비됐어요" : reveal.longWait ? "조금 더 자세히 살펴보고 있어요" : "소비 흐름을 살펴보고 있어요"}</Title>
+        <Text c="dimmed">{reveal.phase === "converging" || reveal.phase === "settled" ? "발견한 흐름을 함께 살펴볼까요?" : "정리한 내역에서 눈여겨볼 패턴과 변화를 찾고 있어요."}</Text>
+        <div className={styles.focusSignal} aria-hidden="true" />
+      </Stack> : <>
       <Stack gap="sm" aria-live="polite"><Text size="xs" c="dimmed" fw={700}>나의 소비 읽기</Text><Title order={2}>{checking ? "저장한 결과와 이용내역을 확인하고 있어요" : stale ? "이용내역이 바뀌었어요" : "정리한 내역에서 나의 소비를 읽어볼까요?"}</Title><Text c="dimmed" maw={620}>{stale ? "현재 이용내역으로 다시 분석해 주세요. 이전 근거는 저장한 분석에서 보존됩니다." : "소비가 모이는 곳과 시간의 흐름을 실제 기록에서 먼저 확인하고, AI의 해석을 더해보세요."}</Text></Stack>
-      <Button {...journeyPrimaryProps} w="fit-content" rightSection={<IconArrowRight size={18} />} onClick={requestAnalysis} disabled={!current || checking || analysis.isPending} loading={checking}>내 소비 분석하기</Button>
+      <Button {...journeyPrimaryProps} w="fit-content" rightSection={<IconArrowRight size={18} />} onClick={requestAnalysis} disabled={!current || checking || analysis.isPending}>내 소비 분석하기</Button>
+      {analysis.isError && <Text size="sm" c="orange.8" role="alert">분석할 이용내역이 바뀌었거나 결과를 확인하지 못했어요. 최신 내역을 확인한 뒤 다시 분석해 주세요.</Text>}
+      </>}
       <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="xl" className={styles.gatewayPreview}>{["소비가 집중된 영역", "시간에 따른 소비 흐름", "패턴을 만든 주요 거래"].map((label, i) => <Stack gap={5} key={label}><Text size="xs" c="dimmed">분석 후 살펴볼 내용 / 0{i + 1}</Text><Text size="sm" fw={600}>{label}</Text></Stack>)}</SimpleGrid>
     </Stack></Paper>}
 
-    {snapshot && <Stack ref={resultRevealRef} gap="xl">
+    {snapshot && <Stack ref={resultRevealRef} gap="xl" tabIndex={-1} className={styles.resultReveal}>
       <SpendingDiscovery key={snapshot.dataRevision} snapshot={snapshot} entryRequested={entryRequested} onEntryComplete={setEntryRequested} />
       <Stack gap="sm" className={styles.aiHeading}><Text size="xs" fw={700} c="teal.8" lts={1.5}>04 / MAKE SENSE OF IT</Text><Title order={2}>눈에 보인 흐름에, 해석을 더해요.</Title><Text size="sm" c="dimmed">위 시각화와 아래 해석은 같은 거래 집계를 근거로 합니다. AI 해석과 변화 후보는 사용자가 확인할 제안입니다.</Text></Stack>
-      {analysis.isPending && <Paper className={styles.aiInterpretation}><Stack gap="sm" role="status"><Title order={3}>소비의 근거를 읽고 있어요</Title><Text c="dimmed">실제 소비의 모습은 먼저 살펴볼 수 있어요. AI가 계산된 근거에 해석을 더하고 있어요.</Text></Stack></Paper>}
-      {!analysis.isPending && !analysis.isError && displayRun?.status === "PENDING" && <Paper className={styles.aiInterpretation}><Stack gap="sm" role="status"><Title order={3}>저장된 AI 해석의 완료 여부를 아직 확인하지 못했어요</Title><Text size="sm" c="dimmed">거래 집계와 시각화는 살펴볼 수 있어요. 저장된 결과의 현재 상태를 다시 확인해 주세요.</Text><Button variant="subtle" color="gray" w="fit-content" leftSection={<IconRefresh size={16} />} onClick={() => { analysis.reset(); void restored.refetch(); }} disabled={checking}>AI 해석 상태 확인하기</Button></Stack></Paper>}
       {(analysis.isError || displayRun?.status === "AI_FAILED") && <Alert color="orange" icon={<IconAlertTriangle size={18} />} title="AI 해석을 완료하지 못했어요"><Stack gap="sm"><Text size="sm">거래 집계와 시각화는 계속 볼 수 있어요. 같은 범위로 다시 시도할 수 있어요.</Text><Button variant="subtle" color="gray" leftSection={<IconRefresh size={16} />} onClick={requestAnalysis} disabled={checking || analysis.isPending}>AI 해석 다시 시도하기</Button></Stack></Alert>}
       {(displayRun?.status === "INSUFFICIENT_DATA" || (!aiEligible && !analysis.isPending)) && <Text c="dimmed" size="sm">AI 해석에는 소비 집계 대상 {MIN_ANALYSIS_TRANSACTION_COUNT}건이 필요해요. 이용내역을 추가하면 다시 분석할 수 있어요.</Text>}
       {displayRun?.status === "SUCCEEDED" && !analysis.isPending && <>

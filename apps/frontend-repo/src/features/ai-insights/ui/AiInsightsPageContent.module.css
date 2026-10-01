@@ -339,6 +339,25 @@
 .gateway { padding: clamp(28px, 5vw, 64px); background: #fff; border: 1px solid #dce7e8; border-radius: 24px; }
 .gateway h2 { max-width: 700px; font-size: clamp(28px, 3vw, 40px); letter-spacing: -.045em; line-height: 1.35; word-break: keep-all; }
 .gatewayPreview { padding-top: 28px; border-top: 1px solid #e4eceb; }
+/* Keep processing on the light product surface; navy belongs to the finished result. */
+.pageHeading, .scopeContext { transition: opacity 180ms ease; }
+.page[data-analysis-focus] .pageHeading, .page[data-analysis-focus] .scopeContext { opacity: .65; }
+.gateway { transition: box-shadow 180ms ease, border-color 180ms ease; }
+.gateway[data-focus] { border-color: #b5d8ce; box-shadow: 0 12px 32px rgb(0 107 86 / 8%); }
+.gateway[data-focus] .gatewayPreview { opacity: .55; }
+.focusSignal { position: relative; overflow: hidden; width: min(100%, 320px); height: 2px; margin-block: 14px; background: #e0eee9; }
+.focusSignal::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, #31e6b8, #006b56, transparent); transform: scaleX(.35); animation: focus-sweep 1800ms ease-in-out 3; }
+.gateway[data-phase="converging"] .focusSignal::after { animation: focus-converge 180ms ease-out both; }
+.gateway[data-phase="settled"] .focusSignal::after { animation: none; transform: scaleX(.16); background: #006b56; }
+.resultReveal { animation: analysis-result-reveal 220ms ease-out both; }
+.resultReveal:focus { outline: none; }
+@keyframes focus-sweep { 0%, 100% { transform: translateX(-25%) scaleX(.35); opacity: .45; } 50% { transform: translateX(25%) scaleX(.6); opacity: 1; } }
+@keyframes focus-converge { from { transform: scaleX(.6); opacity: .7; } to { transform: scaleX(.16); opacity: 1; } }
+@keyframes analysis-result-reveal { from { opacity: .65; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .pageHeading, .scopeContext, .gateway { transition: none; }
+  .focusSignal::after, .gateway[data-phase="converging"] .focusSignal::after, .resultReveal { animation: none; }
+}
 .analysisStage { position: relative; isolation: isolate; margin-inline: calc(50% - 50vw + 10px); --stage-gutter: max(48px, calc((100vw - 1100px) / 2)); padding-inline: var(--stage-gutter); background: #0d1730; color: #f0f5f8; }
 .analysisStage section { scroll-margin-top: calc(var(--app-shell-header-height, 112px) + 16px); border-radius: 0; background: transparent; padding: 56px 0; min-height: 88svh; }
 .analysisStage section:focus { outline: none; }
