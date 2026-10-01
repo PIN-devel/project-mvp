@@ -68,7 +68,7 @@ class BedrockAnalysisInterpreterTest {
     @Test void numericCorrectionSuppliesTheRejectedDraftAndKeepsTheEvidenceContract() throws Exception {
         var rejected = json.readValue(VALID.replace("관측 소비 {{category.id:1.amount}}", "관측 소비 1000원"), AnalysisInterpreter.Draft.class);
         given(client.converse(any(ConverseRequest.class))).willReturn(response(VALID, StopReason.END_TURN));
-        var corrected = interpreter.correctNumericProse(snapshot(), rejected);
+        var corrected = interpreter.correctProse(snapshot(), rejected, "LITERAL_NUMBER");
         assertThat(new AnalysisResultValidator().validate(snapshot(), corrected).opportunities()).hasSize(1);
         var request = ArgumentCaptor.forClass(ConverseRequest.class);
         verify(client, times(1)).converse(request.capture());
@@ -83,6 +83,19 @@ class BedrockAnalysisInterpreterTest {
         given(client.converse(any(ConverseRequest.class))).willReturn(response(VALID, StopReason.MAX_TOKENS));
         assertFailure(InsightErrorCode.INVALID_MODEL_RESPONSE);
         verify(client, times(1)).converse(any(ConverseRequest.class));
+    }
+
+    @Test void tokenCorrectionSuppliesTheReasonAndKeepsTheOriginalReferences() throws Exception {
+        var rejected = json.readValue(VALID.replace("{{category.id:1.amount}}", "{{invented}}"), AnalysisInterpreter.Draft.class);
+        given(client.converse(any(ConverseRequest.class))).willReturn(response(VALID, StopReason.END_TURN));
+        var corrected = interpreter.correctProse(snapshot(), rejected, "UNKNOWN_EVIDENCE_TOKEN");
+        assertThat(new AnalysisResultValidator().validate(snapshot(), corrected).opportunities()).hasSize(1);
+        var request = ArgumentCaptor.forClass(ConverseRequest.class);
+        verify(client, times(1)).converse(request.capture());
+        var messages = request.getValue().messages();
+        assertThat(json.readValue(messages.get(1).content().getFirst().text(), AnalysisInterpreter.Draft.class)).isEqualTo(rejected);
+        assertThat(messages.getLast().content().getFirst().text())
+                .contains("UNKNOWN_EVIDENCE_TOKEN", "evidenceIds", "문자열을 정확히 복사", "근거 연결은 유지");
     }
 
     @Test void optionalCodeFenceIsParsedOnlyAfterNormalCompletion() {

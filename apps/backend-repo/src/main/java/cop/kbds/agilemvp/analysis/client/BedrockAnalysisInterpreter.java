@@ -26,7 +26,7 @@ import software.amazon.awssdk.services.bedrockruntime.model.*;
 @Slf4j
 @ConditionalOnProperty(prefix = "bedrock", name = "enabled", havingValue = "true")
 public class BedrockAnalysisInterpreter implements AnalysisInterpreter {
-    public static final String PROMPT_VERSION = "evidence-interpretation-v4";
+    public static final String PROMPT_VERSION = "evidence-interpretation-v5";
     // Evidence IDs and linked opportunities require more JSON than the legacy summary/cards response.
     private static final int MIN_OUTPUT_TOKENS = 4096;
     private final BedrockRuntimeClient client;
@@ -59,16 +59,18 @@ public class BedrockAnalysisInterpreter implements AnalysisInterpreter {
             Opportunity의 evidenceIds는 연결된 Finding의 evidenceIds에서만 골라 그대로 복사하세요.
             observationId와 evidenceId는 입력의 문자열을 정확히 복사하고, 별도 id나 추가 필드를 만들지 마세요.
             evidenceIds 밖의 토큰이나 없는 id를 사용하지 마세요. 카테고리 이름은 표시용이며 의미를 단정하지 마세요.
+            각 문장의 {{evidenceId}}에서 evidenceId는 그 Finding 또는 Opportunity의 evidenceIds에 있는 문자열을 그대로 복사하세요.
+            단위/형식 접미사를 토큰 안에 추가하지 마세요. Opportunity 문장은 자체 evidenceIds만 사용하세요.
             """;
 
     @Override public String modelVersion() { return properties.modelId(); }
     @Override public Draft interpret(AnalyticsSnapshot snapshot) {
-        return interpret(snapshot, null);
+        return interpret(snapshot, null, null);
     }
-    @Override public Draft correctNumericProse(AnalyticsSnapshot snapshot, Draft rejected) {
-        return interpret(snapshot, rejected);
+    @Override public Draft correctProse(AnalyticsSnapshot snapshot, Draft rejected, String reason) {
+        return interpret(snapshot, rejected, reason);
     }
-    private Draft interpret(AnalyticsSnapshot snapshot, Draft rejected) {
+    private Draft interpret(AnalyticsSnapshot snapshot, Draft rejected, String reason) {
         Set<String> refs = snapshot.observations().stream().flatMap(o -> o.evidenceIds().stream()).collect(Collectors.toSet());
         // Only measured facts needed by candidate observations; no tags, memo or raw transaction array.
         var facts = snapshot.evidence().stream().filter(e -> refs.contains(e.id())).map(e -> {
@@ -87,13 +89,15 @@ public class BedrockAnalysisInterpreter implements AnalysisInterpreter {
                 messages.add(Message.builder().role(ConversationRole.ASSISTANT)
                         .content(ContentBlock.fromText(json.writeValueAsString(rejected))).build());
                 messages.add(Message.builder().role(ConversationRole.USER).content(ContentBlock.fromText("""
-                        앞선 JSON은 문장에 근거 토큰 밖의 숫자가 포함되어 LITERAL_NUMBER 검증에서 거부됐습니다.
+                        앞선 JSON의 문장이 %s 검증에서 거부됐습니다.
                         observationId/evidenceIds/categoryId와 근거 연결은 유지하세요.
                         interpretation/rationale/limitations의 날짜와 번호를 없애고 날짜는 '관측 기간'으로 표현하세요.
                         금액/비율/횟수는 해당 문장의 evidenceIds에 있는 {{evidenceId}} 토큰으로만 표현하세요.
+                        토큰 내부는 해당 Finding 또는 Opportunity의 evidenceIds 문자열을 정확히 복사하세요.
+                        다른 항목의 근거, 없는 근거, 단위나 형식 접미사가 붙은 토큰은 사용하지 마세요.
                         적절한 근거가 없다면 해당 수치 주장을 삭제하세요. 새로운 계산이나 수치를 만들지 마세요.
                         교정된 전체 JSON만 반환하세요.
-                        """)).build());
+                        """.formatted(reason))).build());
             }
             var response = client.converse(ConverseRequest.builder().modelId(properties.modelId())
                     .system(SystemContentBlock.builder().text(SYSTEM).build())
