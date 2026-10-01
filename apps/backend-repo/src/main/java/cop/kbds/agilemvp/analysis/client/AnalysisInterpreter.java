@@ -14,7 +14,7 @@ public interface AnalysisInterpreter {
                             String direction, String rationale) {}
     Draft interpret(AnalyticsSnapshot snapshot);
     /** Optional single correction; unsupported interpreters preserve the invalid-response failure. */
-    default Draft correctNumericProse(AnalyticsSnapshot snapshot, Draft rejected) {
+    default Draft correctProse(AnalyticsSnapshot snapshot, Draft rejected, String reason) {
         throw new BusinessException(InsightErrorCode.INVALID_MODEL_RESPONSE);
     }
     String modelVersion();

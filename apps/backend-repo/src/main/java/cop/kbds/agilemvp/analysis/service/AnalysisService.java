@@ -42,10 +42,10 @@ public class AnalysisService {
             try {
                 result = validator.validate(snapshot, draft);
             } catch (AnalysisResultValidator.RejectedDraftException rejected) {
-                if (!"LITERAL_NUMBER".equals(rejected.reason())) throw rejected;
-                log.info("Analysis interpretation correction: runId={}, reason=LITERAL_NUMBER", pending.id());
+                if (!List.of("LITERAL_NUMBER", "UNKNOWN_EVIDENCE_TOKEN", "MALFORMED_EVIDENCE_TOKEN").contains(rejected.reason())) throw rejected;
+                log.info("Analysis interpretation correction: runId={}, reason={}", pending.id(), rejected.reason());
                 // One model correction only. The same full evidence validation remains authoritative.
-                result = validator.validate(snapshot, interpreter.correctNumericProse(snapshot, draft));
+                result = validator.validate(snapshot, interpreter.correctProse(snapshot, draft, rejected.reason()));
             }
             completed = finish(pending, "SUCCEEDED", null, result.findings(), result.opportunities());
         } catch (BusinessException e) {

@@ -5,6 +5,8 @@ import static org.mockito.Mockito.*;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -84,7 +86,7 @@ class AnalysisContractTest {
         assertThat(run.opportunities()).singleElement().satisfies(o ->
                 assertThat(o.evidenceIds()).containsExactly(ref));
         assertThat(repository.find(owner, run.id()).findings()).isEqualTo(run.findings());
-        verify(model, never()).correctNumericProse(any(), any());
+        verify(model, never()).correctProse(any(), any(), anyString());
     }
 
     @Test void comparisonCannotInventEvidenceDetachFromItsObservationOrBroadenGoalScope() {
@@ -141,7 +143,7 @@ class AnalysisContractTest {
                 "관측 소비 {{" + observation.evidenceIds().getFirst() + "}}를 확인해 보세요.");
         var model = mock(AnalysisInterpreter.class);
         when(model.interpret(snapshot)).thenReturn(bad);
-        when(model.correctNumericProse(snapshot, bad)).thenReturn(good);
+        when(model.correctProse(snapshot, bad, "LITERAL_NUMBER")).thenReturn(good);
         var service = new AnalysisService(analytics, repository, model, validator);
         var run = service.create(owner, all, null);
         assertThat(run.status()).isEqualTo("SUCCEEDED");
@@ -149,7 +151,7 @@ class AnalysisContractTest {
         assertThat(repository.find(owner, run.id()).findings()).isEqualTo(run.findings());
         assertThat(repository.find(owner, run.id()).snapshot()).isEqualTo(snapshot);
         verify(model, times(1)).interpret(snapshot);
-        verify(model, times(1)).correctNumericProse(snapshot, bad);
+        verify(model, times(1)).correctProse(snapshot, bad, "LITERAL_NUMBER");
     }
 
     @Test void repeatedLiteralNumberFailureDoesNotLoopOrPublishInvalidProse() {
@@ -159,7 +161,7 @@ class AnalysisContractTest {
         var bad = draft(observation, observation.evidenceIds().getFirst(), category, "기간 2026년");
         var model = mock(AnalysisInterpreter.class);
         when(model.interpret(snapshot)).thenReturn(bad);
-        when(model.correctNumericProse(snapshot, bad)).thenReturn(bad);
+        when(model.correctProse(snapshot, bad, "LITERAL_NUMBER")).thenReturn(bad);
         var run = new AnalysisService(analytics, repository, model, validator).create(owner, all, null);
         assertThat(run.status()).isEqualTo("AI_FAILED");
         assertThat(run.failureCode()).isEqualTo("INS003");
@@ -167,10 +169,64 @@ class AnalysisContractTest {
         assertThat(run.opportunities()).isEmpty();
         assertThat(repository.find(owner, run.id()).snapshot()).isEqualTo(snapshot);
         verify(model, times(1)).interpret(snapshot);
-        verify(model, times(1)).correctNumericProse(snapshot, bad);
+        verify(model, times(1)).correctProse(snapshot, bad, "LITERAL_NUMBER");
     }
 
-    @Test void otherEvidenceFailuresNeverTriggerNumericCorrection() {
+    @ParameterizedTest
+    @ValueSource(strings = {"UNKNOWN_EVIDENCE_TOKEN", "MALFORMED_EVIDENCE_TOKEN"})
+    void evidenceTokenCorrectionIsRevalidatedAndPersisted(String reason) {
+        long owner = user(); long category = category(owner);
+        var snapshot = enoughSnapshot(owner, category);
+        var observation = snapshot.observations().getFirst();
+        String ref = observation.evidenceIds().getFirst();
+        String invalidText = reason.equals("UNKNOWN_EVIDENCE_TOKEN")
+                ? "전체 소비 {{total.amount}}를 확인해 보세요." : "소비 {{" + ref + "}를 확인해 보세요.";
+        var bad = draft(observation, ref, category, invalidText);
+        assertThatThrownBy(() -> validator.validate(snapshot, bad))
+                .isInstanceOfSatisfying(AnalysisResultValidator.RejectedDraftException.class,
+                        e -> assertThat(e.reason()).isEqualTo(reason));
+        var good = draft(observation, ref, category, "관측 소비 {{" + ref + "}}를 확인해 보세요.");
+        var model = mock(AnalysisInterpreter.class);
+        when(model.interpret(snapshot)).thenReturn(bad);
+        when(model.correctProse(snapshot, bad, reason)).thenReturn(good);
+        var run = new AnalysisService(analytics, repository, model, validator).create(owner, all, null);
+        assertThat(run.status()).isEqualTo("SUCCEEDED");
+        assertThat(run.failureCode()).isNull();
+        assertThat(repository.find(owner, run.id()).findings()).isEqualTo(run.findings());
+        assertThat(run.opportunities()).singleElement().satisfies(o ->
+                assertThat(o.findingIds()).containsExactly(run.findings().getFirst().id()));
+        verify(model, times(1)).correctProse(snapshot, bad, reason);
+        verify(model, times(1)).interpret(snapshot);
+        verify(model, times(1)).modelVersion();
+        verifyNoMoreInteractions(model);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"UNKNOWN_EVIDENCE_TOKEN", "INVALID_FINDING_EVIDENCE"})
+    void tokenCorrectionCannotPublishRepeatedFailureOrInventedEvidence(String secondReason) {
+        long owner = user(); long category = category(owner);
+        var snapshot = enoughSnapshot(owner, category);
+        var observation = snapshot.observations().getFirst();
+        String ref = observation.evidenceIds().getFirst();
+        var bad = draft(observation, ref, category, "근거 {{invented}} 확인");
+        var corrected = secondReason.equals("UNKNOWN_EVIDENCE_TOKEN") ? bad
+                : draft(observation, "invented", category, "근거 확인");
+        var model = mock(AnalysisInterpreter.class);
+        when(model.interpret(snapshot)).thenReturn(bad);
+        when(model.correctProse(snapshot, bad, "UNKNOWN_EVIDENCE_TOKEN")).thenReturn(corrected);
+        var run = new AnalysisService(analytics, repository, model, validator).create(owner, all, null);
+        assertThat(run.status()).isEqualTo("AI_FAILED");
+        assertThat(run.failureCode()).isEqualTo("INS003");
+        assertThat(run.findings()).isEmpty();
+        assertThat(run.opportunities()).isEmpty();
+        assertThat(repository.find(owner, run.id()).snapshot()).isEqualTo(snapshot);
+        verify(model, times(1)).correctProse(snapshot, bad, "UNKNOWN_EVIDENCE_TOKEN");
+        verify(model, times(1)).interpret(snapshot);
+        verify(model, times(1)).modelVersion();
+        verifyNoMoreInteractions(model);
+    }
+
+    @Test void structuralEvidenceFailuresNeverTriggerProseCorrection() {
         long owner = user(); long category = category(owner);
         var snapshot = enoughSnapshot(owner, category);
         var observation = snapshot.observations().getFirst();
@@ -178,7 +234,7 @@ class AnalysisContractTest {
         when(model.interpret(snapshot)).thenReturn(draft(observation, "invented", category, "근거 확인"));
         var run = new AnalysisService(analytics, repository, model, validator).create(owner, all, null);
         assertThat(run.failureCode()).isEqualTo("INS003");
-        verify(model, never()).correctNumericProse(any(), any());
+        verify(model, never()).correctProse(any(), any(), anyString());
     }
 
     @Test void correctionTimeoutPreservesTheSnapshotAndTimeoutCode() {
@@ -188,12 +244,12 @@ class AnalysisContractTest {
         var bad = draft(observation, observation.evidenceIds().getFirst(), category, "소비 1000원");
         var model = mock(AnalysisInterpreter.class);
         when(model.interpret(snapshot)).thenReturn(bad);
-        when(model.correctNumericProse(snapshot, bad)).thenThrow(new BusinessException(InsightErrorCode.GENERATION_TIMEOUT));
+        when(model.correctProse(snapshot, bad, "LITERAL_NUMBER")).thenThrow(new BusinessException(InsightErrorCode.GENERATION_TIMEOUT));
         var run = new AnalysisService(analytics, repository, model, validator).create(owner, all, null);
         assertThat(run.status()).isEqualTo("AI_FAILED");
         assertThat(run.failureCode()).isEqualTo("INS001");
         assertThat(repository.find(owner, run.id()).snapshot()).isEqualTo(snapshot);
-        verify(model, times(1)).correctNumericProse(snapshot, bad);
+        verify(model, times(1)).correctProse(snapshot, bad, "LITERAL_NUMBER");
     }
 
     private AnalyticsSnapshot enoughSnapshot(long owner, long category) {
