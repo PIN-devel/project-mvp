@@ -26,7 +26,7 @@ import software.amazon.awssdk.services.bedrockruntime.model.*;
 @Slf4j
 @ConditionalOnProperty(prefix = "bedrock", name = "enabled", havingValue = "true")
 public class BedrockAnalysisInterpreter implements AnalysisInterpreter {
-    public static final String PROMPT_VERSION = "evidence-interpretation-v3";
+    public static final String PROMPT_VERSION = "evidence-interpretation-v4";
     // Evidence IDs and linked opportunities require more JSON than the legacy summary/cards response.
     private static final int MIN_OUTPUT_TOKENS = 4096;
     private final BedrockRuntimeClient client;
@@ -45,11 +45,14 @@ public class BedrockAnalysisInterpreter implements AnalysisInterpreter {
             기록이 없는 기간은 UNKNOWN이며 완결성을 추정하지 마세요. 한국어로 신중하게 작성하세요.
             다음 JSON만 반환하세요. findings는 중요한 관측 최대 세 개, opportunities는 최대 두 개이며 없으면 빈 배열입니다.
             interpretation/rationale는 각각 짧은 한 문장, limitations는 짧은 한 문장 하나만 작성하세요.
-            {"findings":[{"observationId":"실제 observation id","evidenceIds":["해당 observation의 evidence id"],
+            {"findings":[{"observationId":"실제 observation id","evidenceIds":["해당 observation의 evidence id", "비교에 사용한 입력의 evidence id"],
             "interpretation":"근거 토큰을 포함한 해석","importance":"HIGH|MEDIUM|LOW","limitations":["해석의 한계"]}],
             "opportunities":[{"categoryId":실제 Category ID,"evidenceIds":["동일 Category의 evidence id"],
             "observationIds":["위 findings에 선택한 동일 Category observation id"],
             "direction":"REDUCE_SPENDING","rationale":"사용자가 확인해볼 변화 후보와 이유"}]}
+            Finding의 evidenceIds는 해당 observation의 근거를 최소 하나 포함해야 합니다.
+            전체 소비나 다른 관측과 비교할 때 입력 evidence의 실제 id도 함께 참조할 수 있습니다.
+            비교하지 않으면 해당 observation의 근거만 사용하세요.
             Opportunity는 유효한 Category ID가 있는 근거와 Finding에만 연결합니다.
             Opportunity의 observationIds는 이번 findings에 실제로 포함한 observationId만 사용합니다.
             연결된 Finding과 Opportunity는 모두 같은 Category ID여야 합니다.
