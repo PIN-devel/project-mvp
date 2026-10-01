@@ -42,6 +42,20 @@ export const TransactionDtoSchema = z.object({
 export const TransactionDtoListSchema = z.array(TransactionDtoSchema);
 export type TransactionDto = z.infer<typeof TransactionDtoSchema>;
 
+/** Only source/editable fields belong in a write request; server semantics stay in responses. */
+export const toTransactionWriteRequest = (transaction: TransactionDto) => ({
+  transactionDate: transaction.transactionDate,
+  merchant: transaction.merchant,
+  categoryId: transaction.categoryId,
+  categoryName: transaction.categoryName,
+  amount: transaction.amount,
+  cardName: transaction.cardName,
+  installment: transaction.installment,
+  status: transaction.status,
+  memo: transaction.memo,
+  tag: transaction.tag,
+});
+
 // Missing foundation from an older server is unresolved, never silently approved/classified.
 export const isTransactionClassified = (transaction: { foundation?: TransactionFoundation }) =>
   transaction.foundation?.classification === "CLASSIFIED";

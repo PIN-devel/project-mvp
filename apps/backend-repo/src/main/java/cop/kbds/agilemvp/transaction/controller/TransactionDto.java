@@ -4,6 +4,7 @@ import cop.kbds.agilemvp.transaction.service.TransactionFoundation;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,7 +13,9 @@ import lombok.NoArgsConstructor;
 @Data
 @Builder
 @NoArgsConstructor
-@AllArgsConstructor
+// Lombok's builder constructor includes ignored/read-only primitive fields. Jackson 3 must
+// use the no-arg constructor and setters so missing internal flags are not bound as null.
+@AllArgsConstructor(onConstructor_ = @JsonCreator(mode = JsonCreator.Mode.DISABLED))
 public class TransactionDto {
     private Long    id;
     private Long    userId;

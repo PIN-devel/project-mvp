@@ -1,4 +1,5 @@
 import { api } from "@/shared/api/axios";
+import { toTransactionWriteRequest } from "@/shared/model/transaction";
 import {
   BulkAddResponseSchema,
   TransactionDtoListSchema,
@@ -22,7 +23,7 @@ export const applyBulkWash = async (payload: BulkWashRequest) => {
 };
 
 export const updateTransaction = async (id: number, payload: TransactionDto) => {
-  const { data } = await api.put(`/api/transactions/${id}`, payload);
+  const { data } = await api.put(`/api/transactions/${id}`, toTransactionWriteRequest(payload));
   return data;
 };
 
@@ -65,6 +66,6 @@ export const deleteTransaction = async (id: number) => {
 export const bulkAddTransactions = async (
   items: TransactionDto[],
 ): Promise<BulkAddResponse> => {
-  const { data } = await api.post("/api/transactions/bulk", items);
+  const { data } = await api.post("/api/transactions/bulk", items.map(toTransactionWriteRequest));
   return BulkAddResponseSchema.parse(data);
 };
