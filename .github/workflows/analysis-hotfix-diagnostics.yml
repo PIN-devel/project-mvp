@@ -1,0 +1,27 @@
+name: Analysis Hotfix Diagnostics
+
+on:
+  push:
+    branches: [hotfix/analysis-response-recovery]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Read failure codes only
+        uses: appleboy/ssh-action@c4f70287fc37c43b14b30b407224bbbc8e8c6327
+        with:
+          host: ${{ secrets.LIGHTSAIL_IP }}
+          username: ubuntu
+          key: ${{ secrets.LIGHTSAIL_KEY }}
+          command_timeout: 30s
+          script: |
+            set -eu
+            test -r /opt/backend-app/app.log
+            tail -n 2000 /opt/backend-app/app.log |
+              grep -oE 'Bedrock analysis response: modelId=[[:alnum:].:_/-]+, stopReason=[a-z_]+, outputTokens=([0-9]+|null)|Bedrock analysis response rejected: reason=[A-Z_]+|Analysis evidence validation rejected: reason=[A-Z_]+' |
+              tail -n 30
