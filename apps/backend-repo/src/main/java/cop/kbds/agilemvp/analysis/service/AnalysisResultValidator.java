@@ -38,7 +38,12 @@ public class AnalysisResultValidator {
         for (var f : draft.findings()) {
             require(f != null && observations.containsKey(f.observationId()), "UNKNOWN_OBSERVATION");
             var observation = observations.get(f.observationId());
-            require(f.evidenceIds() != null && !f.evidenceIds().isEmpty() && observation.evidenceIds().containsAll(f.evidenceIds()), "INVALID_FINDING_EVIDENCE");
+            // A finding may compare its observation with other measured facts in this snapshot.
+            // Keep an anchor to the selected observation and reject every invented reference.
+            // Opportunity evidence below remains restricted to the target category.
+            require(f.evidenceIds() != null && !f.evidenceIds().isEmpty()
+                    && f.evidenceIds().stream().allMatch(evidence::containsKey)
+                    && f.evidenceIds().stream().anyMatch(observation.evidenceIds()::contains), "INVALID_FINDING_EVIDENCE");
             require(f.importance() != null && List.of("HIGH", "MEDIUM", "LOW").contains(f.importance()), "INVALID_IMPORTANCE");
             require(findings.stream().noneMatch(saved -> saved.observationId().equals(f.observationId())), "DUPLICATE_OBSERVATION");
             text(f.interpretation(), f.evidenceIds(), evidence);
