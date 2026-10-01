@@ -184,8 +184,9 @@ describe("Washing feature integration flow", () => {
       dbLedger.update(id, { categoryId: 1, categoryName: "식음료", isClassified: true }),
     );
     renderFeature();
-    await screen.findByRole("heading", { name: /내역 분류는 끝났어요/ });
+    await screen.findByRole("heading", { name: /카테고리를 정리했어요/ });
     expect(screen.getByText("분류한 내역의 구성", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("자동 분류는 정확하지 않을 수 있어요. 필요한 항목만 수정해주세요.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /소비 분석으로 이어가기/ }));
     expect(await screen.findByRole("heading", { name: "소비 분석 화면" })).toBeInTheDocument();
   });
@@ -195,7 +196,7 @@ describe("Washing feature integration flow", () => {
       dbLedger.update(id, { categoryId: 1, categoryName: "식음료", isClassified: true }),
     );
     renderFeature();
-    await screen.findByRole("heading", { name: /내역 분류는 끝났어요/ });
+    await screen.findByRole("heading", { name: /카테고리를 정리했어요/ });
     fireEvent.click(screen.getByRole("tab", { name: /전체 내역/ }));
     const row = document.querySelector("#work-all tbody tr");
     if (!row) throw new Error("Expected a ledger row");

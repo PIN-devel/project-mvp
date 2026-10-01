@@ -159,7 +159,7 @@ export function ExcelUploadModal({ opened, onClose, onSuccess, onSaveError }: Ex
               </Badge>
             </Group>
 
-            <Text size="xs" c="dimmed">아직 이용내역에 반영되지 않았어요. 저장하면 기존 규칙으로 분류하고, 남은 내역은 직접 정리할 수 있어요.</Text>
+            <Text size="xs" c="dimmed">아직 이용내역에 반영되지 않았어요. 저장하면 기존 규칙과 자동 분류로 카테고리를 먼저 정리해드려요. 일부는 다를 수 있으니 필요한 항목만 수정해주세요.</Text>
             <ScrollArea>
               <Table highlightOnHover verticalSpacing="xs" horizontalSpacing="md" fz="sm">
                 <Table.Thead>
@@ -210,7 +210,7 @@ export function ExcelUploadModal({ opened, onClose, onSuccess, onSaveError }: Ex
                 disabled={preview.length === 0}
                 onClick={() => saveMutation.mutate(preview)}
               >
-                {preview.length}건 저장
+                {saveMutation.isPending ? "저장하고 카테고리를 정리하는 중" : `${preview.length}건 저장`}
               </Button>
             </Group>
           </Stack>
